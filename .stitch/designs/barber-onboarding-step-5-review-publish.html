@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Koupa - Step 5 of 5</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&amp;family=Public+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#ebefed",
+                        "inverse-on-surface": "#eef1f0",
+                        "outline": "#6e7978",
+                        "on-secondary-container": "#4c6a68",
+                        "tertiary-fixed-dim": "#ffb692",
+                        "on-tertiary-fixed": "#341100",
+                        "on-surface": "#181c1c",
+                        "tertiary-fixed": "#ffdbcb",
+                        "surface-bright": "#f7faf9",
+                        "surface-dim": "#d7dbda",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#b3fffc",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed": "#00201f",
+                        "on-primary-fixed-variant": "#00504e",
+                        "surface-variant": "#e0e3e2",
+                        "surface-container-highest": "#e0e3e2",
+                        "primary-fixed": "#9df1ee",
+                        "on-tertiary": "#ffffff",
+                        "surface": "#f7faf9",
+                        "primary": "#00605e",
+                        "on-tertiary-container": "#ffeee7",
+                        "primary-container": "#1a7a78",
+                        "inverse-surface": "#2d3131",
+                        "secondary-container": "#c8e9e7",
+                        "secondary": "#466462",
+                        "secondary-fixed-dim": "#adcdcb",
+                        "on-primary-fixed": "#00201f",
+                        "tertiary": "#824625",
+                        "primary-fixed-dim": "#81d5d2",
+                        "on-error": "#ffffff",
+                        "on-surface-variant": "#3e4948",
+                        "error-container": "#ffdad6",
+                        "tertiary-container": "#9f5d3a",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#006a68",
+                        "background": "#f7faf9",
+                        "error": "#ba1a1a",
+                        "secondary-fixed": "#c8e9e7",
+                        "inverse-primary": "#81d5d2",
+                        "surface-container-low": "#f1f4f3",
+                        "surface-container-high": "#e5e9e8",
+                        "outline-variant": "#bdc9c8",
+                        "on-secondary-fixed-variant": "#2e4c4b",
+                        "on-tertiary-fixed-variant": "#703717",
+                        "on-secondary": "#ffffff",
+                        "on-background": "#181c1c"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {},
+                    "fontFamily": {
+                        "headline": ["IBM Plex Sans Arabic", "sans-serif"],
+                        "display": ["IBM Plex Sans Arabic", "sans-serif"],
+                        "body": ["IBM Plex Sans Arabic", "sans-serif"],
+                        "label": ["Public Sans", "sans-serif"]
+                    },
+                    "fontSize": {}
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'IBM Plex Sans Arabic', sans-serif;
+            background-color: #F3F5F7; /* Off-White canvas */
+            color: #323E4B; /* Charcoal Gray */
+            padding-bottom: 80px; /* Space for bottom nav */
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface dark:bg-surface-dim bg-surface-container-low dark:bg-surface-container flex flex-row-reverse justify-between items-center px-4 h-16 flat no shadows">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-colors active:scale-95 duration-150 text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+<div class="flex-1 flex justify-center items-center">
+<h1 class="font-headline text-on-surface dark:text-inverse-on-surface text-lg font-bold text-primary dark:text-primary-fixed-dim">Step 5 of 5</h1>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant/50 transition-colors active:scale-95 duration-150 text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-20 px-4 md:px-8 max-w-3xl mx-auto space-y-6">
+<div class="text-center mb-8">
+<h2 class="text-2xl font-bold text-primary-container mb-2">مراجعة ونشر</h2>
+<p class="text-on-surface-variant">يرجى مراجعة التفاصيل الخاصة بك قبل النشر.</p>
+</div>
+<!-- Review Cards (Bento/Glassmorphism style slightly adapted for clarity) -->
+<!-- Basic Info Card -->
+<section class="bg-surface-container-lowest rounded-xl p-5 shadow-sm border border-outline-variant/30 relative group">
+<div class="flex justify-between items-start mb-4">
+<h3 class="text-lg font-bold text-primary-container flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">person</span>
+                    المعلومات الأساسية
+                </h3>
+<button class="text-sm text-primary hover:underline font-medium transition-colors">تعديل</button>
+</div>
+<div class="space-y-3">
+<div>
+<p class="text-xs text-outline font-label uppercase tracking-wider mb-1">الاسم</p>
+<p class="font-medium">أحمد صالون الحلاقة</p>
+</div>
+<div>
+<p class="text-xs text-outline font-label uppercase tracking-wider mb-1">رقم الهاتف</p>
+<p class="font-medium" dir="ltr">+971 50 123 4567</p>
+</div>
+<div>
+<p class="text-xs text-outline font-label uppercase tracking-wider mb-1">نبذة</p>
+<p class="text-sm leading-relaxed text-on-surface-variant">صالون حلاقة عصري يقدم أحدث القصات والعناية باللحية في بيئة مريحة وراقية.</p>
+</div>
+</div>
+</section>
+<!-- Location Card -->
+<section class="bg-surface-container-lowest rounded-xl p-5 shadow-sm border border-outline-variant/30 relative">
+<div class="flex justify-between items-start mb-4">
+<h3 class="text-lg font-bold text-primary-container flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">location_on</span>
+                    الموقع
+                </h3>
+<button class="text-sm text-primary hover:underline font-medium transition-colors">تعديل</button>
+</div>
+<div class="space-y-3">
+<p class="font-medium text-sm">شارع الشيخ زايد، دبي، الإمارات العربية المتحدة</p>
+<div class="h-32 bg-surface-container rounded-lg border border-outline-variant/50 overflow-hidden relative">
+<!-- Map Placeholder -->
+<img class="w-full h-full object-cover opacity-80" data-alt="A clean, modern top-down satellite map view of an urban area in Dubai, United Arab Emirates, focusing on a specific street block with a subtle teal map marker indicating a location. The map style is light, minimal, and matches a refined digital UI aesthetic with off-white roads and very light gray landmasses." data-location="Dubai, UAE" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAMbKE7JC9SJAM9VKwUtOqKztA4K8fLJ5kQQU5Ws5NhbFkg2mYTnr76hOYQz1_fL4Cnaq3UzTaVpWPAMqRmbOv7xvHeRJ_fLLoSDFJZYT2CHSw81NbwhP8kOf6yyxPK0px8TfK3ybu9UPcxXEbVr1eOugjNpOeBe5FyW2AvEhAxnytnL3t6jaDWSc0-ENCAnCvMaGEcqp4rGJgd_TnKJpFIsHc_IOvP2hvcFhDtaBKcJteT3023gHf-D3hW6nrQyol8p3yWG7IZLYE"/>
+</div>
+<p class="text-xs text-outline font-mono mt-2" dir="ltr">25.2048° N, 55.2708° E</p>
+</div>
+</section>
+<!-- Services Card -->
+<section class="bg-surface-container-lowest rounded-xl p-5 shadow-sm border border-outline-variant/30 relative">
+<div class="flex justify-between items-start mb-4">
+<h3 class="text-lg font-bold text-primary-container flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">content_cut</span>
+                    الخدمات
+                </h3>
+<button class="text-sm text-primary hover:underline font-medium transition-colors">تعديل</button>
+</div>
+<ul class="divide-y divide-outline-variant/30">
+<li class="py-3 flex justify-between items-center">
+<span class="font-medium">قص شعر كلاسيكي</span>
+<span class="font-bold text-primary-container">50 درهم</span>
+</li>
+<li class="py-3 flex justify-between items-center">
+<span class="font-medium">تحديد لحية</span>
+<span class="font-bold text-primary-container">30 درهم</span>
+</li>
+<li class="py-3 flex justify-between items-center">
+<span class="font-medium">باقة العريس</span>
+<span class="font-bold text-primary-container">150 درهم</span>
+</li>
+</ul>
+</section>
+<!-- Publish Requirements Checklist -->
+<section class="bg-primary-container/5 rounded-xl p-5 border border-primary-container/20">
+<h3 class="text-md font-bold text-primary-container mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">task_alt</span>
+                متطلبات النشر
+            </h3>
+<ul class="space-y-3">
+<li class="flex items-center gap-3 text-on-surface">
+<span class="material-symbols-outlined text-primary text-xl" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-medium text-sm">الملف الشخصي مكتمل</span>
+</li>
+<li class="flex items-center gap-3 text-on-surface">
+<span class="material-symbols-outlined text-primary text-xl" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-medium text-sm">تم التحقق من الموقع</span>
+</li>
+<li class="flex items-center gap-3 text-on-surface">
+<span class="material-symbols-outlined text-primary text-xl" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-medium text-sm">تم تحديد أوقات العمل</span>
+</li>
+</ul>
+</section>
+</main>
+<!-- BottomNavBar -->
+<!-- Applying exact styles from JSON, suppressing active state logic since this is a transactional flow end -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex flex-row-reverse justify-between items-center px-6 py-4 bg-surface border-t border-outline-variant dark:border-outline flat no shadows font-label text-label-lg md:hidden">
+<!-- Active Style roughly applied to 'Publish' to make it primary action as requested -->
+<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-6 py-2 hover:bg-primary-container/80 transition-all active:scale-98 duration-100 flex-1 ml-2">
+<span class="material-symbols-outlined mb-1 text-on-primary-container" data-icon="publish">publish</span>
+<span class="text-sm font-bold truncate">نشر الملف الشخصي</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-secondary-container px-6 py-2 hover:bg-surface-variant/50 transition-all active:scale-98 duration-100 flex-none">
+<span class="material-symbols-outlined mb-1" data-icon="arrow_forward">arrow_forward</span>
+<span class="text-sm font-medium">العودة</span>
+</button>
+</nav>
+<!-- Desktop Nav Fallback (Hidden on Mobile) -->
+<div class="hidden md:flex fixed bottom-0 left-0 w-full bg-surface border-t border-outline-variant py-4 px-8 justify-between z-50 max-w-3xl mx-auto left-1/2 -translate-x-1/2">
+<button class="px-6 py-2 rounded-lg text-primary hover:bg-primary/10 font-bold flex items-center gap-2">
+            العودة
+            <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<button class="px-8 py-2 rounded-lg bg-primary-container text-on-primary-container font-bold hover:bg-primary-container/90 transition-colors shadow-sm flex items-center gap-2">
+            نشر الملف الشخصي
+            <span class="material-symbols-outlined text-sm" data-icon="publish">publish</span>
+</button>
+</div>
+</body></html>

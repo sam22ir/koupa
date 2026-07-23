@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Barber Onboarding - Step 1</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&amp;family=Public+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline-variant": "#bdc9c8",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-variant": "#e0e3e2",
+                    "surface-bright": "#f7faf9",
+                    "on-tertiary-fixed-variant": "#703717",
+                    "error-container": "#ffdad6",
+                    "tertiary-container": "#9f5d3a",
+                    "on-background": "#181c1c",
+                    "surface-tint": "#006a68",
+                    "on-tertiary": "#ffffff",
+                    "on-surface-variant": "#3e4948",
+                    "surface-dim": "#d7dbda",
+                    "on-primary-fixed": "#00201f",
+                    "tertiary": "#824625",
+                    "outline": "#6e7978",
+                    "inverse-on-surface": "#eef1f0",
+                    "surface-container": "#ebefed",
+                    "on-tertiary-fixed": "#341100",
+                    "on-secondary-container": "#4c6a68",
+                    "on-primary-container": "#b3fffc",
+                    "surface": "#f7faf9",
+                    "surface-container-high": "#e5e9e8",
+                    "on-tertiary-container": "#ffeee7",
+                    "secondary-container": "#c8e9e7",
+                    "on-error-container": "#93000a",
+                    "secondary-fixed-dim": "#adcdcb",
+                    "on-primary-fixed-variant": "#00504e",
+                    "primary-container": "#1a7a78",
+                    "on-secondary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "inverse-surface": "#2d3131",
+                    "on-secondary-fixed": "#00201f",
+                    "on-secondary-fixed-variant": "#2e4c4b",
+                    "inverse-primary": "#81d5d2",
+                    "error": "#ba1a1a",
+                    "secondary": "#466462",
+                    "primary-fixed-dim": "#81d5d2",
+                    "on-surface": "#181c1c",
+                    "tertiary-fixed-dim": "#ffb692",
+                    "on-primary": "#ffffff",
+                    "background": "#f7faf9",
+                    "secondary-fixed": "#c8e9e7",
+                    "surface-container-low": "#f1f4f3",
+                    "primary": "#00605e",
+                    "tertiary-fixed": "#ffdbcb",
+                    "surface-container-highest": "#e0e3e2",
+                    "primary-fixed": "#9df1ee"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": [
+                            "IBM Plex Sans Arabic", "sans-serif"
+                    ],
+                    "display": [
+                            "IBM Plex Sans Arabic", "sans-serif"
+                    ],
+                    "body": [
+                            "IBM Plex Sans Arabic", "sans-serif"
+                    ],
+                    "label": [
+                            "Public Sans", "sans-serif"
+                    ]
+            }
+          },
+        }
+      }
+    </script>
+<style>
+        body { font-family: 'IBM Plex Sans Arabic', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased min-h-screen flex flex-col items-center justify-center p-4">
+<!-- TopAppBar JSON 2 -->
+<header class="fixed top-0 w-full flex flex-row-reverse items-center justify-between px-4 h-16 bg-surface border-b border-outline-variant z-50">
+<button class="text-on-surface-variant flex items-center gap-1 font-label text-sm hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 0;">arrow_forward</span>
+            رجوع
+        </button>
+<span class="font-bold text-primary font-label text-sm">Step 1 of 5</span>
+<div class="w-16"></div> <!-- Spacer for balance -->
+</header>
+<main class="w-full max-w-md mx-auto mt-24 mb-20 bg-surface-container-lowest rounded-xl shadow-sm p-6 md:p-8">
+<div class="mb-8 text-center">
+<h1 class="font-headline text-2xl font-bold text-on-surface mb-2">المعلومات الأساسية</h1>
+<p class="font-body text-on-surface-variant text-sm">أخبرنا قليلاً عن نفسك وحرفتك</p>
+</div>
+<form class="space-y-6">
+<!-- Full Name -->
+<div>
+<label class="block font-label text-sm font-medium text-on-surface mb-1" for="fullName">الاسم الكامل</label>
+<input class="w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent transition-all placeholder-on-surface-variant/50" id="fullName" placeholder="الاسم الكامل" type="text"/>
+</div>
+<!-- Professional Bio -->
+<div>
+<label class="block font-label text-sm font-medium text-on-surface mb-1" for="bio">النبذة الشخصية</label>
+<textarea class="w-full bg-surface border border-outline-variant rounded-lg px-4 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary-container focus:border-transparent transition-all placeholder-on-surface-variant/50 resize-none" id="bio" placeholder="صف خبرتك باختصار..." rows="4"></textarea>
+</div>
+<!-- Phone Number -->
+<div>
+<label class="block font-label text-sm font-medium text-on-surface mb-1" for="phone">رقم الهاتف</label>
+<div class="flex flex-row-reverse rounded-lg border border-outline-variant overflow-hidden focus-within:ring-2 focus-within:ring-primary-container focus-within:border-transparent transition-all">
+<span class="bg-surface-container-low px-4 py-3 text-on-surface-variant font-label text-sm border-l border-outline-variant flex items-center" dir="ltr">+213</span>
+<input class="w-full bg-surface border-none px-4 py-3 text-on-surface focus:ring-0 text-left" dir="ltr" id="phone" placeholder="555 123 456" type="tel"/>
+</div>
+</div>
+</form>
+</main>
+<!-- Bottom Action Area -->
+<div class="fixed bottom-0 w-full bg-surface border-t border-outline-variant p-4 flex justify-center z-50">
+<div class="w-full max-w-md">
+<button class="w-full bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-headline font-semibold py-3.5 rounded-xl transition-all shadow-sm active:scale-[0.98]">
+                استمرار
+            </button>
+</div>
+</div>
+</body></html>

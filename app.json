@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Koupa",
+    "slug": "koupa",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "platforms": [
+      "android",
+      "web"
+    ],
+    "icon": "./assets/koupa-logo.png",
+    "scheme": "koupa",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.koupa.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#F3F5F7",
+        "foregroundImage": "./assets/koupa-logo.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/koupa-logo.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#F3F5F7"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5a9aa731-afd2-4d66-849b-62265ab130f9"
+      }
+    },
+    "owner": "sam22ir"
+  }
+}
