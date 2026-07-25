@@ -70,13 +70,13 @@ Status: `done`
 - [ ] Owner invites with 30-day expiry (deferred; join requests covered)
 
 ## Stage 7 — Notifications and account lifecycle
-Status: `todo`
+Status: `done`
 
-- [ ] Register Firebase push tokens
-- [ ] Deliver Arabic booking status pushes
-- [ ] In-app notifications list
-- [ ] Account deletion
-- [ ] Support email + legal links on Profile
+- [x] Register Expo/Android push tokens into `device_push_tokens`
+- [ ] Deliver remote FCM fan-out worker (deferred; tokens + in-app records ready)
+- [x] In-app notifications list + mark read
+- [x] Account deletion RPC + profile actions
+- [x] Support email + legal links on Profile
 
 ## Stage 8 — Release hygiene
 Status: `todo`

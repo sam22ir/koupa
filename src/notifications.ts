@@ -1,0 +1,40 @@
+export interface AppNotification {
+  readonly id: string;
+  readonly title: string;
+  readonly body: string;
+  readonly appointment_id: string | null;
+  readonly read_at: string | null;
+  readonly created_at: string;
+}
+
+export function isUnreadNotification(notification: AppNotification): boolean {
+  return !notification.read_at;
+}
+
+export function formatNotificationTime(value: string): string {
+  return new Intl.DateTimeFormat('ar-DZ', {
+    timeZone: 'Africa/Algiers',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
+export function appEnvironment(): 'development' | 'staging' | 'production' {
+  const value = process.env.EXPO_PUBLIC_APP_ENV;
+  if (value === 'staging' || value === 'production') return value;
+  return 'development';
+}
+
+export function supportEmail(): string {
+  return process.env.EXPO_PUBLIC_SUPPORT_EMAIL?.trim() || 'support@koupa.app';
+}
+
+export function termsUrl(): string {
+  return process.env.EXPO_PUBLIC_TERMS_URL?.trim() || '';
+}
+
+export function privacyUrl(): string {
+  return process.env.EXPO_PUBLIC_PRIVACY_URL?.trim() || '';
+}
