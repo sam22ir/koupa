@@ -23,6 +23,12 @@
       "expo-router",
       "expo-notifications",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "يحتاج كوپا إلى الكاميرا لمسح رمز حضور الحلاق."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/koupa-logo.png",

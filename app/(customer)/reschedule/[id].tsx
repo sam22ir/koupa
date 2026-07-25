@@ -1,0 +1,31 @@
+import { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { PrimaryButton } from '@/src/components/atoms/PrimaryButton';
+import { ScreenHeader } from '@/src/components/molecules/ScreenHeader';
+import { Screen } from '@/src/components/organisms/Screen';
+import { bookingDates, canRescheduleCustomerAppointment, formatBookingDate, formatBookingTime, type BarberProfile, type BarberService, type BookingSlot } from '@/src/booking';
+import { copy } from '@/src/data/copy';
+import { loadCustomerAppointments, useBooking } from '@/src/hooks/useBooking';
+import { colors, radii, spacing, typography } from '@/src/theme';
+
+export default function RescheduleScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { loading, error, getBarber, getSlots, reschedule } = useBooking();
+  const [appointment, setAppointment] = useState<Awaited<ReturnType<typeof loadCustomerAppointments>>[number] | null>(null);
+  const [barber, setBarber] = useState<BarberProfile | null>(null);
+  const [service, setService] = useState<BarberService | null>(null);
+  const [date, setDate] = useState('');
+  const [slots, setSlots] = useState<readonly BookingSlot[]>([]);
+  const [slot, setSlot] = useState<BookingSlot | null>(null);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => { if (!id) return; void loadCustomerAppointments().then((items) => { const current = items.find((item) => item.id === id) ?? null; setAppointment(current); if (current) void getBarber(current.barber_id).then((rows) => { const value = rows?.[0] ?? null; setBarber(value); setService(value?.services.find((item) => item.id === current.service_id) ?? value?.services[0] ?? null); setDate(bookingDates(value?.booking_window_days ?? 7)[0]); }); }); }, [getBarber, id]);
+  useEffect(() => { if (appointment && appointment.status === 'booked' && service && date) void getSlots(appointment.barber_id, service.id, date).then((value) => { setSlots(value ?? []); setSlot(null); }); }, [appointment, date, getSlots, service]);
+  const confirm = async () => { if (!appointment || !service || !slot) return; if (await reschedule(appointment.id, service.id, slot.starts_at)) setDone(true); };
+  const goBack = () => { if (router.canGoBack()) router.back(); else router.replace('/(customer)/appointments'); };
+  return <Screen><ScreenHeader onBack={goBack} /><Text style={styles.title}>{copy.customer.rescheduleAppointment}</Text>{done ? <View style={styles.success}><Text style={styles.successTitle}>تم تعديل موعدك</Text><Text style={styles.muted}>ستجد التفاصيل الجديدة في مواعيدي.</Text><PrimaryButton label={copy.customer.appointmentsTitle} onPress={() => router.replace('/(customer)/appointments')} /></View> : !appointment || !canRescheduleCustomerAppointment(appointment.status) ? <Text style={styles.error}>{copy.customer.cannotReschedule}</Text> : <>{barber ? <Text style={styles.name}>{barber.name}</Text> : null}<Text style={styles.heading}>اختر الخدمة</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickerRow}>{barber?.services.map((item) => <Chip key={item.id} label={`${item.name} - ${item.price_dzd} دج`} selected={service?.id === item.id} onPress={() => setService(item)} />)}</ScrollView><Text style={styles.heading}>اختر اليوم</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickerRow}>{barber ? bookingDates(barber.booking_window_days).map((item) => <Chip key={item} label={formatBookingDate(item)} selected={date === item} onPress={() => setDate(item)} />) : null}</ScrollView><Text style={styles.heading}>الأوقات المتاحة</Text>{loading ? <Text style={styles.muted}>جارٍ تحميل الأوقات...</Text> : null}{error ? <Text style={styles.error}>{error}</Text> : null}<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickerRow}>{!loading && !slots.length ? <Text style={styles.muted}>لا توجد أوقات متاحة في هذا اليوم.</Text> : slots.map((item) => <Chip key={item.starts_at} label={formatBookingTime(item.starts_at)} selected={slot?.starts_at === item.starts_at} onPress={() => setSlot(item)} />)}</ScrollView><PrimaryButton label="تأكيد التعديل" disabled={!slot} loading={loading} onPress={() => void confirm()} /></>}</Screen>;
+}
+
+function Chip({ label, selected, onPress }: { readonly label: string; readonly selected: boolean; readonly onPress: () => void }) { return <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={[styles.chip, selected && styles.chipSelected]}><Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text></Pressable>; }
+const styles = StyleSheet.create({ title: { color: colors.charcoal, fontFamily: typography.fontFamily.bold, fontSize: typography.size.title, textAlign: 'right' }, name: { color: colors.primary, fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.label, textAlign: 'right' }, heading: { color: colors.charcoal, fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.body, textAlign: 'right' }, pickerRow: { flexDirection: 'row-reverse', gap: spacing.sm, paddingVertical: spacing.xs }, chip: { minWidth: 116, minHeight: 52, borderWidth: 1, borderColor: colors.outlineVariant, borderRadius: radii.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, alignItems: 'center', justifyContent: 'center' }, chipSelected: { borderColor: colors.primary, backgroundColor: colors.primary }, chipText: { color: colors.charcoal, fontFamily: typography.fontFamily.regular, fontSize: typography.size.caption, textAlign: 'center' }, chipTextSelected: { color: colors.surface, fontFamily: typography.fontFamily.semiBold }, muted: { color: colors.muted, fontFamily: typography.fontFamily.regular, textAlign: 'right' }, error: { color: colors.danger, fontFamily: typography.fontFamily.regular, textAlign: 'right' }, success: { flex: 1, justifyContent: 'center', gap: spacing.lg }, successTitle: { color: colors.primary, fontFamily: typography.fontFamily.bold, fontSize: typography.size.title, textAlign: 'center' } });

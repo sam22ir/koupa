@@ -106,6 +106,12 @@ export function useSession(_: UseSessionProps = {}) {
 
   const clearPendingRole = useCallback(async () => { await AsyncStorage.removeItem(pendingRoleKey); setPendingRoleState(null); }, []);
 
+  const signOut = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    await Promise.all([AsyncStorage.removeItem(pendingRoleKey), clearPendingEmailConfirmation()]);
+  }, [clearPendingEmailConfirmation]);
+
   const signInWithGoogle = useCallback(async (role?: UserRole) => {
     if (role) await setPendingRole(role);
     const { data, error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: callbackUrl(), skipBrowserRedirect: true } });
@@ -176,5 +182,5 @@ export function useSession(_: UseSessionProps = {}) {
   }, [clearPendingEmailConfirmation]);
 
   const emailConfirmed = Boolean(session?.user.email_confirmed_at);
-  return { session, profile, loading, pendingRole, legalAccepted, legalDocuments, legalError, emailConfirmed, pendingConfirmationEmail, refreshProfile: () => session ? loadProfile(session.user.id) : Promise.resolve(), signInWithGoogle, signUpWithPassword, signInWithPassword, requestPasswordReset, resendEmailConfirmation, completeAuthCallback, setPendingRole, clearPendingRole };
+  return { session, profile, loading, pendingRole, legalAccepted, legalDocuments, legalError, emailConfirmed, pendingConfirmationEmail, refreshProfile: () => session ? loadProfile(session.user.id) : Promise.resolve(), signInWithGoogle, signUpWithPassword, signInWithPassword, requestPasswordReset, resendEmailConfirmation, completeAuthCallback, setPendingRole, clearPendingRole, signOut };
 }
