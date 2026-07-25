@@ -27,13 +27,24 @@ export interface ShopMembership {
   readonly barber_id: string;
   readonly status: ShopMembershipStatus;
   readonly barber_name?: string;
+  readonly barber_phone?: string;
   readonly shop_name?: string;
+  readonly invited_by?: string | null;
+  readonly invitation_expires_at?: string | null;
+}
+
+export interface ShopBarberCandidate {
+  readonly id: string;
+  readonly name: string;
+  readonly city: string | null;
+  readonly neighborhood: string | null;
 }
 
 export interface BarberShopState {
   readonly ownedShop: ShopSummary | null;
   readonly membership: ShopMembership | null;
   readonly pendingRequests: readonly ShopMembership[];
+  readonly members: readonly ShopMembership[];
 }
 
 export interface ShopDraft {

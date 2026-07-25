@@ -1,4 +1,3 @@
-import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { useCallback, useEffect, useState } from 'react';
@@ -33,11 +32,9 @@ async function resolveExpoPushToken(): Promise<string | null> {
     });
   }
 
-  const projectId =
-    Constants.easConfig?.projectId ??
-    (Constants.expoConfig?.extra?.eas as { projectId?: string } | undefined)?.projectId;
-  const token = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
-  return token.data;
+  // Store the native Android FCM token. The delivery worker sends directly through Firebase.
+  const token = await Notifications.getDevicePushTokenAsync();
+  return String(token.data);
 }
 
 export function usePushRegistration(userId?: string) {

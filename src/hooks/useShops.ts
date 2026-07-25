@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type {
   BarberShopState,
+  ShopBarberCandidate,
   ShopDraft,
   ShopMembership,
   ShopProfile,
   ShopSummary,
 } from '@/src/shops';
+import type { BarberSettingsDraft } from '@/src/barberSettings';
 import { emptyShopDraft, validateShopDraft } from '@/src/shops';
 
 function errorCode(error: unknown): string {
@@ -19,7 +21,7 @@ function errorCode(error: unknown): string {
 }
 
 export function useShops(userId?: string) {
-  const [state, setState] = useState<BarberShopState>({ ownedShop: null, membership: null, pendingRequests: [] });
+  const [state, setState] = useState<BarberShopState>({ ownedShop: null, membership: null, pendingRequests: [], members: [] });
   const [loading, setLoading] = useState(Boolean(userId));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -37,7 +39,7 @@ export function useShops(userId?: string) {
         supabase.from('shops').select('id,name,bio,maps_url,average_rating,rating_count,owner_id').eq('owner_id', userId).maybeSingle(),
         supabase
           .from('shop_memberships')
-          .select('id,shop_id,barber_id,status,shops(name)')
+          .select('id,shop_id,barber_id,status,invited_by,invitation_expires_at,shops(name)')
           .eq('barber_id', userId)
           .in('status', ['pending', 'active'])
           .maybeSingle(),
@@ -45,20 +47,20 @@ export function useShops(userId?: string) {
       if (ownedResult.error) throw ownedResult.error;
       if (membershipResult.error) throw membershipResult.error;
 
-      let pendingRequests: ShopMembership[] = [];
-      if (ownedResult.data) {
-        const pendingResult = await supabase
-          .from('shop_memberships')
-          .select('id,shop_id,barber_id,status,profiles!shop_memberships_barber_id_fkey(name)')
-          .eq('shop_id', ownedResult.data.id)
-          .eq('status', 'pending');
-        if (pendingResult.error) throw pendingResult.error;
-        pendingRequests = (pendingResult.data ?? []).map((item: any) => ({
+      const ownedShop = ownedResult.data;
+      let members: ShopMembership[] = [];
+      if (ownedShop) {
+        const membersResult = await supabase.rpc('shop_owner_members', { target_shop_id: ownedShop.id });
+        if (membersResult.error) throw membersResult.error;
+        members = (membersResult.data ?? []).map((item: any) => ({
           id: item.id,
-          shop_id: item.shop_id,
+          shop_id: ownedShop.id,
           barber_id: item.barber_id,
           status: item.status,
-          barber_name: item.profiles?.name,
+          barber_name: item.barber_name,
+          barber_phone: item.barber_phone,
+          invited_by: item.invited_by,
+          invitation_expires_at: item.invitation_expires_at,
         }));
       }
 
@@ -81,9 +83,12 @@ export function useShops(userId?: string) {
               barber_id: membershipResult.data.barber_id,
               status: membershipResult.data.status,
               shop_name: (membershipResult.data as any).shops?.name,
+              invited_by: (membershipResult.data as any).invited_by,
+              invitation_expires_at: (membershipResult.data as any).invitation_expires_at,
             }
           : null,
-        pendingRequests,
+        pendingRequests: members.filter((member) => member.status === 'pending' && !member.invited_by),
+        members,
       });
     } catch {
       setError('failed');
@@ -171,6 +176,109 @@ export function useShops(userId?: string) {
     [load],
   );
 
+  const respondInvitation = useCallback(
+    async (membershipId: string, accept: boolean) => {
+      setSaving(true);
+      setError('');
+      try {
+        const { error: requestError } = await supabase.rpc('respond_shop_invitation', {
+          target_membership_id: membershipId,
+          accept,
+        });
+        if (requestError) throw requestError;
+        await load();
+        return true;
+      } catch (caught) {
+        setError(errorCode(caught));
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [load],
+  );
+
+  const searchBarbers = useCallback(async (query: string): Promise<readonly ShopBarberCandidate[] | null> => {
+    const { data, error: requestError } = await supabase.rpc('search_published_barbers', {
+      search_query: query,
+      city_query: '',
+      page_number: 0,
+    });
+    if (requestError) {
+      setError(errorCode(requestError));
+      return null;
+    }
+    return (data ?? []).map((item: any) => ({ id: item.id, name: item.name, city: item.city, neighborhood: item.neighborhood }));
+  }, []);
+
+  const inviteBarber = useCallback(async (barberId: string) => {
+    if (!state.ownedShop) return false;
+    setSaving(true);
+    setError('');
+    try {
+      const { error: requestError } = await supabase.rpc('invite_barber_to_shop', {
+        target_shop_id: state.ownedShop.id,
+        target_barber_id: barberId,
+      });
+      if (requestError) throw requestError;
+      await load();
+      return true;
+    } catch (caught) {
+      setError(errorCode(caught));
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [load, state.ownedShop]);
+
+  const getManagedSettings = useCallback(async (barberId: string): Promise<BarberSettingsDraft | null> => {
+    const { data, error: requestError } = await supabase.rpc('shop_owner_barber_settings', { target_barber_id: barberId });
+    if (requestError) {
+      setError(errorCode(requestError));
+      return null;
+    }
+    if (!data) return null;
+    const schedules = Array.from({ length: 7 }, (_, dayOfWeek) => {
+      const row = (data.schedules ?? []).find((item: any) => Number(item.day_of_week) === dayOfWeek);
+      return row
+        ? { dayOfWeek, enabled: true, startsAt: row.starts_at, endsAt: row.ends_at, breaks: (row.breaks ?? []).map((item: any) => ({ startsAt: item.starts_at, endsAt: item.ends_at })) }
+        : { dayOfWeek, enabled: false, startsAt: '09:00', endsAt: '18:00', breaks: [] };
+    });
+    return {
+      isBookingPaused: Boolean(data.is_booking_paused),
+      bookingWindowDays: String(data.booking_window_days ?? 7),
+      minimumNoticeMinutes: Number(data.minimum_notice_minutes ?? 0),
+      intervalMinutes: Number(data.interval_minutes ?? 30),
+      schedules,
+      services: (data.services ?? []).map((item: any) => ({ id: item.id, name: item.name, priceDzd: String(item.price_dzd), durationMinutes: String(item.duration_minutes), isActive: true })),
+    };
+  }, []);
+
+  const saveManagedSettings = useCallback(async (barberId: string, settings: BarberSettingsDraft) => {
+    setSaving(true);
+    setError('');
+    try {
+      const { error: requestError } = await supabase.rpc('shop_owner_update_barber_settings', {
+        target_barber_id: barberId,
+        settings: {
+          is_booking_paused: settings.isBookingPaused,
+          booking_window_days: Number(settings.bookingWindowDays),
+          minimum_notice_minutes: settings.minimumNoticeMinutes,
+          interval_minutes: settings.intervalMinutes,
+          services: settings.services.filter((service) => service.isActive !== false).map((service) => ({ id: service.id ?? null, name: service.name, price_dzd: Number(service.priceDzd), duration_minutes: Number(service.durationMinutes) })),
+          schedules: settings.schedules.map((schedule) => ({ day_of_week: schedule.dayOfWeek, enabled: schedule.enabled, starts_at: schedule.startsAt, ends_at: schedule.endsAt, breaks: schedule.breaks.map((item) => ({ starts_at: item.startsAt, ends_at: item.endsAt })) })),
+        },
+      });
+      if (requestError) throw requestError;
+      return true;
+    } catch (caught) {
+      setError(errorCode(caught));
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
   const leave = useCallback(async () => {
     setSaving(true);
     setError('');
@@ -254,6 +362,11 @@ export function useShops(userId?: string) {
     createShop,
     requestJoin,
     respond,
+    respondInvitation,
+    searchBarbers,
+    inviteBarber,
+    getManagedSettings,
+    saveManagedSettings,
     leave,
     removeShop,
     searchShops,

@@ -5,6 +5,7 @@ export const colors = {
   surfaceHigh: '#E0E3E2',
   primary: '#1A7A78',
   primaryFixed: '#9DF1EE',
+  primarySoft: '#E2F4F2',
   onPrimary: '#FFFFFF',
   charcoal: '#323E4B',
   muted: '#4C6A68',

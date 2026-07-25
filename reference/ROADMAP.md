@@ -66,23 +66,24 @@ Status: `done`
 - [x] Create shop / request join / approve-reject / leave / delete
 - [x] Shop profile and Find Barbers|Shops tabs
 - [x] Book shop-affiliated barbers (bookability fix + shop_id on booking)
-- [ ] Owner schedule/service edits for affiliated barbers (deferred)
-- [ ] Owner invites with 30-day expiry (deferred; join requests covered)
+- [x] Owner schedule/service edits for affiliated barbers
+- [x] Owner invites with 30-day expiry
 
 ## Stage 7 — Notifications and account lifecycle
-Status: `done`
+Status: `in_progress`
 
 - [x] Register Expo/Android push tokens into `device_push_tokens`
-- [ ] Deliver remote FCM fan-out worker (deferred; tokens + in-app records ready)
+- [x] Deliver remote FCM fan-out worker implementation and staging deployment
+- [ ] Configure Firebase service-account secret and trusted scheduler
 - [x] In-app notifications list + mark read
 - [x] Account deletion RPC + profile actions
 - [x] Support email + legal links on Profile
 
 ## Stage 8 — Release hygiene
-Status: `todo`
+Status: `in_progress`
 
-- [ ] Apply and verify migrations on staging
-- [ ] Seed staging demo data
-- [ ] Active legal document rows
+- [x] Apply and verify migrations on staging
+- [x] Seed staging demo data (idempotent resettable seed)
+- [ ] Replace staging example legal URLs with approved legal-document URLs
 - [ ] Google OAuth on installed Android build
-- [ ] Verify hosted appointment-transition cron
+- [x] Verify hosted appointment-transition cron

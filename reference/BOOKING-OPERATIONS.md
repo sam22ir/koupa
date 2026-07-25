@@ -16,4 +16,4 @@ order by start_time desc
 limit 20;
 ```
 
-The job is database-only. Do not configure `APPOINTMENT_CRON_SECRET` or deploy the retired `appointment-transitions` Edge Function. Firebase delivery is intentionally not part of this milestone; the `notifications` table is the source of truth.
+The appointment transition job is database-only. Do not configure `APPOINTMENT_CRON_SECRET` or deploy the retired `appointment-transitions` Edge Function. Remote Firebase delivery is handled separately by the `dispatch-notifications` Edge Function; the `notifications` table remains the source of truth and delivery metadata is stored on each row.
