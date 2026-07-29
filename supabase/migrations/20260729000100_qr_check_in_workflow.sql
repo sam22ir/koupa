@@ -318,6 +318,7 @@ $$;
 
 revoke all on function public.check_in_with_barber_qr(uuid) from public;
 revoke all on function public.undo_qr_check_in(uuid) from public;
+revoke all on function public.barber_today_appointments() from public;
 grant execute on function public.check_in_with_barber_qr(uuid) to authenticated;
 grant execute on function public.undo_qr_check_in(uuid) to authenticated;
 grant execute on function public.barber_today_appointments() to authenticated;
