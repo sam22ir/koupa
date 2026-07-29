@@ -14,16 +14,37 @@ Koupa is an Android-only Expo + React Native app for booking barber appointments
 - Identities are never silently merged. When a Google identity collides with an existing password account, the user must first prove ownership by signing in with the existing password method before any provider linking can be offered.
 - Account deletion is available in-app. Upcoming appointments are cancelled, affected users are notified, and personal data is deleted or anonymized.
 
-## Design System
+## Frontend Reset
 
-- Dark Teal: `#1A7A78`
-- Warm Gold: `#E1A553`
-- Charcoal Gray: `#323E4B`
-- Off-White: `#F3F5F7`
-- Typeface: IBM Plex Sans Arabic from `IBM_Plex_Sans_Arabic.zip`, using Regular, Medium, SemiBold, and Bold weights.
+The previous frontend implementation, design system, branded assets, and Stitch references were intentionally removed on 2026-07-28. The replacement frontend must define its own palette, typography, components, assets, navigation, and responsive behavior before implementation. No previous design file, token file, component library, or asset path is normative.
+
+### Brand palette (approved)
+
+| Role | Name | Hex |
+|---|---|---|
+| Primary | Deep Teal | `#1A7A78` |
+| Accent / Secondary | Warm Gold | `#E1A553` |
+| Text / Headings | Charcoal Blue | `#323E4B` |
+| Background | Soft White / Off White | `#F3F5F7` |
+
+Tokens live in `src/theme/*`.
+
+### Visual direction (locked)
+
+**Teal Stage** (`منصة التركواز`) — locked 2026-07-28.
+
+- Deep teal owns primary stage/hero surfaces (top of key screens).
+- Warm gold is accent only (thin bar, status badge, secondary marks) — not large fills.
+- Floating white cards may overlap the teal stage with light elevation.
+- Soft radii (16–22), chips for time/duration/price, bold primary teal CTAs.
+- Arabic-first RTL; **IBM Plex Sans Arabic** typeface; initials only (no profile photos).
+- Reference implementation: `src/design-proposals/TealStageHome.tsx`.
+- Direction metadata: `designDirection` in `src/theme/index.ts`.
+
+Rejected alternatives kept only as archive under `src/design-proposals/` (`CalmCounterHome`, `ShopLedgerHome`) until the rebuild replaces them.
+
+- Arabic-first RTL, DZD pricing, and English-ready localization remain product requirements.
 - MVP uses placeholders/initials only; no uploaded profile photos.
-- Official logo asset: `assets/koupa-logo.png`.
-- Use the official logo for the Expo Android app icon once `app.json` or `app.config.*` is added. Preserve the original asset and add platform-specific adaptive icon variants only if Android requires them.
 
 ## Customer Experience
 
@@ -46,8 +67,8 @@ Barber tabs are `Today`, `Schedule`, `Shop`, and `Profile`.
 - Services have prices and durations in 5-minute increments.
 - Barbers choose a 5, 10, 15, or 30-minute appointment interval. Service durations reserve all required consecutive availability.
 - Weekly hours support date-specific exceptions, one or more breaks, a configurable booking window, minimum notice period, and pause-booking toggle.
-- Today shows appointments and quick actions for `Present`, details, and the permanent QR code.
-- The QR scanner is built into the customer app. A valid current-day appointment scan marks the customer `Present`.
+- Today shows appointments and quick actions for `Present`, details, and the permanent QR code. The barber can display the code full-screen or save/share a printable copy.
+- The QR scanner is built into the customer app. Server validation opens 30 minutes before the appointment and closes at its scheduled end. A valid scan marks the appointment `Present`; repeat scans are successful and idempotent. The barber may undo a customer QR check-in back to `Booked`.
 - Each barber may own one shop or join one shop, never both or more than one. Every barber may create a shop.
 - Shop owners can invite unaffiliated barbers or approve/reject join requests. Invitations expire after 30 days.
 - Owners can edit affiliated barbers' schedules, availability, services, and prices, but not personal profiles. Barbers can edit those settings afterward. Both receive change notifications; the owner and affected barber see activity history.
@@ -55,7 +76,7 @@ Barber tabs are `Today`, `Schedule`, `Shop`, and `Profile`.
 
 ## Appointment Lifecycle and Notifications
 
-The lifecycle is `Booked` -> `Present` -> `Completed`. The barber can cancel but cannot reschedule a customer appointment. If the barber never marks the customer `Present`, the appointment automatically becomes `Absent` when its scheduled time passes. After the service duration, a `Present` appointment automatically becomes `Completed`.
+The lifecycle is `Booked` -> `Present` -> `Completed`. The barber can cancel but cannot reschedule a customer appointment. If the barber never marks the customer `Present`, the appointment automatically becomes `Absent` when its scheduled end passes. After the service duration, a `Present` appointment automatically becomes `Completed`.
 
 Firebase push notifications are sent for booking updates and every `Present`, `Completed`, and `Absent` status. MVP notification content is Arabic-only. Staging notifications are real but clearly labeled as test notifications.
 

@@ -1,42 +1,64 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
-import { PrimaryButton } from '@/src/components/atoms/PrimaryButton';
-import { BrandLogo } from '@/src/components/atoms/BrandLogo';
-import { CustomerNavigation } from '@/src/components/molecules/CustomerNavigation';
-import { Screen } from '@/src/components/organisms/Screen';
+
 import {
   appointmentStatusLabel,
   canCancelCustomerAppointment,
   canRescheduleCustomerAppointment,
+  formatBookingTime,
   formatAppointmentWhen,
   type Appointment,
 } from '@/src/booking';
-import { copy } from '@/src/data/copy';
+import { Avatar, BrandLogo, Button, Card, Chip, EmptyState, ErrorBanner, Icon, Screen, Stage } from '@/src/components/ui';
 import { loadCustomerAppointments, useBooking } from '@/src/hooks/useBooking';
-import { colors, radii, spacing, typography } from '@/src/theme';
+import { t } from '@/src/i18n';
+import { useAppSession } from '@/src/providers/SessionProvider';
+import { colors, layout, space, typography } from '@/src/theme';
+import { initialsFromName } from '@/src/utils/initials';
 
-export default function CustomerHome() {
-  const { cancelCustomer } = useBooking();
-  const [appointment, setAppointment] = useState<Appointment | null>(null);
-  const load = useCallback(() => {
-    void loadCustomerAppointments()
-      .then((items) => setAppointment(items.find((item) => item.status === 'booked' || item.status === 'present') ?? null))
-      .catch(() => undefined);
+export default function CustomerHomeScreen() {
+  const { profile } = useAppSession();
+  const booking = useBooking();
+  const [upcoming, setUpcoming] = useState<Appointment | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const items = await loadCustomerAppointments();
+      const next =
+        items.find((item) => item.status === 'booked' || item.status === 'present') ?? null;
+      setUpcoming(next);
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setLoading(false);
+    }
   }, []);
-  useFocusEffect(load);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+    }, [refresh]),
+  );
 
   const cancel = () => {
-    if (!appointment || !canCancelCustomerAppointment(appointment.starts_at)) return;
-    Alert.alert(copy.customer.cancelConfirmTitle, copy.customer.cancelConfirmBody, [
-      { text: copy.customer.keepAppointment, style: 'cancel' },
+    if (!upcoming) return;
+    if (!canCancelCustomerAppointment(upcoming.starts_at)) {
+      setError(new Error(t('errors.CANCEL_NOT_ALLOWED')));
+      return;
+    }
+    Alert.alert(t('home.cancelAppt'), t('home.cancelConfirm'), [
+      { text: t('common.no'), style: 'cancel' },
       {
-        text: copy.customer.cancelConfirmAction,
+        text: t('common.yes'),
         style: 'destructive',
         onPress: () => {
-          void cancelCustomer(appointment.id).then((ok) => {
-            if (ok) load();
+          void booking.cancelCustomer(upcoming.id).then((ok) => {
+            if (ok !== false) void refresh();
           });
         },
       },
@@ -44,83 +66,231 @@ export default function CustomerHome() {
   };
 
   return (
-    <Screen footer={<CustomerNavigation active="الرئيسية" />}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.app}>{copy.appName}</Text>
-          <Text style={styles.welcome}>{copy.customer.homeTitle}</Text>
-        </View>
-        <MaterialCommunityIcons name="account-circle-outline" size={30} color={colors.outline} />
-      </View>
-
-      {appointment ? (
-        <View style={styles.card}>
-          <Text style={styles.eyebrow}>{copy.customer.nextAppointment}</Text>
-          <Text style={styles.title}>{appointment.service_name}</Text>
-          <Text style={styles.body}>{appointment.barber_name}</Text>
-          <Text style={styles.body}>{formatAppointmentWhen(appointment.starts_at)}</Text>
-          <Text style={styles.meta}>
-            {appointment.price_dzd} {copy.common.currency} - {appointmentStatusLabel(appointment.status)}
-          </Text>
-          <View style={styles.actions}>
-            <PrimaryButton label={copy.customer.viewAppointment} onPress={() => router.push('/(customer)/appointments')} />
-            {appointment.status === 'booked' ? (
-              <PrimaryButton label={copy.customer.scanQr} variant="outline" onPress={() => router.push('/(customer)/scan')} />
-            ) : null}
-            {canRescheduleCustomerAppointment(appointment.status) ? (
-              <View style={styles.secondaryActions}>
-                {canCancelCustomerAppointment(appointment.starts_at) ? (
-                  <Pressable accessibilityRole="button" accessibilityLabel={copy.customer.cancelAppointment} onPress={cancel}>
-                    <Text style={styles.cancel}>{copy.customer.cancelAppointment}</Text>
-                  </Pressable>
-                ) : (
-                  <Text style={styles.cutoff}>{copy.customer.cancelCutoff}</Text>
-                )}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={copy.customer.rescheduleAppointment}
-                  onPress={() => router.push({ pathname: '/(customer)/reschedule/[id]', params: { id: appointment.id } })}
-                >
-                  <Text style={styles.reschedule}>{copy.customer.rescheduleAppointment}</Text>
-                </Pressable>
-              </View>
-            ) : null}
+    <Screen padded={false} loading={loading}>
+      <Stage>
+        <View style={styles.stageTop}>
+          <BrandLogo variant="mark" height={40} />
+          <View style={styles.brandBlock}>
+            <Text style={styles.tagline}>{t('brandTagline')}</Text>
           </View>
         </View>
-      ) : (
-        <View style={styles.empty}>
-          <BrandLogo size={112} />
-          <MaterialCommunityIcons name="calendar-blank-outline" size={42} color={colors.outline} />
-          <Text style={styles.title}>{copy.customer.emptyTitle}</Text>
-          <Text style={styles.body}>{copy.customer.emptyBody}</Text>
-          <PrimaryButton label={copy.customer.findBarber} onPress={() => router.push('/(customer)/find')} />
+        <View style={styles.goldBar} />
+        <Text style={styles.greeting}>
+          {t('home.greeting')}
+          {profile?.name ? `، ${profile.name}` : ''}
+        </Text>
+        <Text style={styles.stageSub}>
+          {upcoming ? t('home.nextReady') : t('home.noAppointment')}
+        </Text>
+      </Stage>
+
+      <View style={styles.body}>
+        <ErrorBanner error={error || booking.error} />
+        {upcoming ? (
+          <Card elevated style={styles.card}>
+            <View style={styles.cardTop}>
+              <Chip label={appointmentStatusLabel(upcoming.status)} tone="accent" />
+              <Text style={styles.meta}>{formatAppointmentWhen(upcoming.starts_at)}</Text>
+            </View>
+            <Text style={styles.service}>{upcoming.service_name}</Text>
+            <View style={styles.person}>
+              <Avatar initials={initialsFromName(upcoming.barber_name ?? 'ح')} />
+              <View style={styles.personCopy}>
+                <Text style={styles.personName}>{upcoming.barber_name ?? '—'}</Text>
+              </View>
+            </View>
+            <View style={styles.chips}>
+              <Chip label={formatBookingTime(upcoming.starts_at)} />
+              <Chip label={`${upcoming.price_dzd.toLocaleString('ar-DZ')} ${t('common.dzd')}`} />
+            </View>
+            <Button
+              label={t('home.manage')}
+              onPress={() => router.push(`/appointment/${upcoming.id}`)}
+            />
+            <View style={styles.links}>
+              {upcoming.status === 'booked' ? (
+                <Pressable
+                  style={styles.linkRow}
+                  onPress={() => router.push({
+                    pathname: '/scan',
+                    params: {
+                      appointmentId: upcoming.id,
+                      barberName: upcoming.barber_name,
+                      startsAt: upcoming.starts_at,
+                    },
+                  })}
+                >
+                  <Icon name="qr-code-outline" size={16} color={colors.primary} />
+                  <Text style={styles.link}>{t('home.scanQr')}</Text>
+                </Pressable>
+              ) : null}
+              {canRescheduleCustomerAppointment(upcoming.status) ? (
+                <Pressable
+                  style={styles.linkRow}
+                  onPress={() => router.push(`/book/${upcoming.barber_id}?appointmentId=${upcoming.id}&serviceId=${upcoming.service_id}`)}
+                >
+                  <Icon name="calendar-outline" size={16} color={colors.primary} />
+                  <Text style={styles.link}>{t('home.reschedule')}</Text>
+                </Pressable>
+              ) : null}
+              <Pressable style={styles.linkRow} onPress={cancel}>
+                <Icon name="close-circle-outline" size={16} color={colors.textMuted} />
+                <Text style={styles.linkMuted}>{t('home.cancelAppt')}</Text>
+              </Pressable>
+            </View>
+          </Card>
+        ) : (
+          <Card elevated>
+            <EmptyState
+              title={t('home.noAppointment')}
+              body={t('home.findCta')}
+              actionLabel={t('home.findCta')}
+              onAction={() => router.push('/(customer)/find')}
+            />
+          </Card>
+        )}
+
+        <View style={styles.tiles}>
+          <Pressable style={styles.tile} onPress={() => router.push('/(customer)/find')}>
+            <Icon name="search" size={20} color={colors.primary} />
+            <Text style={styles.tileTitle}>{t('home.discover')}</Text>
+          </Pressable>
+          <Pressable style={styles.tile} onPress={() => router.push('/(customer)/appointments')}>
+            <Icon name="calendar" size={20} color={colors.accent} />
+            <Text style={styles.tileTitle}>{t('home.myAppointments')}</Text>
+          </Pressable>
         </View>
-      )}
+
+        <Pressable style={styles.search} onPress={() => router.push('/(customer)/find')}>
+          <Icon name="search-outline" size={18} color={colors.textMuted} />
+          <Text style={styles.searchText}>{t('home.searchPlaceholder')}</Text>
+        </Pressable>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  app: { color: colors.primary, fontFamily: typography.fontFamily.bold, fontSize: typography.size.title, textAlign: 'right' },
-  welcome: { color: colors.charcoal, fontFamily: typography.fontFamily.medium, fontSize: typography.size.label, textAlign: 'right' },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.md },
-  card: {
-    marginTop: spacing.xl,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    gap: spacing.sm,
+  stageTop: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  eyebrow: { color: colors.primary, fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.caption, textAlign: 'right' },
-  title: { color: colors.charcoal, fontFamily: typography.fontFamily.bold, fontSize: typography.size.title, textAlign: 'right' },
-  body: { color: colors.muted, fontFamily: typography.fontFamily.regular, fontSize: typography.size.body, lineHeight: typography.line.body, textAlign: 'right' },
-  meta: { color: colors.charcoal, fontFamily: typography.fontFamily.medium, fontSize: typography.size.body, textAlign: 'right' },
-  actions: { marginTop: spacing.sm, gap: spacing.md },
-  secondaryActions: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: spacing.sm },
-  cancel: { color: colors.danger, fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.body, textAlign: 'right' },
-  reschedule: { color: colors.primary, fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.body, textAlign: 'right' },
-  cutoff: { color: colors.muted, fontFamily: typography.fontFamily.regular, fontSize: typography.size.caption, textAlign: 'right', flex: 1 },
+  brandBlock: {
+    alignItems: 'flex-end',
+    flex: 1,
+    marginHorizontal: space[3],
+    gap: space[1],
+  },
+  tagline: {
+    ...typography.caption,
+    color: colors.onPrimaryMuted,
+  },
+  goldBar: {
+    width: 36,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: colors.accent,
+    alignSelf: 'flex-end',
+    marginTop: space[5],
+  },
+  greeting: {
+    ...typography.display,
+    color: colors.onPrimary,
+    textAlign: 'right',
+  },
+  stageSub: {
+    ...typography.body,
+    color: colors.onPrimaryMuted,
+    textAlign: 'right',
+  },
+  body: {
+    marginTop: layout.stageBodyOverlap,
+    paddingHorizontal: layout.screenPaddingX,
+    gap: space[3],
+    paddingBottom: space[6],
+  },
+  card: {
+    gap: space[3],
+  },
+  cardTop: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  meta: {
+    ...typography.caption,
+  },
+  service: {
+    ...typography.title,
+    textAlign: 'right',
+  },
+  person: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: space[3],
+  },
+  personCopy: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  personName: {
+    ...typography.bodyStrong,
+  },
+  chips: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: space[2],
+  },
+  links: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: space[3],
+    justifyContent: 'center',
+  },
+  linkRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: space[1],
+  },
+  link: {
+    ...typography.label,
+    color: colors.primary,
+  },
+  linkMuted: {
+    ...typography.label,
+    color: colors.textMuted,
+  },
+  tiles: {
+    flexDirection: 'row-reverse',
+    gap: space[3],
+  },
+  tile: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space[4],
+    alignItems: 'flex-end',
+    gap: space[2],
+  },
+  tileTitle: {
+    ...typography.bodyStrong,
+  },
+  search: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space[4],
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: space[2],
+  },
+  searchText: {
+    ...typography.caption,
+    flex: 1,
+    textAlign: 'right',
+  },
 });
