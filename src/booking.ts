@@ -1,4 +1,16 @@
-export interface BarberSummary { readonly id: string; readonly name: string; readonly bio: string | null; readonly city: string | null; readonly neighborhood: string | null; readonly maps_url: string | null; readonly phone: string; }
+export interface BarberSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly bio: string | null;
+  readonly city: string | null;
+  readonly neighborhood: string | null;
+  readonly maps_url: string | null;
+  readonly phone: string;
+  readonly average_rating: number;
+  readonly rating_count: number;
+  readonly starting_price_dzd: number;
+  readonly service_count: number;
+}
 export interface BarberService { readonly id: string; readonly name: string; readonly price_dzd: number; readonly duration_minutes: number; }
 export interface BarberProfile extends Omit<BarberSummary, 'phone'> {
   readonly phone: string;
@@ -20,6 +32,7 @@ export interface Appointment {
   readonly status: AppointmentStatus;
   readonly service_name: string;
   readonly barber_name?: string;
+  readonly location_maps_url?: string | null;
   readonly rating?: import('@/src/ratings').AppointmentRating | null;
 }
 export interface TodayAppointment {
@@ -31,6 +44,7 @@ export interface TodayAppointment {
   readonly service_name: string;
   readonly customer_name: string;
   readonly customer_phone: string;
+  readonly qr_check_in_reversible?: boolean;
 }
 
 export function algeriaDate(date = new Date()): string {
