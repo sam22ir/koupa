@@ -5,9 +5,9 @@ Status: Approved visual direction
 
 ## Scope
 
-Redesign the existing sign-in and permanent-role selection screens so they continue the approved Teal Stage language introduced on the welcome screen. Preserve the current authentication providers, validation rules, legal-document requirements, routes, and Supabase behavior.
+Redesign the existing sign-in, permanent-role selection, and shared customer/barber sign-up screens so they continue the approved Teal Stage language introduced on the welcome screen. Preserve the current authentication providers, validation rules, legal-document requirements, routes, and Supabase behavior.
 
-This work does not redesign sign-up, confirmation, password recovery, or onboarding screens. The shared presentation component is used only by sign-in and role selection in this implementation.
+This work does not redesign confirmation, password recovery, or onboarding screens. The shared presentation component is used only by sign-in, role selection, and sign-up in this implementation.
 
 ## Direction
 
@@ -83,6 +83,32 @@ Customer remains selected by default. The active card uses a 2px teal border and
 
 The legal checkbox is a minimum 48px touch target even though its visible square is smaller. Terms and Privacy remain separate actionable links inside the sentence. Tapping a link must not toggle consent. The Continue button stays disabled until the user has accepted and both legal documents are available.
 
+## Shared Sign-Up Screen
+
+The existing `/(auth)/sign-up` route remains shared by customer and barber roles. Both variants use `AuthShell`, the same validation and provider actions, and the same confirmation route.
+
+### Header and role marker
+
+- Title: `إنشاء حساب`
+- Customer subtitle: `أنشئ حسابك وابدأ حجز مواعيدك.`
+- Barber subtitle: `أنشئ حسابك وابدأ تجهيز ملفك المهني.`
+- A pale-teal role badge at the top of the card shows `زبون` or `حلاق`.
+
+### Card order
+
+1. Selected-role badge.
+2. Email/phone segmented control.
+3. Phone field only when phone registration is selected.
+4. Email field, labeled `البريد الإلكتروني` for email registration and `بريد الاستعادة` for phone registration.
+5. Password field with accessible show/hide control.
+6. Inline field validation and contextual provider/server banner.
+7. Primary `إنشاء حساب` button.
+8. Divider with `أو` centered between hairlines.
+9. Secondary `المتابعة مع Google` button.
+10. Quiet existing-account prompt: `لديك حساب؟ تسجيل الدخول`, linking to `/(auth)/sign-in`.
+
+Switching registration method clears method-specific phone errors without changing the selected permanent role. Phone registration continues to require a valid Algerian number and confirmed recovery email. Password visibility changes presentation only. Existing calls to `setPendingRole`, password sign-up, Google sign-in, and confirmation routing remain unchanged.
+
 ## Interaction States
 
 - Pressed controls use `scale: 0.98` feedback without changing layout.
@@ -104,7 +130,7 @@ The legal checkbox is a minimum 48px touch target even though its visible square
 
 - Shared teal header, overlap, safe-area, and card composition belong in one reusable auth shell component.
 - `Field` gains an optional trailing accessory and focus/error styling rather than creating a sign-in-only input component.
-- Credential-method and role-selection controls remain screen-local unless a second real consumer appears.
+- Credential-method styling and accessibility are shared between sign-in and sign-up through a focused `CredentialMethodTabs` component; role-selection controls remain screen-local.
 - Existing `Button`, translation, theme, session, legal service, and routing APIs remain the source of behavior.
 
 ## Testing and Verification
@@ -115,12 +141,13 @@ Automated checks:
 - Test credential-method switching clears method-specific validation errors.
 - Test password visibility does not change the password value.
 - Test role selection, legal acceptance, legal readiness, and Continue enablement through screen interactions.
+- Test customer and barber role badges/subtitles, registration-method switching, recovery-email labeling, password visibility, and existing-account routing.
 - Add React Native Testing Library as a development dependency and use it for password visibility, method switching, role selection, consent, disabled state, and route-action coverage.
 - Run `npm run typecheck`, focused Jest tests, and lint on changed files.
 
 Runtime checks at 340x646 and a larger Android viewport:
 
-- Both screens render without overlap or horizontal clipping.
+- All three routes and both sign-up role variants render without overlap or horizontal clipping.
 - Keyboard appearance leaves the focused field and primary action reachable.
 - Email, phone, password visibility, recovery, Google, role, legal-link, and Continue interactions reach their existing destinations.
 - Loading, validation, missing legal documents, and disabled states preserve layout.
@@ -128,7 +155,7 @@ Runtime checks at 340x646 and a larger Android viewport:
 
 ## Acceptance Criteria
 
-- Sign-in and role selection visibly belong to the same Teal Stage family as Welcome.
+- Sign-in, role selection, and both sign-up variants visibly belong to the same Teal Stage family as Welcome.
 - Each screen has one compact teal header and one focused floating white card.
 - The workflows and backend contracts described in `reference/KOUPA-PRODUCT-SPEC.md` remain unchanged.
 - All controls and states described above are implemented and verified.

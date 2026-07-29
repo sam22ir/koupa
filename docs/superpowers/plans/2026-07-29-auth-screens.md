@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rebuild sign-in and permanent-role selection with the approved compact Teal Stage and focused floating-card design while preserving auth and legal behavior.
+**Goal:** Rebuild sign-in, permanent-role selection, and shared customer/barber sign-up with the approved compact Teal Stage and focused floating-card design while preserving auth and legal behavior.
 
 **Architecture:** Add one reusable `AuthShell` for safe-area, compact header, back navigation, scrolling, and overlapping card composition. Keep credential and role behavior screen-local, enhance shared `Field` and `Button` primitives only for approved capabilities, and cover interactions with React Native Testing Library.
 
@@ -15,12 +15,14 @@
 ## File Map
 
 - Create `src/components/ui/AuthShell.tsx`: shared compact Teal Stage and floating card.
+- Create `src/components/ui/CredentialMethodTabs.tsx`: shared accessible email/phone segmented control.
 - Modify `src/components/ui/index.ts`: export `AuthShell`.
 - Modify `src/components/ui/Field.tsx`: focus styling, accessibility defaults, and optional trailing accessory.
 - Modify `src/components/ui/Button.tsx`: stable accessibility state and pressed feedback.
 - Modify `src/i18n/ar.ts`: approved auth subtitles, descriptions, and control labels.
 - Modify `app/(auth)/sign-in.tsx`: approved sign-in hierarchy and interactions.
 - Modify `app/(auth)/role.tsx`: approved role hierarchy and legal states.
+- Modify `app/(auth)/sign-up.tsx`: shared customer/barber sign-up hierarchy and interactions.
 - Create `__tests__/authScreens.test.tsx`: interaction coverage.
 - Modify `package.json` and `package-lock.json`: UI-test dependencies.
 
@@ -132,6 +134,9 @@ Run the focused test. Expected: PASS.
 ### Task 3: Redesign Sign-In
 
 **Files:**
+- Create: `src/components/ui/CredentialMethodTabs.tsx`
+- Modify: `src/components/ui/index.ts`
+- Modify: `app/(auth)/sign-in.tsx`
 - Modify: `src/i18n/ar.ts`
 - Modify: `app/(auth)/sign-in.tsx`
 - Test: `__tests__/authScreens.test.tsx`
@@ -202,7 +207,34 @@ Use `AuthShell`. While legal documents load, render fixed-height skeleton blocks
 
 Run the focused test. Expected: PASS.
 
-### Task 5: Verify the Implementation
+### Task 5: Redesign Shared Customer/Barber Sign-Up
+
+**Files:**
+- Modify: `src/i18n/ar.ts`
+- Modify: `app/(auth)/sign-up.tsx`
+- Test: `__tests__/authScreens.test.tsx`
+
+- [ ] **Step 1: Write failing sign-up interaction tests**
+
+Mock the role query parameter, render customer and barber variants, and verify the selected-role badge and correct subtitle. Verify switching to phone reveals `رقم الهاتف` and relabels email as `بريد الاستعادة`, password visibility preserves the value, and `تسجيل الدخول` routes to `/(auth)/sign-in`.
+
+- [ ] **Step 2: Add approved sign-up translations**
+
+```ts
+signUpCustomerSubtitle: 'أنشئ حسابك وابدأ حجز مواعيدك.',
+signUpBarberSubtitle: 'أنشئ حسابك وابدأ تجهيز ملفك المهني.',
+existingAccountPrompt: 'لديك حساب؟',
+```
+
+- [ ] **Step 3: Implement sign-up**
+
+Create `CredentialMethodTabs` with `value`, `onChange`, email label, and phone label props; expose each option as a selected/unselected tab. Replace the sign-in-local tabs with this component, then use it in sign-up. Use `AuthShell` with the role-specific subtitle and a pale-teal role badge. Reuse inline field errors, password visibility accessory, divider, and quiet account-switch row. Preserve `setPendingRole`, `signUpWithPassword`, Google role metadata, and confirmation/success routing.
+
+- [ ] **Step 4: Verify sign-up GREEN**
+
+Run the focused test. Expected: PASS for both role variants and both credential methods.
+
+### Task 6: Verify the Implementation
 
 **Files:**
 - Verify all files listed above.
@@ -212,7 +244,7 @@ Run the focused test. Expected: PASS.
 ```bash
 npm run typecheck
 npm test -- --runInBand __tests__/authScreens.test.tsx __tests__/welcome.test.ts __tests__/auth.test.ts
-npx eslint 'app/(auth)/sign-in.tsx' 'app/(auth)/role.tsx' src/components/ui/AuthShell.tsx src/components/ui/Field.tsx src/components/ui/Button.tsx src/i18n/ar.ts __tests__/authScreens.test.tsx
+npx eslint 'app/(auth)/sign-in.tsx' 'app/(auth)/role.tsx' 'app/(auth)/sign-up.tsx' src/components/ui/AuthShell.tsx src/components/ui/Field.tsx src/components/ui/Button.tsx src/i18n/ar.ts __tests__/authScreens.test.tsx
 ```
 
 Expected: all commands exit 0.
@@ -227,7 +259,7 @@ Expected: new tests pass; report pre-existing failures without changing unrelate
 
 - [ ] **Step 3: Verify browser acceptance**
 
-At `340x646` and `412x915`, inspect `/sign-in` and `/role`. Confirm no clipping, reachable scrolling, continuity with `/welcome`, password visibility, method switching, role selection, consent enablement, legal links, and existing destinations.
+At `340x646` and `412x915`, inspect `/sign-in`, `/role`, `/sign-up?role=customer`, and `/sign-up?role=barber`. Confirm no clipping, reachable scrolling, continuity with `/welcome`, password visibility, method switching, role selection, consent enablement, legal links, role-specific sign-up copy, and existing destinations.
 
 - [ ] **Step 4: Review the diff**
 
