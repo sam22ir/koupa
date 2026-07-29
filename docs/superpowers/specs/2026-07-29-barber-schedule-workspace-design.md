@@ -114,7 +114,7 @@ Load settings, active and archived services, weekly schedules, breaks, and futur
 The sticky `حفظ التغييرات` action:
 
 - Remains visible above the barber tab bar and safe area on every workspace tab.
-- Is disabled while loading, saving, unchanged, or invalid.
+- Is disabled while loading, saving, or unchanged.
 - Uses stable dimensions while showing progress.
 - Validates the complete draft before any network mutation.
 - Saves booking policy, weekly hours, breaks, service archive state, and exception upserts/removals in one database transaction.
@@ -143,7 +143,7 @@ Validation runs at field level during editing and across the full draft on Save:
 - Exception dates must be valid and unique.
 - Booking interval, window, and notice must be one of the supported options.
 
-Invalid fields show inline Arabic errors. The owning workspace tab receives an error indicator, and Save focuses or switches to the first invalid section.
+Invalid fields show inline Arabic errors. The owning workspace tab receives an error indicator. Pressing Save on an invalid dirty draft switches to the first invalid section and focuses its first invalid control without making a network request.
 
 ## Loading And Error States
 
