@@ -5,6 +5,8 @@ export interface ShopSummary {
   readonly name: string;
   readonly bio: string | null;
   readonly maps_url: string | null;
+  readonly city?: string | null;
+  readonly neighborhood?: string | null;
   readonly average_rating: number;
   readonly rating_count: number;
   readonly owner_name: string;
@@ -31,6 +33,35 @@ export interface ShopMembership {
   readonly shop_name?: string;
   readonly invited_by?: string | null;
   readonly invitation_expires_at?: string | null;
+  readonly created_at?: string;
+  readonly updated_at?: string;
+}
+
+export type ShopRelationship =
+  | { readonly kind: 'none' }
+  | { readonly kind: 'request'; readonly membership: ShopMembership }
+  | { readonly kind: 'invitation'; readonly membership: ShopMembership }
+  | { readonly kind: 'member'; readonly membership: ShopMembership };
+
+export function classifyShopRelationship(
+  ownedShop: ShopSummary | null,
+  membership: ShopMembership | null,
+): ShopRelationship {
+  if (ownedShop || !membership) return { kind: 'none' };
+  if (membership.status === 'active') return { kind: 'member', membership };
+  return membership.invited_by
+    ? { kind: 'invitation', membership }
+    : { kind: 'request', membership };
+}
+
+export function isInvitationExpired(
+  membership: Pick<ShopMembership, 'invitation_expires_at'>,
+  now = new Date(),
+): boolean {
+  return Boolean(
+    membership.invitation_expires_at &&
+      new Date(membership.invitation_expires_at).getTime() <= now.getTime(),
+  );
 }
 
 export interface ShopBarberCandidate {
@@ -84,5 +115,22 @@ export function membershipStatusLabel(status: ShopMembershipStatus): string {
       return 'نشط';
     case 'rejected':
       return 'مرفوض';
+  }
+}
+
+export function shopActivityActionLabel(action: string): string {
+  switch (action) {
+    case 'barber_settings_updated':
+      return 'تحديث إعدادات الحلاق';
+    case 'member_joined':
+      return 'انضمام حلاق';
+    case 'member_left':
+      return 'مغادرة حلاق';
+    case 'member_removed':
+      return 'إزالة حلاق';
+    case 'shop_created':
+      return 'إنشاء المحل';
+    default:
+      return 'نشاط المحل';
   }
 }
