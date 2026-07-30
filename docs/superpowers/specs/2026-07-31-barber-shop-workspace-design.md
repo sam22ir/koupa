@@ -1,7 +1,7 @@
 # Koupa Barber Shop Workspace Design
 
 Date: 2026-07-31
-Status: Approved design, pending written-spec review
+Status: Approved
 
 ## Brief And Direction
 
