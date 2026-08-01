@@ -91,7 +91,7 @@ describe('customer QR entry points', () => {
     mockLoadAppointments.mockResolvedValue([appointment('present')]);
     await render(<AppointmentDetailScreen />);
 
-    await screen.findByText('حاضر');
+    await screen.findAllByText('حاضر');
     expect(screen.queryByRole('button', { name: 'مسح رمز الحضور' })).toBeNull();
   });
 });
