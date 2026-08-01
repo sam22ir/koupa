@@ -1,93 +1,350 @@
-import { useState } from 'react';
-import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { PrimaryButton } from '@/src/components/atoms/PrimaryButton';
-import { CustomerNavigation } from '@/src/components/molecules/CustomerNavigation';
-import { Screen } from '@/src/components/organisms/Screen';
-import { copy } from '@/src/data/copy';
-import { useAccountLifecycle } from '@/src/hooks/useAccountLifecycle';
-import { usePushRegistration } from '@/src/hooks/usePushRegistration';
-import { useSession } from '@/src/hooks/useSession';
-import { privacyUrl, supportEmail, termsUrl } from '@/src/notifications';
-import { colors, spacing, typography } from '@/src/theme';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
-export default function CustomerProfile() {
-  const { session, profile, signOut } = useSession();
-  usePushRegistration(session?.user.id);
-  const { loading: deleting, deleteAccount } = useAccountLifecycle();
-  const [loggingOut, setLoggingOut] = useState(false);
+import {
+  Avatar,
+  Button,
+  Card,
+  CustomerStageHeader,
+  ErrorBanner,
+  Field,
+  Icon,
+  Screen,
+  type IconName,
+} from '@/src/components/ui';
+import { DeleteAccountButton } from '@/src/features/account/DeleteAccountButton';
+import { LegalSupportLinks } from '@/src/features/account/LegalSupportLinks';
+import { useAccountLifecycle } from '@/src/hooks/useAccountLifecycle';
+import { t } from '@/src/i18n';
+import { useAppSession } from '@/src/providers/SessionProvider';
+import * as profileService from '@/src/services/profile';
+import { colors, radii, space, typography } from '@/src/theme';
+import { initialsFromName } from '@/src/utils/initials';
+
+export default function CustomerProfileScreen() {
+  const { profile, session, refreshProfile, signOut, legalDocuments } = useAppSession();
+  const account = useAccountLifecycle();
+  const [error, setError] = useState<unknown>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const logout = async () => {
     try {
-      setLoggingOut(true);
       await signOut();
-      router.replace('/(auth)/welcome');
-    } finally {
-      setLoggingOut(false);
+      router.replace('/');
+    } catch (caught) {
+      setError(caught);
     }
   };
 
-  const confirmDelete = () => {
-    Alert.alert(copy.customer.deleteAccountConfirmTitle, copy.customer.deleteAccountConfirmBody, [
-      { text: copy.customer.deleteAccountCancel, style: 'cancel' },
-      {
-        text: copy.customer.deleteAccountConfirmAction,
-        style: 'destructive',
-        onPress: () => {
-          void deleteAccount().then((ok) => {
-            if (ok) router.replace('/(auth)/welcome');
-          });
-        },
-      },
-    ]);
+  const openEditor = () => {
+    setDraftName(profile?.name ?? '');
+    setError(null);
+    setSuccess(null);
+    setEditing(true);
   };
 
-  const open = (url: string) => {
-    if (!url) return;
-    void Linking.openURL(url);
+  const cancelEdit = () => {
+    setDraftName(profile?.name ?? '');
+    setError(null);
+    setEditing(false);
+  };
+
+  const saveName = async () => {
+    const name = draftName.trim();
+    if (!name) {
+      setError(new Error(t('profile.nameRequired')));
+      return;
+    }
+    if (!session?.user.id) {
+      setError(new Error(t('errors.UNAUTHORIZED')));
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await profileService.updateProfileName(session.user.id, name);
+      await refreshProfile();
+      setEditing(false);
+      setSuccess(t('profile.saved'));
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteAccount = async () => {
+    try {
+      const deleted = await account.deleteAccount();
+      if (!deleted) return false;
+      await signOut();
+      router.replace('/');
+      return true;
+    } catch (caught) {
+      setError(caught);
+      return false;
+    }
   };
 
   return (
-    <Screen footer={<CustomerNavigation active="حسابي" />}>
-      <View style={styles.content}>
-        <Text style={styles.title}>حسابي</Text>
-        <Text style={styles.name}>{profile?.name}</Text>
-        <Text style={styles.meta}>{profile?.phone}</Text>
+    <Screen padded={false} scroll>
+      <CustomerStageHeader title={t('profile.title')} />
+      <View style={styles.body}>
+        <Card elevated style={styles.identityCard}>
+          {editing ? (
+            <View style={styles.editor}>
+              <View style={styles.editorHeading}>
+                <Avatar initials={initialsFromName(profile?.name ?? '؟')} size={56} />
+                <View style={styles.copy}>
+                  <Text style={styles.editorTitle}>{t('profile.edit')}</Text>
+                  <Text style={styles.meta}>{t('profile.loginPhone')}</Text>
+                </View>
+              </View>
+              <Field label={t('auth.name')} value={draftName} onChangeText={setDraftName} autoFocus />
+              <Field
+                label={t('profile.loginPhone')}
+                value={profile?.phone ?? t('profile.accountPhoneFallback')}
+                editable={false}
+                style={styles.readOnlyInput}
+              />
+              <View style={styles.editorActions}>
+                <Button
+                  label={t('profile.saveChanges')}
+                  onPress={() => void saveName()}
+                  loading={saving}
+                  style={styles.editorAction}
+                />
+                <Button
+                  label={t('common.cancel')}
+                  variant="secondary"
+                  disabled={saving}
+                  onPress={cancelEdit}
+                  style={styles.editorAction}
+                />
+              </View>
+            </View>
+          ) : (
+            <View style={styles.header}>
+              <Avatar initials={initialsFromName(profile?.name ?? '؟')} size={56} />
+              <View style={styles.copy}>
+                <Text style={styles.name}>{profile?.name ?? t('profile.accountNameFallback')}</Text>
+                <Text style={styles.metaLabel}>{t('profile.loginPhone')}</Text>
+                <Text style={styles.meta}>{profile?.phone ?? t('profile.accountPhoneFallback')}</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="تعديل بطاقة الهوية"
+                onPress={openEditor}
+                style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+              >
+                <Icon name="create-outline" size={21} color={colors.primary} />
+              </Pressable>
+            </View>
+          )}
+        </Card>
+        <ErrorBanner error={error || account.error} />
+        {success ? <Text style={styles.success}>{success}</Text> : null}
 
-        <View style={styles.links}>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/(customer)/notifications')}>
-            <Text style={styles.link}>{copy.customer.notificationsTitle}</Text>
-          </Pressable>
-          <Pressable accessibilityRole="link" onPress={() => open(`mailto:${supportEmail()}`)}>
-            <Text style={styles.link}>{copy.customer.support}: {supportEmail()}</Text>
-          </Pressable>
-          {termsUrl() ? (
-            <Pressable accessibilityRole="link" onPress={() => open(termsUrl())}>
-              <Text style={styles.link}>{copy.customer.terms}</Text>
-            </Pressable>
-          ) : null}
-          {privacyUrl() ? (
-            <Pressable accessibilityRole="link" onPress={() => open(privacyUrl())}>
-              <Text style={styles.link}>{copy.customer.privacy}</Text>
-            </Pressable>
-          ) : null}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('profile.accountSection')}</Text>
+          <View style={styles.actionSurface}>
+            <ActionRow icon="create-outline" label={t('profile.edit')} onPress={openEditor} />
+            <ActionRow icon="notifications-outline" label={t('profile.notifications')} onPress={() => router.push('/notifications')} />
+          </View>
         </View>
 
-        <View style={styles.actions}>
-          <PrimaryButton label={copy.customer.logout} variant="outline" loading={loggingOut} onPress={() => void logout()} />
-          <PrimaryButton label={copy.customer.deleteAccount} variant="outline" loading={deleting} onPress={confirmDelete} />
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('profile.helpPrivacySection')}</Text>
+          <Card style={styles.resourceCard}>
+            <LegalSupportLinks documents={legalDocuments} />
+          </Card>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('profile.sessionSection')}</Text>
+          <View style={styles.actionSurface}>
+            <ActionRow icon="log-out-outline" label={t('common.logout')} onPress={() => void logout()} />
+          </View>
+        </View>
+
+        <View style={styles.dangerSection}>
+          <Text style={styles.dangerTitle}>{t('profile.dangerSection')}</Text>
+          <Text style={styles.dangerBody}>{t('profile.dangerBody')}</Text>
+          <DeleteAccountButton onConfirm={deleteAccount} disabled={account.loading} />
         </View>
       </View>
     </Screen>
   );
 }
 
+function ActionRow({
+  icon,
+  label,
+  onPress,
+  style,
+}: {
+  readonly icon: IconName;
+  readonly label: string;
+  readonly onPress: () => void;
+  readonly style?: ViewStyle;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.actionRow, style, pressed && styles.actionRowPressed]}
+    >
+      <Icon name="chevron-back" size={19} color={colors.textMuted} />
+      <View style={styles.actionCopy}>
+        <Text style={styles.actionTitle}>{label}</Text>
+      </View>
+      <View style={styles.actionIcon}>
+        <Icon name={icon} size={20} color={colors.primary} />
+      </View>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  content: { flex: 1, gap: spacing.sm },
-  title: { color: colors.charcoal, fontFamily: typography.fontFamily.bold, fontSize: typography.size.title, textAlign: 'right' },
-  name: { color: colors.charcoal, fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.label, textAlign: 'right' },
-  meta: { color: colors.muted, fontFamily: typography.fontFamily.regular, fontSize: typography.size.body, textAlign: 'right' },
-  links: { marginTop: spacing.lg, gap: spacing.md },
-  link: { color: colors.primary, fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.body, textAlign: 'right' },
-  actions: { marginTop: 'auto', gap: spacing.sm },
+  body: {
+    paddingHorizontal: space[5],
+    gap: space[3],
+  },
+  identityCard: {
+    gap: space[4],
+    borderRadius: radii['2xl'],
+  },
+  header: {
+    flexDirection: 'row-reverse',
+    gap: space[3],
+    alignItems: 'center',
+  },
+  copy: {
+    flex: 1,
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  name: {
+    ...typography.titleSm,
+    textAlign: 'right',
+  },
+  metaLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: 'right',
+  },
+  meta: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: 'right',
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
+  },
+  iconButtonPressed: {
+    backgroundColor: colors.accentSoft,
+  },
+  editor: {
+    gap: space[4],
+  },
+  editorHeading: {
+    flexDirection: 'row-reverse',
+    gap: space[3],
+    alignItems: 'center',
+  },
+  editorTitle: {
+    ...typography.bodyStrong,
+    textAlign: 'right',
+  },
+  readOnlyInput: {
+    color: colors.textMuted,
+  },
+  editorActions: {
+    flexDirection: 'row-reverse',
+    gap: space[3],
+  },
+  editorAction: {
+    flex: 1,
+  },
+  success: {
+    ...typography.caption,
+    color: colors.success,
+    textAlign: 'right',
+    fontWeight: '600',
+  },
+  section: {
+    gap: space[2],
+  },
+  sectionTitle: {
+    ...typography.label,
+    color: colors.textMuted,
+    textAlign: 'right',
+  },
+  actionSurface: {
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.xl,
+    backgroundColor: colors.surface,
+  },
+  actionRow: {
+    minHeight: 64,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: space[3],
+    paddingHorizontal: space[4],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  actionRowPressed: {
+    backgroundColor: colors.primarySoft,
+  },
+  actionCopy: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  actionTitle: {
+    ...typography.bodyStrong,
+    textAlign: 'right',
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
+  },
+  resourceCard: {
+    paddingVertical: space[3],
+  },
+  dangerSection: {
+    gap: space[2],
+    paddingTop: space[4],
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  dangerTitle: {
+    ...typography.label,
+    color: colors.danger,
+    textAlign: 'right',
+  },
+  dangerBody: {
+    ...typography.caption,
+    color: colors.textMuted,
+    lineHeight: 21,
+    textAlign: 'right',
+  },
 });
