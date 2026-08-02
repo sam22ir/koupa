@@ -2,7 +2,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { UserRole } from '@/src/auth';
 import { isValidEmail, isValidPassword, normalizeAlgerianPhone } from '@/src/auth';
 import {
   AuthShell,
