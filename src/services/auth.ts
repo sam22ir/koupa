@@ -1,0 +1,486 @@
+import { makeRedirectUri } from 'expo-auth-session';
+import Constants from 'expo-constants';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
+import type { Session, User } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
+import { supabase } from '@/lib/supabase';
+import { appStorage } from '@/lib/storage';
+import {
+  hasUnapprovedGoogleCollision,
+  isExistingConfirmedEmailSignup,
+  parseAuthCallback,
+  type CredentialMethod,
+  type UserRole,
+} from '@/src/auth';
+import { AppError, toAppError } from '@/src/services/errors';
+
+WebBrowser.maybeCompleteAuthSession();
+
+export type ConfirmationType = 'signup' | 'email_change';
+
+export const pendingRoleKey = 'koupa.pending-role';
+export const pendingConfirmationEmailKey = 'koupa.pending-confirmation-email';
+export const pendingConfirmationTypeKey = 'koupa.pending-confirmation-type';
+
+/**
+ * OAuth / email redirect target used by Supabase `redirectTo`.
+ *
+ * Expo Go:
+ *   exp://192.168.x.x:8081/--/callback
+ * Dev client / Play:
+ *   koupa://callback
+ * Web:
+ *   http://localhost:8081/callback
+ *
+ * CRITICAL: the exact string returned here MUST be in
+ * Supabase → Authentication → URL Configuration → Redirect URLs.
+ * If it is missing, Google finishes account pick then the browser spins forever.
+ */
+export function authCallbackUrl(): string {
+  if (Platform.OS === 'web') {
+    return makeRedirectUri({ path: 'callback' });
+  }
+
+  // Standalone / dev-client / Play builds use the app scheme.
+  if (Constants.appOwnership !== 'expo') {
+    return makeRedirectUri({
+      scheme: 'koupa',
+      path: 'callback',
+      native: 'koupa://callback',
+    });
+  }
+
+  // Expo Go — must use exp:// host so openAuthSessionAsync can intercept return.
+  return makeRedirectUri({ path: 'callback' });
+}
+
+function looksLikeAuthCallback(url: string): boolean {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  if (!(lower.includes('callback') || lower.includes('koupa://') || lower.startsWith('exp://'))) {
+    return false;
+  }
+  const params = parseAuthCallback(url);
+  return Boolean(
+    params.code
+    || params.access_token
+    || params.refresh_token
+    || params.token_hash
+    || params.error
+    || params.error_description,
+  );
+}
+
+export async function getSession(): Promise<Session | null> {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw toAppError(error, 'UNAUTHORIZED');
+  return data.session;
+}
+
+export function onAuthStateChange(handler: (session: Session | null) => void) {
+  return supabase.auth.onAuthStateChange((_event, session) => {
+    handler(session);
+  });
+}
+
+export async function signOut(): Promise<void> {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw toAppError(error, 'UNAUTHORIZED');
+}
+
+export async function setPendingRoleStorage(role: UserRole): Promise<void> {
+  await appStorage.setItem(pendingRoleKey, role);
+}
+
+export async function clearPendingRoleStorage(): Promise<void> {
+  await appStorage.removeItem(pendingRoleKey);
+}
+
+export async function loadPendingRoleStorage(): Promise<UserRole | null> {
+  const value = await appStorage.getItem(pendingRoleKey);
+  return value === 'barber' || value === 'customer' ? value : null;
+}
+
+export async function setPendingEmailConfirmationStorage(
+  email: string,
+  type: ConfirmationType,
+): Promise<void> {
+  await Promise.all([
+    appStorage.setItem(pendingConfirmationEmailKey, email),
+    appStorage.setItem(pendingConfirmationTypeKey, type),
+  ]);
+}
+
+export async function clearPendingEmailConfirmationStorage(): Promise<void> {
+  await Promise.all([
+    appStorage.removeItem(pendingConfirmationEmailKey),
+    appStorage.removeItem(pendingConfirmationTypeKey),
+  ]);
+}
+
+export async function loadPendingEmailConfirmationStorage(): Promise<{
+  readonly email: string;
+  readonly type: ConfirmationType;
+}> {
+  const [email, type] = await Promise.all([
+    appStorage.getItem(pendingConfirmationEmailKey),
+    appStorage.getItem(pendingConfirmationTypeKey),
+  ]);
+  return {
+    email: email ?? '',
+    type: type === 'email_change' ? 'email_change' : 'signup',
+  };
+}
+
+export async function updateUserRole(role: UserRole, withConsent = false): Promise<void> {
+  const data = withConsent
+    ? { koupa_role: role, koupa_signup_consent: true }
+    : { koupa_role: role };
+  const { error } = await supabase.auth.updateUser({ data });
+  if (error) throw toAppError(error, 'UNAUTHORIZED');
+}
+
+export async function signInWithPassword(
+  method: CredentialMethod,
+  identifier: string,
+  password: string,
+): Promise<Session> {
+  const credentials = method === 'email'
+    ? { email: identifier, password }
+    : { phone: identifier, password };
+  const { data, error } = await supabase.auth.signInWithPassword(credentials);
+  if (error) {
+    if (method === 'email' && /email not confirmed/i.test(error.message ?? '')) {
+      await setPendingEmailConfirmationStorage(identifier.trim(), 'signup');
+    }
+    throw toAppError(error, 'UNAUTHORIZED');
+  }
+  if (!data.session) throw new AppError('UNAUTHORIZED', new Error('Authentication session is unavailable'));
+  const confirmationEmail = data.session.user.email?.trim();
+  if (!data.session.user.email_confirmed_at && confirmationEmail) {
+    await setPendingEmailConfirmationStorage(
+      confirmationEmail,
+      method === 'phone' ? 'email_change' : 'signup',
+    );
+  }
+  return data.session;
+}
+
+export async function attachPhoneRecoveryEmail(
+  email: string,
+  role: UserRole,
+): Promise<ConfirmationType> {
+  const address = email.trim();
+  if (!address) throw new AppError('VALIDATION', new Error('Recovery email is required'));
+  const { error } = await supabase.auth.updateUser({
+    email: address,
+    data: { koupa_role: role, koupa_signup_consent: true },
+  });
+  // Persist the recovery address/type even when Supabase rejects the update so
+  // a retry after a transient network failure does not restart signup.
+  await setPendingEmailConfirmationStorage(address, 'email_change');
+  if (error) throw new AppError('RECOVERY_EMAIL_ATTACH_FAILED', error);
+  return 'email_change';
+}
+
+export async function signUpWithPassword(input: {
+  readonly method: CredentialMethod;
+  readonly email: string;
+  readonly phone?: string;
+  readonly password: string;
+  readonly role: UserRole;
+}): Promise<ConfirmationType> {
+  const metadata = { koupa_role: input.role, koupa_signup_consent: true };
+  if (input.method === 'email') {
+    const { data, error } = await supabase.auth.signUp({
+      email: input.email,
+      password: input.password,
+      options: { emailRedirectTo: authCallbackUrl(), data: metadata },
+    });
+    if (error) throw toAppError(error, 'UNAUTHORIZED');
+    if (isExistingConfirmedEmailSignup(data.user)) {
+      throw new AppError('UNAUTHORIZED', new Error('User already registered'));
+    }
+    await setPendingEmailConfirmationStorage(input.email, 'signup');
+    return 'signup';
+  }
+
+  if (!input.phone) throw new AppError('VALIDATION', new Error('Phone is required'));
+  const { data, error } = await supabase.auth.signUp({
+    phone: input.phone,
+    password: input.password,
+    options: { data: metadata },
+  });
+  if (error) throw toAppError(error, 'UNAUTHORIZED');
+  if (!data.session) throw new AppError('UNAUTHORIZED', new Error('Phone registration session is unavailable'));
+  return attachPhoneRecoveryEmail(input.email, input.role);
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: authCallbackUrl(),
+  });
+  if (error) throw toAppError(error, 'UNAUTHORIZED');
+}
+
+export async function resendEmailConfirmation(
+  email: string,
+  type: ConfirmationType,
+): Promise<void> {
+  const address = email.trim();
+  if (!address) throw new AppError('VALIDATION', new Error('Confirmation email is unavailable'));
+  const { error } = await supabase.auth.resend({
+    type,
+    email: address,
+    options: { emailRedirectTo: authCallbackUrl() },
+  });
+  if (error) throw toAppError(error, 'UNAUTHORIZED');
+  await setPendingEmailConfirmationStorage(address, type);
+}
+
+/**
+ * Open the Google OAuth page and wait for either:
+ * 1) WebBrowser openAuthSessionAsync success URL, or
+ * 2) a Linking deep-link event (Android Custom Tabs often only deliver via Linking).
+ *
+ * Without the Linking race, Android Expo Go frequently hangs after account pick.
+ */
+export async function openGoogleAuthSession(authUrl: string): Promise<string | null> {
+  const redirectTo = authCallbackUrl();
+
+  if (Platform.OS === 'android') {
+    try {
+      await WebBrowser.warmUpAsync();
+    } catch {
+      // optional
+    }
+  }
+
+  let settled = false;
+  const cleanupFns: Array<() => void> = [];
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+  const linkingPromise = new Promise<string | null>((resolve) => {
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      if (settled) return;
+      if (!looksLikeAuthCallback(url)) return;
+      settled = true;
+      if (__DEV__) console.log('[auth] Linking captured callback =', url);
+      void WebBrowser.dismissAuthSession();
+      resolve(url);
+    });
+    cleanupFns.push(() => sub.remove());
+  });
+
+  try {
+    if (__DEV__) {
+      console.log('[auth] openAuthSession redirectTo =', redirectTo);
+      console.log('[auth] openAuthSession authUrl host =', (() => {
+        try {
+          return new URL(authUrl).host;
+        } catch {
+          return authUrl.slice(0, 80);
+        }
+      })());
+    }
+
+    const browserPromise = WebBrowser.openAuthSessionAsync(authUrl, redirectTo, {
+      showInRecents: true,
+      preferEphemeralSession: Platform.OS === 'ios',
+      // Android: keep session in same task so return deep link is more reliable.
+      createTask: Platform.OS !== 'android',
+    }).then((response) => {
+      if (settled) return null;
+      if (response.type === 'success' && 'url' in response && response.url) {
+        settled = true;
+        if (__DEV__) console.log('[auth] WebBrowser success url =', response.url);
+        return response.url;
+      }
+      if (__DEV__) console.log('[auth] WebBrowser response type =', response.type);
+      // cancel/dismiss may still race with Linking — wait briefly for deep link.
+      return null;
+    });
+
+    const timeoutPromise = new Promise<string | null>((resolve) => {
+      timeoutHandle = setTimeout(() => resolve(null), 30_000);
+    });
+
+    const result = await Promise.race([
+      browserPromise.then(async (url) => {
+        if (url) return url;
+        // Browser closed without URL — give Linking a short window to deliver.
+        await new Promise((r) => setTimeout(r, 1500));
+        return null;
+      }),
+      linkingPromise,
+      timeoutPromise,
+    ]);
+
+    return result;
+  } finally {
+    settled = true;
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+    for (const cleanup of cleanupFns) cleanup();
+    if (Platform.OS === 'android') {
+      try {
+        await WebBrowser.coolDownAsync();
+      } catch {
+        // optional
+      }
+    }
+  }
+}
+
+export type AuthCallbackResult = {
+  readonly kind: 'session' | 'recovery' | 'collision' | 'empty';
+};
+
+async function approveGoogleIdentityLink(): Promise<void> {
+  const { error } = await supabase.auth.updateUser({
+    data: { koupa_google_linked: true },
+  });
+  if (error) throw toAppError(error, 'UNAUTHORIZED');
+}
+
+export async function completeAuthCallback(
+  url: string,
+  role?: UserRole,
+  approveGoogleLink = false,
+): Promise<AuthCallbackResult> {
+  const params = parseAuthCallback(url);
+  const isRecovery = params.type === 'recovery' || params.flow === 'recovery' || params.recovery === '1';
+  if (params.error || params.error_description) {
+    const description = params.error_description ?? params.error ?? 'Auth callback failed';
+    throw new AppError('UNAUTHORIZED', new Error(description));
+  }
+
+  const hasExchangePayload = Boolean(
+    params.code
+    || (params.token_hash && params.type)
+    || (params.access_token && params.refresh_token),
+  );
+  if (!hasExchangePayload) {
+    return { kind: 'empty' };
+  }
+
+  let callbackUser: User | null = null;
+  if (params.code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
+    if (error) throw toAppError(error, 'UNAUTHORIZED');
+    callbackUser = data.user ?? data.session?.user ?? null;
+  } else if (params.token_hash && params.type) {
+    const type =
+      params.type === 'recovery'
+        ? 'recovery'
+        : params.type === 'email_change'
+          ? 'email_change'
+          : params.type === 'signup'
+            ? 'signup'
+            : 'email';
+    const { data, error } = await supabase.auth.verifyOtp({ token_hash: params.token_hash, type });
+    if (error) throw toAppError(error, 'UNAUTHORIZED');
+    callbackUser = data.user ?? data.session?.user ?? null;
+  } else if (params.access_token && params.refresh_token) {
+    const { data, error } = await supabase.auth.setSession({
+      access_token: params.access_token,
+      refresh_token: params.refresh_token,
+    });
+    if (error) throw toAppError(error, 'UNAUTHORIZED');
+    callbackUser = data.user ?? data.session?.user ?? null;
+  }
+
+  const user = callbackUser ?? (await supabase.auth.getUser()).data.user;
+  const newGoogleIdentity = user?.identities?.find((identity) => identity.provider === 'google');
+  if (hasUnapprovedGoogleCollision(user) && newGoogleIdentity) {
+    if (approveGoogleLink) {
+      await approveGoogleIdentityLink();
+    } else {
+      await supabase.auth.unlinkIdentity(newGoogleIdentity);
+      await supabase.auth.signOut();
+      throw new AppError(
+        'UNAUTHORIZED',
+        new Error('Existing password sign-in is required before linking Google'),
+      );
+    }
+  }
+
+  if (role && !isRecovery) await updateUserRole(role, true);
+  await clearPendingEmailConfirmationStorage();
+
+  if (isRecovery) {
+    return { kind: 'recovery' };
+  }
+  return { kind: 'session' };
+}
+
+export async function updatePassword(password: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw toAppError(error, 'UNAUTHORIZED');
+}
+
+export async function signInWithGoogle(role?: UserRole): Promise<AuthCallbackResult> {
+  if (role) {
+    await setPendingRoleStorage(role);
+  }
+
+  const redirectTo = authCallbackUrl();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo,
+      skipBrowserRedirect: true,
+      queryParams: {
+        prompt: 'select_account',
+      },
+    },
+  });
+  if (error || !data.url) {
+    throw toAppError(error ?? new Error('Google sign-in URL is unavailable'), 'UNAUTHORIZED');
+  }
+
+  // Always log — this is the value that must be in Supabase Redirect URLs.
+  console.log('[auth] ADD THIS EXACT URL TO SUPABASE REDIRECT URLS →', redirectTo);
+  console.log('[auth] Google OAuth start url host →', (() => {
+    try {
+      return new URL(data.url).origin;
+    } catch {
+      return 'invalid';
+    }
+  })());
+
+  const callback = await openGoogleAuthSession(data.url);
+  if (!callback) {
+    console.log('[auth] Google OAuth returned no callback URL (cancel or redirect not intercepted)');
+    return { kind: 'empty' };
+  }
+
+  console.log('[auth] Google callback captured →', callback);
+  return completeAuthCallback(callback, role);
+}
+
+export async function linkGoogleIdentity(): Promise<AuthCallbackResult> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw toAppError(userError, 'UNAUTHORIZED');
+  if (userData.user?.identities?.some((identity) => identity.provider === 'google')) {
+    await approveGoogleIdentityLink();
+    return { kind: 'session' };
+  }
+
+  const redirectTo = authCallbackUrl();
+  const { data, error } = await supabase.auth.linkIdentity({
+    provider: 'google',
+    options: {
+      redirectTo,
+      skipBrowserRedirect: true,
+      queryParams: { prompt: 'select_account' },
+    },
+  });
+  if (error || !data.url) {
+    throw toAppError(error ?? new Error('Google linking URL is unavailable'), 'UNAUTHORIZED');
+  }
+
+  const callback = await openGoogleAuthSession(data.url);
+  if (!callback) return { kind: 'empty' };
+  return completeAuthCallback(callback, undefined, true);
+}

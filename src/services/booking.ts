@@ -144,6 +144,11 @@ export async function checkInWithQr(barberId: string): Promise<CheckInResult> {
   const data = await rpcData(() =>
     supabase.rpc('check_in_with_barber_qr', { target_barber_id: barberId }),
   );
+  // Staging may still expose the pre-workflow RPC, which returns the
+  // checked-in appointment UUID instead of the structured result object.
+  if (typeof data === 'string') {
+    return { code: 'CHECKED_IN', appointmentId: data };
+  }
   return parseCheckInResult(data);
 }
 

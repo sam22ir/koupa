@@ -1,19 +1,116 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { supabase } from '@/lib/supabase';
-import { isValidPassword } from '@/src/auth';
-import { PrimaryButton } from '@/src/components/atoms/PrimaryButton';
-import { FormField } from '@/src/components/molecules/FormField';
-import { Screen } from '@/src/components/organisms/Screen';
-import { copy } from '@/src/data/copy';
-import { useSession } from '@/src/hooks/useSession';
-import { colors, spacing, typography } from '@/src/theme';
+import { useState } from 'react';
+import { Pressable } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
-export default function ResetPassword() {
-  const { session } = useSession(); const [password, setPassword] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false);
-  const submit = async () => { if (!session || !isValidPassword(password)) return setError(copy.common.validation); try { setLoading(true); const { error: updateError } = await supabase.auth.updateUser({ password }); if (updateError) throw updateError; router.replace('/'); } catch { setError(copy.auth.failed); } finally { setLoading(false); } };
-  return <Screen><View style={styles.header}><Text style={styles.title}>{copy.auth.resetPassword}</Text><Text style={styles.body}>{copy.auth.passwordHint}</Text></View><FormField label={copy.auth.password} value={password} onChangeText={(value) => { setPassword(value); setError(''); }} secureTextEntry autoComplete="new-password" autoCapitalize="none" />{error ? <Text style={styles.error}>{error}</Text> : null}<View style={styles.footer}><PrimaryButton label={copy.auth.resetPassword} onPress={() => void submit()} loading={loading} /></View></Screen>;
+import { isValidPassword } from '@/src/auth';
+import { Button, ErrorBanner, Field, Icon, Screen, ScreenTitle } from '@/src/components/ui';
+import { t } from '@/src/i18n';
+import { useAppSession } from '@/src/providers/SessionProvider';
+import { colors, typography } from '@/src/theme';
+
+export default function ResetPasswordScreen() {
+  const { updatePassword, session, signOut } = useAppSession();
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState<unknown>(null);
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+
+  const submit = async () => {
+    setError(null);
+    if (!isValidPassword(password)) {
+      setError(new Error(t('auth.passwordTooShort')));
+      return;
+    }
+    if (password !== confirm) {
+      setError(new Error(t('auth.passwordMismatch')));
+      return;
+    }
+    if (!session) {
+      setError(new Error(t('auth.linkExpiredBody')));
+      return;
+    }
+    setBusy(true);
+    try {
+      await updatePassword(password);
+      setDone(true);
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <Screen>
+        <ScreenTitle title={t('auth.resetPasswordTitle')} subtitle={t('auth.resetPasswordDone')} />
+        <Button label={t('auth.goHome')} onPress={() => router.replace('/')} />
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen scroll>
+      <ScreenTitle title={t('auth.resetPasswordTitle')} subtitle={t('auth.resetPasswordBody')} />
+      <Field
+        label={t('auth.password')}
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry={!passwordVisible}
+        accessory={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={passwordVisible ? t('auth.hidePassword') : t('auth.showPassword')}
+            onPress={() => setPasswordVisible((value) => !value)}
+          >
+            <Icon name={passwordVisible ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.primary} />
+          </Pressable>
+        }
+      />
+      <Field
+        label={t('auth.passwordConfirm')}
+        value={confirm}
+        onChangeText={setConfirm}
+        secureTextEntry={!confirmVisible}
+        accessory={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={confirmVisible ? t('auth.hidePassword') : t('auth.showPassword')}
+            onPress={() => setConfirmVisible((value) => !value)}
+          >
+            <Icon name={confirmVisible ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.primary} />
+          </Pressable>
+        }
+      />
+      <ErrorBanner error={error} />
+      {!session ? (
+        <Text style={styles.hint}>{t('auth.linkExpiredBody')}</Text>
+      ) : null}
+      <Button
+        label={t('auth.resetPasswordSave')}
+        onPress={() => void submit()}
+        loading={busy}
+        disabled={!session}
+      />
+      <Button
+        label={t('auth.signIn')}
+        variant="secondary"
+        onPress={() => {
+          void signOut().finally(() => router.replace('/(auth)/sign-in'));
+        }}
+      />
+    </Screen>
+  );
 }
 
-const styles = StyleSheet.create({ header: { gap: spacing.xs }, title: { color: colors.charcoal, fontFamily: typography.fontFamily.bold, fontSize: typography.size.hero, lineHeight: typography.line.hero, textAlign: 'right' }, body: { color: colors.muted, fontFamily: typography.fontFamily.regular, fontSize: typography.size.body, textAlign: 'right' }, error: { color: colors.danger, fontFamily: typography.fontFamily.regular, textAlign: 'right' }, footer: { marginTop: 'auto' } });
+const styles = StyleSheet.create({
+  hint: {
+    ...typography.caption,
+    color: colors.danger,
+    textAlign: 'right',
+  },
+});

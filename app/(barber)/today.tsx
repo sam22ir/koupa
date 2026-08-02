@@ -1,4 +1,5 @@
 import * as Sharing from 'expo-sharing';
+import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -11,8 +12,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
-import { captureRef } from 'react-native-view-shot';
 
 import {
   appointmentStatusLabel,
@@ -35,6 +34,7 @@ import {
   Screen,
   Stage,
 } from '@/src/components/ui';
+import { QrCodeMatrix } from '@/src/components/QrCodeMatrix';
 import { useBooking } from '@/src/hooks/useBooking';
 import { t } from '@/src/i18n';
 import { buildBarberCheckInPayload } from '@/src/qr';
@@ -68,7 +68,7 @@ function Counter({ label, value }: { readonly label: string; readonly value: num
 }
 
 export default function BarberTodayScreen() {
-  const { profile } = useAppSession();
+  const { profile, legalError, retryLegalAcceptance } = useAppSession();
   const { today, markPresent, cancelBarber, undoQrCheckIn, error } = useBooking();
   const [items, setItems] = useState<readonly TodayAppointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,8 +141,16 @@ export default function BarberTodayScreen() {
       return;
     }
 
+    // Expo Go does not guarantee the optional RNViewShot native module.
+    // Keep it out of startup evaluation; a development build can still share.
+    if (Constants.appOwnership === 'expo') {
+      Alert.alert(t('barber.shareUnavailable'));
+      return;
+    }
+
     setSharingQr(true);
     try {
+      const { captureRef } = require('react-native-view-shot') as typeof import('react-native-view-shot');
       const uri = await captureRef(qrCardRef.current, {
         format: 'png',
         quality: 1,
@@ -182,6 +190,12 @@ export default function BarberTodayScreen() {
 
   const listHeader = (
     <View style={styles.dashboardHeader}>
+      {legalError ? (
+        <View style={styles.legalNotice}>
+          <ErrorBanner error={legalError} />
+          <Button label={t('common.retry')} variant="secondary" onPress={() => void retryLegalAcceptance()} />
+        </View>
+      ) : null}
       <View style={styles.counterRow}>
         <Counter label={t('barber.upcoming')} value={dashboard.counts.upcoming} />
         <View style={styles.counterDivider} />
@@ -209,7 +223,7 @@ export default function BarberTodayScreen() {
   );
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} style={styles.screen}>
       <Stage decoration="subtle">
         <View style={styles.stageTopRow}>
           <View testID="today-logo-wrap" style={styles.logoWrap}>
@@ -328,12 +342,13 @@ export default function BarberTodayScreen() {
                 <Text style={styles.qrBrand}>كوپا</Text>
                 <Text style={styles.qrBarberName}>{profile?.name}</Text>
                 <View style={styles.qrCodeSurface}>
-                  <QRCode
+                  <QrCodeMatrix
                     value={qrPayload}
                     size={240}
-                    color={colors.text}
+                    foregroundColor={colors.text}
                     backgroundColor={colors.surface}
                     quietZone={12}
+                    testID="barber-qr-code"
                   />
                 </View>
                 <Text style={styles.modalBody}>{t('barber.qrInstruction')}</Text>
@@ -451,6 +466,7 @@ export default function BarberTodayScreen() {
 }
 
 const styles = StyleSheet.create({
+  screen: { backgroundColor: colors.workspace },
   stageTopRow: {
     minHeight: 72,
     position: 'relative',
@@ -507,6 +523,7 @@ const styles = StyleSheet.create({
     marginTop: layout.stageBodyOverlap,
     gap: space[3],
     paddingHorizontal: layout.screenPaddingX,
+    backgroundColor: colors.workspace,
   },
   listView: {
     flex: 1,
@@ -518,6 +535,9 @@ const styles = StyleSheet.create({
   },
   dashboardHeader: {
     gap: space[3],
+  },
+  legalNotice: {
+    gap: space[2],
   },
   counterRow: {
     minHeight: 86,

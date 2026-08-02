@@ -1,23 +1,23 @@
-const baseConfig = require('./app.json').expo;
-
 const environment = process.env.EXPO_PUBLIC_APP_ENV || 'development';
 const firebaseConfig = {
   staging: './google-services.staging.json',
   production: './google-services.production.json',
 }[environment];
 
-module.exports = {
+module.exports = ({ config: baseConfig }) => ({
   ...baseConfig,
   scheme: baseConfig.scheme || 'koupa',
   userInterfaceStyle: baseConfig.userInterfaceStyle || 'automatic',
-  plugins: [
+  plugins: Array.from(new Set([
     ...(baseConfig.plugins || []),
     'expo-router',
     'expo-status-bar',
     'expo-font',
     'expo-splash-screen',
+    ['expo-camera', { recordAudioAndroid: false }],
     'expo-sharing',
-  ],
+    '@react-native-community/datetimepicker',
+  ])),
   experiments: {
     ...(baseConfig.experiments || {}),
     typedRoutes: true,
@@ -36,4 +36,4 @@ module.exports = {
     supportsRTL: true,
     forcesRTL: false,
   },
-};
+});

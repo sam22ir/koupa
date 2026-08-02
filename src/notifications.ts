@@ -26,15 +26,3 @@ export function appEnvironment(): 'development' | 'staging' | 'production' {
   if (value === 'staging' || value === 'production') return value;
   return 'development';
 }
-
-export function supportEmail(): string {
-  return process.env.EXPO_PUBLIC_SUPPORT_EMAIL?.trim() || 'support@koupa.app';
-}
-
-export function termsUrl(): string {
-  return process.env.EXPO_PUBLIC_TERMS_URL?.trim() || '';
-}
-
-export function privacyUrl(): string {
-  return process.env.EXPO_PUBLIC_PRIVACY_URL?.trim() || '';
-}

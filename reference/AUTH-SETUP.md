@@ -1,66 +1,336 @@
 # Authentication Setup
 
-This document covers the Supabase dashboard work required before testing or releasing Koupa authentication. Never place provider client secrets, SMTP credentials, or service-role keys in Expo environment variables or the repository.
+This document covers Supabase + Google OAuth work required before testing or releasing Koupa authentication.
 
-## 1. Apply Database Migrations
+**Never** place provider client secrets, SMTP credentials, or service-role keys in Expo environment variables or the repository.
 
-Apply migrations in `supabase/migrations` in filename order to development, staging, and production. The `20260722000300_auth_consent.sql` migration adds the legal acceptance gate used by profile creation.
+Linked default project for CLI work: **Koupa Staging** `zhdwaizroczkqzwrvfxf`.
 
-Before any signup test, create exactly one active row for each required document using approved, public URLs and release-owned versions:
+---
 
-```sql
-insert into public.legal_documents (key, version, url, is_active)
-values
-  ('terms', '2026-07-22', 'https://example.com/terms', true),
-  ('privacy', '2026-07-22', 'https://example.com/privacy', true);
+## What Supabase CLI can do (and cannot)
+
+| Task | CLI? | Notes |
+|---|---|---|
+| Link project | Yes | `supabase link --project-ref zhdwaizroczkqzwrvfxf` |
+| Query / migrate DB | Yes | `supabase db query --linked "…"` / `supabase db push` |
+| Seed legal documents | Yes | SQL insert/update via `db query --linked` |
+| List API keys | Yes | `supabase projects api-keys --project-ref …` (do not commit secrets) |
+| Enable Google provider + client secret | **No** | Dashboard only (Auth → Providers → Google) |
+| Set Site URL / redirect allow-list | **Dashboard** | Auth → URL Configuration |
+| Create Google Cloud OAuth client | **No** | Google Cloud Console |
+
+---
+
+## 1. Staging status (verified via CLI)
+
+```sh
+supabase link --project-ref zhdwaizroczkqzwrvfxf
+supabase db query --linked "select key, version, url, is_active from public.legal_documents order by key, version;"
 ```
 
-Replace the example versions and URLs with the approved legal documents. Do not modify existing acceptance records. Publish a new version by updating the active document row only as part of a reviewed legal release.
+Current staging legal rows:
 
-## 2. Configure Supabase Auth
+| key | version | url | active |
+|---|---|---|---|
+| terms | staging-2026-07-23 | https://example.com/terms | false |
+| terms | 2026-07-29 | https://koupa-website.pages.dev/terms/ | true |
+| privacy | staging-2026-07-23 | https://example.com/privacy | false |
+| privacy | 2026-07-29 | https://koupa-website.pages.dev/privacy/ | true |
 
-In **Authentication > Providers**:
+Legal documents and acceptances are append-only by version. Existing users must explicitly accept a newly active version; never rewrite or delete their historical acceptance rows.
 
-- Enable Google and enter its OAuth client ID and client secret from the approved secret store.
-- Enable email/password and require email confirmation.
-- Enable phone/password only. Disable SMS verification and OTP templates for this product flow.
-- Configure the email sender, confirmation template, and password-recovery template using the approved transactional email provider. The confirmation template uses Supabase's `{{ .ConfirmationURL }}` link and returns through the platform-specific callback URL.
-- Set an appropriate password policy with a minimum length of eight characters or stronger.
-- Set production rate limits for email sends, token verification, password sign-in, and OAuth attempts according to the expected launch traffic and provider quotas.
+Staging has demo users/profiles. App env files point at staging URL + publishable key.
 
-Use the app callback as both the Supabase Auth Site URL and an allowed redirect URL for native builds:
+---
+
+## 2. Google OAuth — what **you** must do
+
+Koupa mobile uses Supabase Auth Google provider with PKCE and redirect:
 
 ```text
 koupa://callback
 ```
 
-For local web development, also allow the exact Expo web callback origin, such as:
+### A. Google Cloud Console
 
-```text
-http://localhost:8081/callback
+1. Open [Google Cloud Console](https://console.cloud.google.com/) → select project for **staging** (or create `koupa-staging-auth`).
+2. **APIs & Services → OAuth consent screen**
+   - User type: External (or Internal if Workspace-only testing)
+   - App name: `Koupa`
+   - Support email: yours
+   - Authorized domains: add `supabase.co` if prompted
+   - Scopes: `email`, `profile`, `openid` (default)
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID**
+   - Application type: **Web application**  
+     (Supabase Auth exchanges the code server-side; use a **Web** client even for mobile.)
+   - Name: `Koupa Supabase Staging`
+   - **Authorized JavaScript origins** (optional for mobile PKCE):
+     - `https://zhdwaizroczkqzwrvfxf.supabase.co`
+   - **Authorized redirect URIs** (required):
+     ```text
+     https://zhdwaizroczkqzwrvfxf.supabase.co/auth/v1/callback
+     ```
+4. Copy:
+   - **Client ID** (ends with `.apps.googleusercontent.com`)
+   - **Client secret**
+
+> For production later: create a **second** Web client (or separate GCP project) and point it at  
+> `https://hrcwhswzscfbpbllqkri.supabase.co/auth/v1/callback`.
+
+### B. Supabase Dashboard (Staging)
+
+Open:  
+https://supabase.com/dashboard/project/zhdwaizroczkqzwrvfxf/auth/providers
+
+1. **Authentication → Providers → Google**
+   - Enable Google
+   - Paste **Client ID**
+   - Paste **Client secret**
+   - Save
+2. **Authentication → URL Configuration**
+   - **Site URL** (pick one primary):
+     ```text
+     koupa://callback
+     ```
+   - **Redirect URLs** allow-list (add **all** of these):
+     ```text
+     koupa://callback
+     exp://127.0.0.1:8081/--/callback
+     exp://192.168.132.184:8081/--/callback
+     exp://192.168.*.*:8081/--/callback
+     http://localhost:8081/callback
+     http://127.0.0.1:8081/callback
+     ```
+
+   **Expo Go hang after picking a Google account** is almost always a missing redirect URL.
+   In Expo Go the app redirects to something like:
+   ```text
+   exp://192.168.132.184:8081/--/callback
+   ```
+   **not** `koupa://callback`. If that exact URL is not allow-listed, Google finishes
+   account pick then the browser spins forever and the app never receives a callback.
+
+   How to fix (required for Expo Go):
+   1. Restart the app / Metro so the new OAuth code is loaded.
+   2. Tap **المتابعة مع Google** once.
+   3. In Metro terminal, find:
+      ```text
+      [auth] ADD THIS EXACT URL TO SUPABASE REDIRECT URLS → exp://…
+      ```
+   4. Open Supabase staging → **Authentication → URL Configuration → Redirect URLs**
+   5. Paste that **exact** `exp://…` URL → Save
+   6. Also keep:
+      ```text
+      koupa://callback
+      http://localhost:8081/callback
+      ```
+   7. Retry Google sign-in (close the stuck browser tab first).
+
+   Android note: Custom Tabs often deliver the return via a deep link, not the WebBrowser
+   promise. The app now races both so either path can complete the login.
+3. **Authentication → Providers → Email**
+   - Enabled
+   - Confirm email: **ON**
+4. **Authentication → Providers → Phone**
+   - Enable phone only if you use phone/password
+   - SMS OTP: **OFF** for Koupa MVP (recovery email flow, not SMS)
+
+### C. App side (already implemented)
+
+- Redirect used by client: `koupa://callback` (native) / Expo web `/callback`
+- PKCE + `detectSessionInUrl: false`
+- Callback screen: `app/callback.tsx` exchanges code / handles recovery / collision
+
+No Google client secret belongs in `.env` or the app.
+
+### D. Android package note (installed builds)
+
+- Application ID: `com.koupa.app` (`app.json`)
+- For **installed** Android builds, Expo/dev-client still uses Supabase’s **web** OAuth client + deep link `koupa://callback` (current architecture).
+- You do **not** need a separate “Android” OAuth client type for this Supabase flow unless you later switch to native Google Sign-In SDKs.
+
+### E. Quick test checklist
+
+1. Staging Google provider enabled with Web client ID/secret  
+2. Redirect URI in Google Cloud = `https://zhdwaizroczkqzwrvfxf.supabase.co/auth/v1/callback`  
+3. Supabase allow-list includes `koupa://callback`  
+4. In app: **إنشاء حساب** → role + legal → **المتابعة مع Google**  
+5. Browser completes → returns to app callback → lands in customer setup or barber onboarding  
+6. Existing email/password user + Google same email → collision screen (password first)
+
+---
+
+## 3. CLI commands useful during setup
+
+```sh
+# Stay on staging by default
+supabase link --project-ref zhdwaizroczkqzwrvfxf
+
+# Legal docs
+supabase db query --linked \
+  "select key, version, url, is_active from public.legal_documents order by key, version;"
+
+# Count auth users / sample profiles
+supabase db query --linked "select count(*) from auth.users;"
+supabase db query --linked "select id, role, name, is_published from public.profiles limit 10;"
+
+# Publishable keys only for app env (never ship service_role)
+supabase projects api-keys --project-ref zhdwaizroczkqzwrvfxf
 ```
 
-The app uses PKCE. Keep `detectSessionInUrl` disabled in the mobile client because the callback screen exchanges the returned authorization code explicitly.
+Production (temporary link only):
 
-## 3. Expo Environment
-
-Copy `.env.example` to `.env.local` and supply only browser-safe Supabase values:
-
-```text
-EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-EXPO_PUBLIC_TERMS_URL=https://example.com/terms
-EXPO_PUBLIC_PRIVACY_URL=https://example.com/privacy
+```sh
+supabase link --project-ref hrcwhswzscfbpbllqkri
+# …audit…
+supabase link --project-ref zhdwaizroczkqzwrvfxf   # re-link staging
 ```
 
-`EXPO_PUBLIC_*` values are embedded in the app. Never add private keys, provider secrets, or `SUPABASE_SERVICE_ROLE_KEY` to this file.
+---
 
-## 4. Release Checklist
+## 4. Expo environment (client-safe only)
 
-- Google OAuth has been tested on an installed Android build.
-- Email registration reaches `koupa://callback`, confirms the email, and resumes the selected role's onboarding.
-- Phone/password registration attaches a recovery email; onboarding remains blocked until that email is confirmed.
-- Password-reset links open the reset-password screen and expire safely.
-- Active Terms and Privacy rows contain approved versions and URLs in every deployed database.
-- New profile creation fails without confirmed email, current legal acceptances, and matching provisional role.
-- Existing accounts do not silently merge with a newly attempted Google identity.
+```text
+EXPO_PUBLIC_APP_ENV=staging
+EXPO_PUBLIC_SUPABASE_URL=https://zhdwaizroczkqzwrvfxf.supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_…
+```
+
+Terms and Privacy URLs are loaded from active, versioned Supabase rows. The public support contact and account-deletion URL are safe client constants in `src/config/legal.ts`.
+
+Do **not** add Google client secret or `SUPABASE_SERVICE_ROLE_KEY` here.
+
+---
+
+## 5. Production side (Koupa Production `hrcwhswzscfbpbllqkri`)
+
+Treat production as a **separate** Google + Supabase + Firebase stack. Do not reuse staging OAuth clients or secrets.
+
+### Production status (CLI audit)
+
+```sh
+supabase link --project-ref hrcwhswzscfbpbllqkri
+supabase migration list
+supabase db query --linked "select count(*) from auth.users;"
+supabase db query --linked "select count(*) from public.profiles;"
+supabase db query --linked "select count(*) from public.legal_documents;"
+supabase secrets list
+supabase link --project-ref zhdwaizroczkqzwrvfxf   # always re-link staging after
+```
+
+Last checked:
+
+| Item | Production |
+|---|---|
+| Auth users | **0** (empty) |
+| Profiles | **0** (empty) |
+| Legal documents | **0 rows** (table exists, not seeded) |
+| Migrations | **Behind** local — remote has through `20260725000400`; missing `20260726*` … `20260728*` |
+| Edge secrets | Platform keys only — **missing** `APP_ENV`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `NOTIFICATION_DISPATCH_SECRET` |
+| Firebase | `koupa-prod` (see `.env.production.local`) |
+| App ID | `com.koupa.app` |
+
+### Production Google OAuth (do this in order)
+
+#### A. Google Cloud (production)
+
+1. Use a **production** GCP project (recommended: dedicated, not the staging one).
+2. OAuth consent screen:
+   - Publishing status: move to **In production** when ready for public testers / Play
+   - App name `Koupa`, support email, privacy policy URL (approved)
+3. Create OAuth client ID → **Web application**
+   - Name: `Koupa Supabase Production`
+   - Authorized redirect URI (**exact**):
+     ```text
+     https://hrcwhswzscfbpbllqkri.supabase.co/auth/v1/callback
+     ```
+4. Store Client ID + Client secret in the approved secret store (not git, not Expo env).
+
+Optional later: separate Android OAuth client only if you adopt native Google Sign-In SDK. Current app uses Supabase browser/PKCE + `koupa://callback`, so **Web client is enough**.
+
+#### B. Supabase Dashboard (production)
+
+Open: https://supabase.com/dashboard/project/hrcwhswzscfbpbllqkri/auth/providers
+
+1. **Providers → Google** → enable → paste **production** Client ID/secret → Save  
+   (Never paste the staging client here.)
+2. **URL Configuration**
+   - Site URL: `koupa://callback`
+   - Redirect URLs (production-focused; no random LAN exp:// unless debugging a prod build):
+     ```text
+     koupa://callback
+     ```
+     Add Play / EAS preview URLs only if you use them for auth returns.
+3. **Email** provider: enabled, **confirm email ON**, password min length ≥ 8  
+4. **Phone**: password path only; SMS OTP off for MVP  
+5. Email templates: confirmation + recovery must use `{{ .ConfirmationURL }}` / recovery link and resolve through `koupa://callback`
+
+#### C. Production data gates (CLI)
+
+Before any real signup on production:
+
+1. **Push missing migrations** (after review; temporary prod link):
+   ```sh
+   supabase link --project-ref hrcwhswzscfbpbllqkri
+   supabase db push
+   supabase link --project-ref zhdwaizroczkqzwrvfxf
+   ```
+2. **Apply the versioned legal-document migration** and verify approved active rows:
+   ```sql
+   select key, version, url, is_active
+   from public.legal_documents
+   order by key, version;
+   ```
+3. Confirm app build uses production env only:
+   ```text
+   EXPO_PUBLIC_APP_ENV=production
+   EXPO_PUBLIC_SUPABASE_URL=https://hrcwhswzscfbpbllqkri.supabase.co
+   EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<prod publishable>
+   ```
+
+#### D. Production extras (not Google, but blocking launch)
+
+| Item | Action |
+|---|---|
+| Push dispatch | Deploy `dispatch-notifications` + set `FIREBASE_SERVICE_ACCOUNT_JSON`, `NOTIFICATION_DISPATCH_SECRET`, `APP_ENV=production` |
+| Appointment transitions | Verify DB cron / function parity with staging |
+| Play App signing | SHA-1 not required for Supabase Web OAuth; required if you add native Google Sign-In later |
+| Closed testing | Use production Google OAuth only on prod builds; staging stays on staging client |
+
+### Staging vs production matrix
+
+| | Staging | Production |
+|---|---|---|
+| Project ref | `zhdwaizroczkqzwrvfxf` | `hrcwhswzscfbpbllqkri` |
+| Supabase Auth callback | `https://zhdwaizroczkqzwrvfxf.supabase.co/auth/v1/callback` | `https://hrcwhswzscfbpbllqkri.supabase.co/auth/v1/callback` |
+| Google OAuth client | Staging Web client | **Separate** production Web client |
+| Deep link | `koupa://callback` | `koupa://callback` (same scheme) |
+| Firebase | `koupa-staging` | `koupa-prod` |
+| Demo data | Yes | No |
+| Legal URLs | Approved version `2026-07-29` | Approved version `2026-07-29` |
+
+---
+
+## 6. Release checklist
+
+### Staging
+- [ ] Google OAuth Web client (staging) + Supabase Google enabled
+- [ ] Redirect URI = `https://zhdwaizroczkqzwrvfxf.supabase.co/auth/v1/callback`
+- [ ] Allow-list includes `koupa://callback` (+ Expo LAN if needed)
+- [ ] Email confirm + recovery tested
+- [ ] Collision path tested
+
+### Production
+- [ ] **Separate** Google OAuth Web client (production)
+- [ ] Redirect URI = `https://hrcwhswzscfbpbllqkri.supabase.co/auth/v1/callback`
+- [ ] Supabase production Google provider enabled with prod client only
+- [ ] Allow-list includes `koupa://callback`
+- [ ] Email confirmation required; recovery templates OK
+- [ ] Missing migrations applied (`db push` after review)
+- [ ] Legal Terms/Privacy active rows with approved URLs
+- [ ] Prod publishable key in production EAS secrets / `.env.production`
+- [ ] Google sign-in tested on **installed** production/closed-testing build
+- [ ] Password recovery + email confirm on device
+- [ ] No silent Google identity merge
+- [ ] Push secrets + `dispatch-notifications` on production (launch hygiene)

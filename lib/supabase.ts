@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { appStorage } from '@/lib/storage';
+import type { Database } from '@/src/types/database';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -11,9 +12,9 @@ if (!clientUrl || !clientKey) {
   throw new Error('Missing Supabase environment variables. Copy .env.example to .env.local.');
 }
 
-export const supabase = createClient(clientUrl, clientKey, {
+export const supabase = createClient<Database>(clientUrl, clientKey, {
   auth: {
-    storage: AsyncStorage,
+    storage: appStorage,
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,

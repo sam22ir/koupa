@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import * as accountService from '@/src/services/account';
 
 export function useAccountLifecycle() {
   const [loading, setLoading] = useState(false);
@@ -9,9 +9,7 @@ export function useAccountLifecycle() {
     setLoading(true);
     setError('');
     try {
-      const { error: requestError } = await supabase.rpc('delete_own_account');
-      if (requestError) throw requestError;
-      await supabase.auth.signOut();
+      await accountService.deleteOwnAccount();
       return true;
     } catch {
       setError('failed');

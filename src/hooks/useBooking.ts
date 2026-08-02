@@ -41,7 +41,11 @@ export function useBooking() {
     [mapError, run],
   );
   const checkInWithQr = useCallback(
-    (barberId: string) => run(() => bookingService.checkInWithQr(barberId), mapError),
+    (barberId: string) => run(
+      () => bookingService.checkInWithQr(barberId),
+      mapError,
+      { rethrow: true },
+    ),
     [mapError, run],
   );
   const undoQrCheckIn = useCallback(

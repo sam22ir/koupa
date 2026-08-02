@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { ActivityIndicator, Linking, StyleSheet, Text, View } from 'react-native';
 
 import { formatBookingTime } from '@/src/booking';
-import { Button, Card, Icon, Screen, ScreenTitle } from '@/src/components/ui';
+import { Button, Card, CustomerStageHeader, Icon, Screen } from '@/src/components/ui';
 import { useBooking } from '@/src/hooks/useBooking';
 import { t } from '@/src/i18n';
+import { bookingErrorMessage } from '@/src/services/errors';
 import {
   parseBarberCheckInPayload,
   type CheckInResult,
@@ -16,7 +17,9 @@ import { colors, radii, space, typography } from '@/src/theme';
 type ScanState =
   | { readonly kind: 'scanning' }
   | { readonly kind: 'checking' }
+  | { readonly kind: 'camera' }
   | { readonly kind: 'invalid' }
+  | { readonly kind: 'error'; readonly message: string }
   | { readonly kind: 'result'; readonly result: CheckInResult }
   | { readonly kind: 'network' };
 
@@ -71,6 +74,14 @@ export default function ScanScreen() {
     setState({ kind: 'scanning' });
   };
 
+  const closeScanner = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(customer)/home');
+  };
+
   if (!permission) {
     return <Screen loading />;
   }
@@ -78,38 +89,46 @@ export default function ScanScreen() {
   if (!permission.granted) {
     const canAskAgain = permission.canAskAgain !== false;
     return (
-      <Screen contentStyle={styles.permissionScreen}>
-        <View style={styles.permissionIcon}>
-          <Icon name="camera-outline" size={30} color={colors.primary} />
+      <Screen padded={false}>
+        <CustomerStageHeader title={t('scan.title')} subtitle={t('scan.permission')} />
+        <View style={styles.permissionScreen}>
+          <View style={styles.permissionIcon}>
+            <Icon name="camera-outline" size={30} color={colors.primary} />
+          </View>
+          <Button
+            label={canAskAgain ? t('scan.grant') : t('scan.openSettings')}
+            onPress={() => {
+              if (canAskAgain) {
+                void requestPermission();
+              } else {
+                void Linking.openSettings();
+              }
+            }}
+          />
+          <Button label={t('common.close')} variant="ghost" onPress={closeScanner} />
         </View>
-        <ScreenTitle title={t('scan.title')} subtitle={t('scan.permission')} />
-        <Button
-          label={canAskAgain ? t('scan.grant') : t('scan.openSettings')}
-          onPress={() => {
-            if (canAskAgain) {
-              void requestPermission();
-            } else {
-              void Linking.openSettings();
-            }
-          }}
-        />
-        <Button label={t('common.close')} variant="ghost" onPress={() => router.back()} />
       </Screen>
     );
   }
 
-  if (state.kind === 'invalid' || state.kind === 'network' || state.kind === 'result') {
+  if (state.kind === 'camera' || state.kind === 'invalid' || state.kind === 'error' || state.kind === 'network' || state.kind === 'result') {
     const result = state.kind === 'result' ? state.result : null;
     const success = result ? isSuccess(result) : false;
-    const message = state.kind === 'invalid'
-      ? t('scan.invalidQr')
+    const message = state.kind === 'camera'
+      ? t('scan.cameraUnavailable')
+      : state.kind === 'invalid'
+        ? t('scan.invalidQr')
+        : state.kind === 'error'
+          ? state.message
       : state.kind === 'network'
         ? t('scan.network')
         : resultMessage(result as CheckInResult);
     const appointmentId = result?.appointmentId ?? params.appointmentId;
 
     return (
-      <Screen contentStyle={styles.resultScreen}>
+      <Screen padded={false}>
+        <CustomerStageHeader title={t('scan.title')} />
+        <View style={styles.resultScreen}>
         <Card elevated style={styles.resultCard}>
           <View style={[styles.resultIcon, success && styles.successIcon]}>
             <Icon
@@ -138,8 +157,9 @@ export default function ScanScreen() {
               style={styles.resultButton}
             />
           )}
-          <Button label={t('common.close')} variant="ghost" onPress={() => router.back()} />
+          <Button label={t('common.close')} variant="ghost" onPress={closeScanner} />
         </Card>
+        </View>
       </Screen>
     );
   }
@@ -151,14 +171,13 @@ export default function ScanScreen() {
 
   return (
     <Screen padded={false}>
-      <View style={styles.header}>
-        <ScreenTitle title={t('scan.title')} subtitle={context || undefined} />
-      </View>
+      <CustomerStageHeader title={t('scan.title')} subtitle={context || undefined} />
       <View style={styles.cameraFrame}>
         <CameraView
           testID="qr-camera"
           style={styles.camera}
           barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          onMountError={() => setState({ kind: 'camera' })}
           onBarcodeScanned={
             state.kind === 'scanning'
               ? ({ data }) => {
@@ -169,9 +188,13 @@ export default function ScanScreen() {
                   }
 
                   setState({ kind: 'checking' });
-                  void booking.checkInWithQr(barberId).then((result) => {
-                    setState(result ? { kind: 'result', result } : { kind: 'network' });
-                  });
+                  void booking.checkInWithQr(barberId)
+                    .then((result) => {
+                      setState(result ? { kind: 'result', result } : { kind: 'network' });
+                    })
+                    .catch((caught) => {
+                      setState({ kind: 'error', message: bookingErrorMessage(caught) });
+                    });
                 }
               : undefined
           }
@@ -186,7 +209,7 @@ export default function ScanScreen() {
       </View>
       <View style={styles.footer}>
         <Text style={styles.hint}>{t('scan.hint')}</Text>
-        <Button label={t('common.close')} variant="secondary" onPress={() => router.back()} />
+        <Button label={t('common.close')} variant="secondary" onPress={closeScanner} />
       </View>
     </Screen>
   );

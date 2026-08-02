@@ -1,21 +1,53 @@
-import { Redirect } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { BrandLogo } from '@/src/components/atoms/BrandLogo';
-import { Screen } from '@/src/components/organisms/Screen';
-import { copy } from '@/src/data/copy';
-import { useSession } from '@/src/hooks/useSession';
-import { colors, spacing, typography } from '@/src/theme';
+import { router } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-export interface IndexProps {}
-export default function Index(_: IndexProps) {
-  const { session, profile, loading, pendingRole, emailConfirmed, legalAccepted } = useSession();
-  if (loading) return <Screen scroll={false}><View style={styles.center}><BrandLogo size={120} /><Text style={styles.tagline}>{copy.splashTagline}</Text><ActivityIndicator color={colors.primary} /></View></Screen>;
-  if (!session) return <Redirect href="/(auth)/welcome" />;
-  if (!profile && pendingRole && (!emailConfirmed || !legalAccepted)) return <Redirect href="/(auth)/email-confirmation" />;
-  if (!profile && pendingRole === 'customer') return <Redirect href="/(auth)/customer-profile" />;
-  if (!profile && pendingRole === 'barber') return <Redirect href="/(barber-onboarding)" />;
-  if (!profile) return <Redirect href="/(auth)/role" />;
-  if (profile.role === 'customer') return <Redirect href="/(customer)/home" />;
-  return <Redirect href="/(barber)/home" />;
+import { destinationHref } from '@/src/navigation/paths';
+import { resolveAppDestination, type AppDestination } from '@/src/navigation/resolveRoute';
+import { useAppSession } from '@/src/providers/SessionProvider';
+import { colors } from '@/src/theme';
+
+/**
+ * Session gate. Uses a one-shot replace per destination to avoid Redirect remount loops.
+ */
+export default function Index() {
+  const session = useAppSession();
+  const lastHref = useRef<string | null>(null);
+
+  const destination: AppDestination = resolveAppDestination({
+    loading: session.loading,
+    hasSession: Boolean(session.session),
+    emailConfirmed: session.emailConfirmed,
+    pendingConfirmationEmail: session.pendingConfirmationEmail,
+    profile: session.profile,
+    pendingRole: session.pendingRole,
+    legalAccepted: session.legalAccepted,
+    legalConsentRequired: session.legalConsentRequired,
+    legalError: session.legalError,
+    bootstrapError: session.bootstrapError,
+    profileError: session.profileError,
+  });
+
+  useEffect(() => {
+    if (destination === 'loading') return;
+    const href = destinationHref(destination);
+    if (lastHref.current === href) return;
+    lastHref.current = href;
+    router.replace(href as never);
+  }, [destination]);
+
+  return (
+    <View style={styles.center}>
+      <ActivityIndicator color={colors.primary} size="large" />
+    </View>
+  );
 }
-const styles = StyleSheet.create({ center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.xl }, tagline: { color: colors.charcoal, fontFamily: typography.fontFamily.medium, fontSize: typography.size.label } });
+
+const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+});

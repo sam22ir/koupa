@@ -1,5 +1,5 @@
 -- Staging-only production-like demo data. Never apply this file to production.
--- Demo password for every seeded account: KoupaDemo2026!
+-- Demo password for every seeded account: 123456koupa
 
 -- Reset rows owned by these demo users so the seed remains safe to rerun after cron transitions.
 with demo_ids(id) as (values
@@ -52,7 +52,7 @@ with demo_users(id, email, role) as (
     ('22222222-2222-4222-8222-222222222226'::uuid, 'demo.barber6@koupa.test', 'barber')
 )
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, confirmation_token, recovery_token, email_change_token_new, email_change, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
-select '00000000-0000-0000-0000-000000000000', id, 'authenticated', 'authenticated', email, crypt('KoupaDemo2026!', gen_salt('bf', 10)), now(), '', '', '', '', jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')), jsonb_build_object('koupa_role', role, 'koupa_signup_consent', true), now(), now()
+select '00000000-0000-0000-0000-000000000000', id, 'authenticated', 'authenticated', email, crypt('123456koupa', gen_salt('bf', 10)), now(), '', '', '', '', jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')), jsonb_build_object('koupa_role', role, 'koupa_signup_consent', true), now(), now()
 from demo_users
 on conflict (id) do update set
   encrypted_password = excluded.encrypted_password,
@@ -100,6 +100,30 @@ values
   ('22222222-2222-4222-8222-222222222226', 'barber', 'كرم ستوديو', '0555100006', 'حلاق قريب منك مع مواعيد مرنة.', 'عنابة', 'وسط المدينة', 'https://maps.google.com/?q=36.9000,7.7667', true, 7, 30)
 on conflict (id) do update set name = excluded.name, phone = excluded.phone, bio = excluded.bio, city = excluded.city, neighborhood = excluded.neighborhood, maps_url = excluded.maps_url, is_published = excluded.is_published, booking_window_days = excluded.booking_window_days, minimum_notice_minutes = excluded.minimum_notice_minutes;
 
+insert into public.shops (id, owner_id, name, bio, maps_url, average_rating, rating_count)
+values
+  ('88888888-8888-4888-8888-888888888881', '22222222-2222-4222-8222-222222222221', 'صالون حيدرة للرجال', 'فريق متخصص في القصات العصرية والعناية باللحية.', 'https://maps.google.com/?q=36.7525,3.0420', 4.8, 12),
+  ('88888888-8888-4888-8888-888888888882', '22222222-2222-4222-8222-222222222223', 'استوديو المدينة الجديدة', 'حلاقة وتصفيف بخدمة مرنة في قلب وهران.', 'https://maps.google.com/?q=35.6971,-0.6308', 4.6, 8)
+on conflict (id) do update set
+  owner_id = excluded.owner_id,
+  name = excluded.name,
+  bio = excluded.bio,
+  maps_url = excluded.maps_url,
+  average_rating = excluded.average_rating,
+  rating_count = excluded.rating_count;
+
+insert into public.shop_memberships (id, shop_id, barber_id, status, invited_by)
+values
+  ('99999999-9999-4999-8999-999999999991', '88888888-8888-4888-8888-888888888881', '22222222-2222-4222-8222-222222222222', 'active', '22222222-2222-4222-8222-222222222221'),
+  ('99999999-9999-4999-8999-999999999992', '88888888-8888-4888-8888-888888888881', '22222222-2222-4222-8222-222222222224', 'active', '22222222-2222-4222-8222-222222222221'),
+  ('99999999-9999-4999-8999-999999999993', '88888888-8888-4888-8888-888888888882', '22222222-2222-4222-8222-222222222225', 'active', '22222222-2222-4222-8222-222222222223'),
+  ('99999999-9999-4999-8999-999999999994', '88888888-8888-4888-8888-888888888882', '22222222-2222-4222-8222-222222222226', 'active', '22222222-2222-4222-8222-222222222223')
+on conflict (id) do update set
+  shop_id = excluded.shop_id,
+  barber_id = excluded.barber_id,
+  status = excluded.status,
+  invited_by = excluded.invited_by;
+
 insert into public.services (id, barber_id, name, price_dzd, duration_minutes)
 values
   ('33333333-3333-4333-8333-333333333331', '22222222-2222-4222-8222-222222222221', 'حلاقة شعر', 600, 30),
@@ -124,8 +148,8 @@ on conflict (id) do update set starts_at = excluded.starts_at, ends_at = exclude
 
 insert into public.appointments (id, customer_id, barber_id, service_id, starts_at, ends_at, price_dzd, status, cancelled_at)
 values
-  ('55555555-5555-4555-8555-555555555551', '11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222221', '33333333-3333-4333-8333-333333333331', ((now() at time zone 'Africa/Algiers')::date + 1 + time '10:00') at time zone 'Africa/Algiers', ((now() at time zone 'Africa/Algiers')::date + 1 + time '10:30') at time zone 'Africa/Algiers', 600, 'booked', null),
-  ('55555555-5555-4555-8555-555555555552', '11111111-1111-4111-8111-111111111113', '22222222-2222-4222-8222-222222222221', '33333333-3333-4333-8333-333333333332', now() + interval '30 minutes', now() + interval '75 minutes', 900, 'booked', null),
+  ('55555555-5555-4555-8555-555555555551', '11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222221', '33333333-3333-4333-8333-333333333331', now() + interval '30 minutes', now() + interval '75 minutes', 600, 'booked', null),
+  ('55555555-5555-4555-8555-555555555552', '11111111-1111-4111-8111-111111111113', '22222222-2222-4222-8222-222222222221', '33333333-3333-4333-8333-333333333332', ((now() at time zone 'Africa/Algiers')::date + 1 + time '10:00') at time zone 'Africa/Algiers', ((now() at time zone 'Africa/Algiers')::date + 1 + time '10:45') at time zone 'Africa/Algiers', 900, 'booked', null),
   ('55555555-5555-4555-8555-555555555553', '11111111-1111-4111-8111-111111111112', '22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333', now() - interval '5 days', now() - interval '4 days 23 hours 30 minutes', 500, 'completed', null),
   ('55555555-5555-4555-8555-555555555554', '11111111-1111-4111-8111-111111111112', '22222222-2222-4222-8222-222222222223', '33333333-3333-4333-8333-333333333335', now() - interval '2 days', now() - interval '2 days' + interval '45 minutes', 800, 'cancelled', now() - interval '3 days')
 on conflict (id) do update set starts_at = excluded.starts_at, ends_at = excluded.ends_at, price_dzd = excluded.price_dzd, status = excluded.status, cancelled_at = excluded.cancelled_at;
@@ -137,5 +161,5 @@ on conflict (id) do update set stars = excluded.stars;
 insert into public.notifications (id, user_id, title, body, appointment_id)
 values
   ('77777777-7777-4777-8777-777777777771', '11111111-1111-4111-8111-111111111111', 'تم تأكيد موعدك', 'موعدك غداً الساعة 10:00.', '55555555-5555-4555-8555-555555555551'),
-  ('77777777-7777-4777-8777-777777777772', '22222222-2222-4222-8222-222222222221', 'موعد اليوم', 'لديك عميلة بانتظار تأكيد الحضور.', '55555555-5555-4555-8555-555555555552')
+  ('77777777-7777-4777-8777-777777777772', '22222222-2222-4222-8222-222222222221', 'موعد اليوم', 'لديك عميلة بانتظار تأكيد الحضور.', '55555555-5555-4555-8555-555555555551')
 on conflict (id) do update set title = excluded.title, body = excluded.body;

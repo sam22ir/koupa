@@ -1,3 +1,14 @@
 import { Stack } from 'expo-router';
-export interface AuthLayoutProps {}
-export default function AuthLayout(_: AuthLayoutProps) { return <Stack screenOptions={{ headerShown: false }} />; }
+
+import { colors } from '@/src/theme';
+
+export default function AuthLayout() {
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    />
+  );
+}

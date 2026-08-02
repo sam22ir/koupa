@@ -74,6 +74,7 @@ export interface ShopBarberCandidate {
 export interface BarberShopState {
   readonly ownedShop: ShopSummary | null;
   readonly membership: ShopMembership | null;
+  readonly relationship: ShopRelationship;
   readonly pendingRequests: readonly ShopMembership[];
   readonly members: readonly ShopMembership[];
 }
@@ -116,6 +117,23 @@ export function membershipStatusLabel(status: ShopMembershipStatus): string {
     case 'rejected':
       return 'مرفوض';
   }
+}
+
+export function formatMembershipActivity(
+  membership: Pick<ShopMembership, 'created_at' | 'updated_at'>,
+  now = new Date(),
+): string {
+  const activityTime = [membership.updated_at, membership.created_at]
+    .filter((timestamp): timestamp is string => Boolean(timestamp))
+    .map((timestamp) => new Date(timestamp).getTime())
+    .find((time) => Number.isFinite(time));
+  const nowTime = now.getTime();
+  if (activityTime === undefined || !Number.isFinite(nowTime)) return 'لا يوجد نشاط مسجل';
+
+  const elapsedDays = Math.max(0, Math.floor((nowTime - activityTime) / 86_400_000));
+  if (elapsedDays === 0) return 'آخر تحديث اليوم';
+  if (elapsedDays === 1) return 'آخر تحديث أمس';
+  return `آخر تحديث منذ ${elapsedDays} أيام`;
 }
 
 export function shopActivityActionLabel(action: string): string {

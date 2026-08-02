@@ -33,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Firebase Android config (use EAS secrets / local untracked files)
+google-services*.json
+
 # typescript
 *.tsbuildinfo
 
@@ -42,3 +45,8 @@ yarn-error.*
 
 # Supabase local CLI metadata
 /supabase/.temp/
+
+# Local Codex/Playwright session output
+.playwright-cli/
+.superpowers/
+output/

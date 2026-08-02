@@ -1,197 +1,241 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { FormField } from '@/src/components/molecules/FormField';
-import { CustomerNavigation } from '@/src/components/molecules/CustomerNavigation';
-import { Screen } from '@/src/components/organisms/Screen';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+
 import type { BarberSummary } from '@/src/booking';
-import { copy } from '@/src/data/copy';
+import type { ShopSummary } from '@/src/shops';
+import { Avatar, CustomerStageHeader, EmptyState, ErrorBanner, Icon, Screen } from '@/src/components/ui';
 import { useBooking } from '@/src/hooks/useBooking';
 import { useShops } from '@/src/hooks/useShops';
-import { ratingSummaryLabel } from '@/src/ratings';
-import type { ShopSummary } from '@/src/shops';
-import { colors, radii, spacing, typography } from '@/src/theme';
+import { t } from '@/src/i18n';
+import { SEARCH_PAGE_SIZE } from '@/src/services';
+import { colors } from '@/src/theme/colors';
+import { fonts } from '@/src/theme/fonts';
+import { radii } from '@/src/theme/radii';
+import { space } from '@/src/theme/spacing';
+import { typography } from '@/src/theme/typography';
+import { initialsFromName } from '@/src/utils/initials';
 
-type FindTab = 'barbers' | 'shops';
+type Directory = 'barbers' | 'shops';
 
-export default function FindBarbers() {
-  const { loading: barberLoading, error: barberError, searchBarbers } = useBooking();
-  const { searchShops } = useShops();
-  const [tab, setTab] = useState<FindTab>('barbers');
+export default function FindScreen() {
+  const { searchBarbers, loading: bookingLoading, error: bookingError } = useBooking();
+  const { searchShops, loading: shopsLoading, error: shopsError } = useShops();
+  const [directory, setDirectory] = useState<Directory>('barbers');
   const [query, setQuery] = useState('');
   const [barbers, setBarbers] = useState<readonly BarberSummary[]>([]);
   const [shops, setShops] = useState<readonly ShopSummary[]>([]);
-  const [shopLoading, setShopLoading] = useState(false);
-  const [shopError, setShopError] = useState('');
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [searched, setSearched] = useState(false);
 
-  const searchBarberResults = async (value = query) => {
-    const results = await searchBarbers(value);
-    if (results) setBarbers(results);
-  };
-
-  const searchShopResults = async (value = query) => {
-    setShopLoading(true);
-    setShopError('');
-    const results = await searchShops(value);
-    setShopLoading(false);
-    if (results) setShops(results);
-    else setShopError(copy.auth.failed);
-  };
+  const runSearch = useCallback(async (nextQuery: string, kind: Directory, nextPage = 0, append = false) => {
+    setSearched(true);
+    setLoadingMore(true);
+    try {
+      if (kind === 'barbers') {
+        const items = (await searchBarbers(nextQuery, '', nextPage)) ?? [];
+        setBarbers((prev) => (append ? [...prev, ...items] : items));
+        setHasMore(items.length === SEARCH_PAGE_SIZE);
+      } else {
+        const items = (await searchShops(nextQuery, nextPage)) ?? [];
+        setShops((prev) => (append ? [...prev, ...items] : items));
+        setHasMore(items.length === SEARCH_PAGE_SIZE);
+      }
+      setPage(nextPage);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [searchBarbers, searchShops]);
 
   useEffect(() => {
-    void searchBarberResults('');
-    void searchShopResults('');
-  }, []);
+    void runSearch('', 'barbers');
+  }, [runSearch]);
 
-  const loading = tab === 'barbers' ? barberLoading : shopLoading;
-  const error = tab === 'barbers' ? barberError : shopError;
+  const onSubmit = () => {
+    void runSearch(query.trim(), directory, 0, false);
+  };
 
   return (
-    <Screen footer={<CustomerNavigation active="البحث" />}>
-      <View style={styles.content}>
-        <Text style={styles.title}>{copy.customer.findTitle}</Text>
-        <View style={styles.tabs}>
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === 'barbers' }}
-            onPress={() => setTab('barbers')}
-            style={[styles.tab, tab === 'barbers' && styles.tabActive]}
-          >
-            <Text style={[styles.tabText, tab === 'barbers' && styles.tabTextActive]}>{copy.customer.findBarbersTab}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: tab === 'shops' }}
-            onPress={() => setTab('shops')}
-            style={[styles.tab, tab === 'shops' && styles.tabActive]}
-          >
-            <Text style={[styles.tabText, tab === 'shops' && styles.tabTextActive]}>{copy.customer.findShopsTab}</Text>
+    <Screen padded={false}>
+      <CustomerStageHeader title={t('find.title')} subtitle={t('find.subtitle')} />
+      <View style={styles.body}>
+      <View style={styles.header}>
+        <View style={styles.searchBox}>
+          <Icon name="search-outline" size={18} color={colors.textMuted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={onSubmit}
+            placeholder={t('find.placeholder')}
+            placeholderTextColor={colors.textMuted}
+            style={styles.input}
+            textAlign="right"
+            returnKeyType="search"
+          />
+          <Pressable onPress={onSubmit} accessibilityRole="button">
+            <Icon name="arrow-back-circle" size={26} color={colors.primary} />
           </Pressable>
         </View>
-        <FormField label="الاسم أو المدينة" value={query} onChangeText={setQuery} placeholder="ابحث بالاسم أو المدينة" />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="بحث"
-          onPress={() => void (tab === 'barbers' ? searchBarberResults() : searchShopResults())}
-          style={styles.search}
-        >
-          <MaterialCommunityIcons name="magnify" size={22} color={colors.surface} />
-          <Text style={styles.searchText}>بحث</Text>
-        </Pressable>
-        {loading ? <Text style={styles.muted}>{copy.common.loading}</Text> : null}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <View style={styles.list}>
-          {tab === 'barbers'
-            ? !loading && !error && !barbers.length
-              ? <Text style={styles.muted}>لا يوجد حلاقون متاحون حالياً.</Text>
-              : barbers.map((barber) => (
-                  <Pressable
-                    key={barber.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={barber.name}
-                    onPress={() => router.push({ pathname: '/(customer)/barber/[id]', params: { id: barber.id } })}
-                    style={styles.card}
-                  >
-                    <View style={styles.avatar}>
-                      <MaterialCommunityIcons name="content-cut" size={24} color={colors.primary} />
-                    </View>
-                    <View style={styles.cardText}>
-                      <Text style={styles.name}>{barber.name}</Text>
-                      <Text style={styles.meta}>{[barber.city, barber.neighborhood].filter(Boolean).join(' - ') || 'الجزائر'}</Text>
-                      {barber.bio ? (
-                        <Text numberOfLines={1} style={styles.bio}>
-                          {barber.bio}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <MaterialCommunityIcons name="chevron-left" size={24} color={colors.outline} />
-                  </Pressable>
-                ))
-            : !loading && !error && !shops.length
-              ? <Text style={styles.muted}>{copy.customer.findShopsEmpty}</Text>
-              : shops.map((shop) => (
-                  <Pressable
-                    key={shop.id}
-                    accessibilityRole="button"
-                    accessibilityLabel={shop.name}
-                    onPress={() => router.push({ pathname: '/(customer)/shop/[id]', params: { id: shop.id } })}
-                    style={styles.card}
-                  >
-                    <View style={styles.avatar}>
-                      <MaterialCommunityIcons name="storefront-outline" size={24} color={colors.primary} />
-                    </View>
-                    <View style={styles.cardText}>
-                      <Text style={styles.name}>{shop.name}</Text>
-                      <Text style={styles.meta}>
-                        {copy.customer.shopOwner}: {shop.owner_name}
-                      </Text>
-                      <Text style={styles.meta}>{ratingSummaryLabel(shop.average_rating, shop.rating_count)}</Text>
-                      {shop.bio ? (
-                        <Text numberOfLines={1} style={styles.bio}>
-                          {shop.bio}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <MaterialCommunityIcons name="chevron-left" size={24} color={colors.outline} />
-                  </Pressable>
-                ))}
+        <View style={styles.segment}>
+          {(['barbers', 'shops'] as const).map((value) => (
+            <Pressable
+              key={value}
+              onPress={() => {
+                setDirectory(value);
+                void runSearch(query.trim(), value, 0, false);
+              }}
+              style={[styles.segmentItem, directory === value && styles.segmentOn]}
+            >
+              <Text style={[styles.segmentText, directory === value && styles.segmentTextOn]}>
+                {value === 'barbers' ? t('find.barbers') : t('find.shops')}
+              </Text>
+            </Pressable>
+          ))}
         </View>
+        <ErrorBanner error={searched ? (directory === 'barbers' ? bookingError : shopsError) : ''} />
+      </View>
+
+      {directory === 'barbers' ? (
+        <FlatList
+          data={[...barbers]}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            !bookingLoading && !loadingMore ? <EmptyState title={t('find.empty')} /> : null
+          }
+          ListFooterComponent={loadingMore || bookingLoading ? <ActivityIndicator color={colors.primary} /> : null}
+          onEndReached={() => {
+            if (hasMore && !loadingMore) void runSearch(query.trim(), 'barbers', page + 1, true);
+          }}
+          renderItem={({ item }) => (
+            <Pressable style={styles.row} onPress={() => router.push(`/barber/${item.id}`)}>
+              <Avatar initials={initialsFromName(item.name)} />
+              <View style={styles.rowCopy}>
+                <Text style={styles.rowTitle}>{item.name}</Text>
+                <Text style={styles.rowMeta}>
+                  {[item.neighborhood, item.city].filter(Boolean).join('، ')}
+                </Text>
+                <Text style={styles.rowMeta}>
+                  ★ {item.average_rating.toFixed(1)} · {t('find.fromPrice')} {item.starting_price_dzd} {t('common.dzd')}
+                </Text>
+              </View>
+            </Pressable>
+          )}
+        />
+      ) : (
+        <FlatList
+          data={[...shops]}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            !shopsLoading && !loadingMore ? <EmptyState title={t('find.empty')} /> : null
+          }
+          ListFooterComponent={loadingMore || shopsLoading ? <ActivityIndicator color={colors.primary} /> : null}
+          onEndReached={() => {
+            if (hasMore && !loadingMore) void runSearch(query.trim(), 'shops', page + 1, true);
+          }}
+          renderItem={({ item }) => (
+            <Pressable style={styles.row} onPress={() => router.push(`/shop/${item.id}`)}>
+              <Avatar initials={initialsFromName(item.name)} />
+              <View style={styles.rowCopy}>
+                <Text style={styles.rowTitle}>{item.name}</Text>
+                <Text style={styles.rowMeta}>{item.owner_name}</Text>
+                <Text style={styles.rowMeta}>
+                  ★ {(item.average_rating ?? 0).toFixed(1)}
+                </Text>
+              </View>
+            </Pressable>
+          )}
+        />
+      )}
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { flex: 1, gap: spacing.md },
-  title: { color: colors.charcoal, fontFamily: typography.fontFamily.bold, fontSize: typography.size.title, textAlign: 'right' },
-  tabs: { flexDirection: 'row-reverse', gap: spacing.sm },
-  tab: {
+  body: {
     flex: 1,
-    minHeight: 44,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    borderRadius: radii.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
   },
-  tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tabText: { color: colors.charcoal, fontFamily: typography.fontFamily.medium, fontSize: typography.size.body },
-  tabTextActive: { color: colors.surface, fontFamily: typography.fontFamily.semiBold },
-  search: {
+  header: {
+    paddingHorizontal: space[5],
+    paddingTop: space[4],
+    gap: space[3],
+  },
+  searchBox: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: space[3],
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    paddingHorizontal: space[4],
     minHeight: 48,
-    backgroundColor: colors.primary,
-    borderRadius: radii.lg,
-    flexDirection: 'row-reverse',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.sm,
   },
-  searchText: { color: colors.surface, fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.body },
-  list: { gap: spacing.sm },
-  card: {
+  input: {
+    flex: 1,
+    color: colors.text,
+    fontFamily: fonts.regular,
+    fontSize: 15,
+  },
+
+  segment: {
+    flexDirection: 'row-reverse',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.lg,
+    padding: 4,
+  },
+  segmentItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: space[2],
+    borderRadius: radii.md,
+  },
+  segmentOn: {
+    backgroundColor: colors.surface,
+  },
+  segmentText: {
+    ...typography.label,
+    color: colors.textMuted,
+  },
+  segmentTextOn: {
+    color: colors.primary,
+  },
+  list: {
+    padding: space[5],
+    gap: space[3],
+    flexGrow: 1,
+  },
+  row: {
+    flexDirection: 'row-reverse',
+    gap: space[3],
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: spacing.md,
+    borderColor: colors.border,
+    borderRadius: radii.xl,
+    padding: space[4],
+    marginBottom: space[3],
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 22,
-    backgroundColor: colors.primaryFixed,
+  rowCopy: {
+    flex: 1,
+    alignItems: 'flex-end',
+    gap: 2,
   },
-  cardText: { flex: 1, gap: spacing.xs },
-  name: { color: colors.charcoal, fontFamily: typography.fontFamily.semiBold, fontSize: typography.size.body, textAlign: 'right' },
-  meta: { color: colors.muted, fontFamily: typography.fontFamily.regular, fontSize: typography.size.caption, textAlign: 'right' },
-  bio: { color: colors.muted, fontFamily: typography.fontFamily.regular, fontSize: typography.size.caption, textAlign: 'right' },
-  muted: { color: colors.muted, fontFamily: typography.fontFamily.regular, textAlign: 'center' },
-  error: { color: colors.danger, fontFamily: typography.fontFamily.regular, textAlign: 'right' },
+  rowTitle: {
+    ...typography.bodyStrong,
+  },
+  rowMeta: {
+    ...typography.caption,
+  },
 });

@@ -1,4 +1,4 @@
-import { appEnvironment, formatNotificationTime, isUnreadNotification, supportEmail } from '@/src/notifications';
+import { appEnvironment, formatNotificationTime, isUnreadNotification } from '@/src/notifications';
 
 describe('notification helpers', () => {
   it('detects unread notifications', () => {
@@ -28,8 +28,7 @@ describe('notification helpers', () => {
     expect(formatNotificationTime('2026-07-25T09:30:00.000Z')).toContain('25');
   });
 
-  it('defaults environment and support email safely', () => {
+  it('defaults the environment safely', () => {
     expect(['development', 'staging', 'production']).toContain(appEnvironment());
-    expect(supportEmail()).toContain('@');
   });
 });

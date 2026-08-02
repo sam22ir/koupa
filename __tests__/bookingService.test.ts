@@ -36,6 +36,15 @@ describe('booking QR service', () => {
     });
   });
 
+  it('accepts the legacy UUID response while staging is on the older QR RPC', async () => {
+    mockRpc.mockResolvedValue({ data: appointmentId, error: null });
+
+    await expect(bookingService.checkInWithQr(barberId)).resolves.toEqual({
+      code: 'CHECKED_IN',
+      appointmentId,
+    });
+  });
+
   it('calls the barber-only QR undo RPC', async () => {
     mockRpc.mockResolvedValue({ data: appointmentId, error: null });
 

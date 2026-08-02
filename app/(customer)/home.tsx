@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
@@ -10,7 +10,10 @@ import {
   formatAppointmentWhen,
   type Appointment,
 } from '@/src/booking';
-import { Avatar, BrandLogo, Button, Card, Chip, EmptyState, ErrorBanner, Icon, Screen, Stage } from '@/src/components/ui';
+import { Avatar, Button, Card, Chip, CustomerStageHeader, EmptyState, ErrorBanner, Icon, Screen } from '@/src/components/ui';
+import { deriveRecentBarbers } from '@/src/customerHome';
+import { CustomerHomeSkeleton } from '@/src/features/customer-home/CustomerHomeSkeleton';
+import { RecentBarbers } from '@/src/features/customer-home/RecentBarbers';
 import { loadCustomerAppointments, useBooking } from '@/src/hooks/useBooking';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
@@ -18,26 +21,35 @@ import { colors, layout, space, typography } from '@/src/theme';
 import { initialsFromName } from '@/src/utils/initials';
 
 export default function CustomerHomeScreen() {
-  const { profile } = useAppSession();
+  const { profile, legalError, retryLegalAcceptance } = useAppSession();
   const booking = useBooking();
-  const [upcoming, setUpcoming] = useState<Appointment | null>(null);
+  const [appointments, setAppointments] = useState<readonly Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
+  const [hasLoadedSuccessfully, setHasLoadedSuccessfully] = useState(false);
+
+  const upcoming = useMemo(
+    () => appointments.find((item) => item.status === 'booked' || item.status === 'present') ?? null,
+    [appointments],
+  );
+  const recentBarbers = useMemo(() => deriveRecentBarbers(appointments), [appointments]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const items = await loadCustomerAppointments();
-      const next =
-        items.find((item) => item.status === 'booked' || item.status === 'present') ?? null;
-      setUpcoming(next);
+      setAppointments(items);
+      setHasLoadedSuccessfully(true);
     } catch (caught) {
       setError(caught);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const dataError = error || booking.error;
+  const showInitialError = !loading && Boolean(dataError) && !hasLoadedSuccessfully;
 
   useFocusEffect(
     useCallback(() => {
@@ -66,27 +78,29 @@ export default function CustomerHomeScreen() {
   };
 
   return (
-    <Screen padded={false} loading={loading}>
-      <Stage>
-        <View style={styles.stageTop}>
-          <BrandLogo variant="mark" height={40} />
-          <View style={styles.brandBlock}>
-            <Text style={styles.tagline}>{t('brandTagline')}</Text>
-          </View>
-        </View>
-        <View style={styles.goldBar} />
-        <Text style={styles.greeting}>
-          {t('home.greeting')}
-          {profile?.name ? `، ${profile.name}` : ''}
-        </Text>
-        <Text style={styles.stageSub}>
-          {upcoming ? t('home.nextReady') : t('home.noAppointment')}
-        </Text>
-      </Stage>
+    <Screen padded={false} scroll>
+      <CustomerStageHeader
+        title={`${t('home.greeting')}${profile?.name ? `، ${profile.name}` : ''}`}
+        subtitle={upcoming ? t('home.upcomingSubtitle') : t('home.startBookingSubtitle')}
+      />
 
       <View style={styles.body}>
-        <ErrorBanner error={error || booking.error} />
-        {upcoming ? (
+        {legalError ? (
+          <View style={styles.initialError}>
+            <ErrorBanner error={legalError} />
+            <Button label={t('common.retry')} variant="secondary" onPress={() => void retryLegalAcceptance()} />
+          </View>
+        ) : null}
+        <ErrorBanner error={dataError} />
+        {loading ? <CustomerHomeSkeleton /> : showInitialError ? (
+          <View style={styles.initialError}>
+            <Button
+              label={t('home.retryAppointments')}
+              variant="secondary"
+              onPress={() => void refresh()}
+            />
+          </View>
+        ) : upcoming ? (
           <Card elevated style={styles.card}>
             <View style={styles.cardTop}>
               <Chip label={appointmentStatusLabel(upcoming.status)} tone="accent" />
@@ -110,6 +124,8 @@ export default function CustomerHomeScreen() {
             <View style={styles.links}>
               {upcoming.status === 'booked' ? (
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('home.scanQr')}
                   style={styles.linkRow}
                   onPress={() => router.push({
                     pathname: '/scan',
@@ -126,6 +142,8 @@ export default function CustomerHomeScreen() {
               ) : null}
               {canRescheduleCustomerAppointment(upcoming.status) ? (
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('home.reschedule')}
                   style={styles.linkRow}
                   onPress={() => router.push(`/book/${upcoming.barber_id}?appointmentId=${upcoming.id}&serviceId=${upcoming.service_id}`)}
                 >
@@ -133,83 +151,48 @@ export default function CustomerHomeScreen() {
                   <Text style={styles.link}>{t('home.reschedule')}</Text>
                 </Pressable>
               ) : null}
-              <Pressable style={styles.linkRow} onPress={cancel}>
-                <Icon name="close-circle-outline" size={16} color={colors.textMuted} />
-                <Text style={styles.linkMuted}>{t('home.cancelAppt')}</Text>
-              </Pressable>
+              {canCancelCustomerAppointment(upcoming.starts_at) ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('home.cancelAppt')}
+                  style={styles.linkRow}
+                  onPress={cancel}
+                >
+                  <Icon name="close-circle-outline" size={16} color={colors.textMuted} />
+                  <Text style={styles.linkMuted}>{t('home.cancelAppt')}</Text>
+                </Pressable>
+              ) : null}
             </View>
           </Card>
         ) : (
           <Card elevated>
             <EmptyState
-              title={t('home.noAppointment')}
-              body={t('home.findCta')}
+              title={t('home.findCta')}
+              body={t('home.findBody')}
               actionLabel={t('home.findCta')}
               onAction={() => router.push('/(customer)/find')}
             />
           </Card>
         )}
-
-        <View style={styles.tiles}>
-          <Pressable style={styles.tile} onPress={() => router.push('/(customer)/find')}>
-            <Icon name="search" size={20} color={colors.primary} />
-            <Text style={styles.tileTitle}>{t('home.discover')}</Text>
-          </Pressable>
-          <Pressable style={styles.tile} onPress={() => router.push('/(customer)/appointments')}>
-            <Icon name="calendar" size={20} color={colors.accent} />
-            <Text style={styles.tileTitle}>{t('home.myAppointments')}</Text>
-          </Pressable>
-        </View>
-
-        <Pressable style={styles.search} onPress={() => router.push('/(customer)/find')}>
-          <Icon name="search-outline" size={18} color={colors.textMuted} />
-          <Text style={styles.searchText}>{t('home.searchPlaceholder')}</Text>
-        </Pressable>
+        {!loading && !showInitialError && recentBarbers.length ? (
+          <RecentBarbers
+            items={recentBarbers}
+            onSelect={(barberId) => router.push(`/barber/${barberId}`)}
+          />
+        ) : null}
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  stageTop: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  brandBlock: {
-    alignItems: 'flex-end',
-    flex: 1,
-    marginHorizontal: space[3],
-    gap: space[1],
-  },
-  tagline: {
-    ...typography.caption,
-    color: colors.onPrimaryMuted,
-  },
-  goldBar: {
-    width: 36,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: colors.accent,
-    alignSelf: 'flex-end',
-    marginTop: space[5],
-  },
-  greeting: {
-    ...typography.display,
-    color: colors.onPrimary,
-    textAlign: 'right',
-  },
-  stageSub: {
-    ...typography.body,
-    color: colors.onPrimaryMuted,
-    textAlign: 'right',
-  },
   body: {
     marginTop: layout.stageBodyOverlap,
     paddingHorizontal: layout.screenPaddingX,
     gap: space[3],
     paddingBottom: space[6],
   },
+  initialError: { gap: space[3] },
   card: {
     gap: space[3],
   },
@@ -260,37 +243,5 @@ const styles = StyleSheet.create({
   linkMuted: {
     ...typography.label,
     color: colors.textMuted,
-  },
-  tiles: {
-    flexDirection: 'row-reverse',
-    gap: space[3],
-  },
-  tile: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: space[4],
-    alignItems: 'flex-end',
-    gap: space[2],
-  },
-  tileTitle: {
-    ...typography.bodyStrong,
-  },
-  search: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: space[4],
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: space[2],
-  },
-  searchText: {
-    ...typography.caption,
-    flex: 1,
-    textAlign: 'right',
   },
 });

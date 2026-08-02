@@ -74,16 +74,39 @@ Status: `in_progress`
 
 - [x] Register Expo/Android push tokens into `device_push_tokens`
 - [x] Deliver remote FCM fan-out worker implementation and staging deployment
-- [ ] Configure Firebase service-account secret and trusted scheduler
+- [x] Configure Firebase service-account secret on staging (`FIREBASE_SERVICE_ACCOUNT_JSON`, `NOTIFICATION_DISPATCH_SECRET`, `APP_ENV`)
+- [x] Staging trusted scheduler for `dispatch-notifications` (`pg_cron` + Vault + `pg_net`)
+- [ ] Deploy `dispatch-notifications` + secrets + scheduler to production
 - [x] In-app notifications list + mark read
 - [x] Account deletion RPC + profile actions
-- [x] Support email + legal links on Profile
+- [x] Support email + Terms, Privacy, and account-deletion links on both Profile roles
+- [x] Explicit re-consent for newly active legal versions
 
 ## Stage 8 — Release hygiene
 Status: `in_progress`
 
 - [x] Apply and verify migrations on staging
 - [x] Seed staging demo data (idempotent resettable seed)
-- [ ] Replace staging example legal URLs with approved legal-document URLs
+- [x] Replace staging example legal URLs with approved versioned documents
+- [x] Apply and verify approved versioned legal documents on production
 - [ ] Google OAuth on installed Android build
-- [x] Verify hosted appointment-transition cron
+- [x] Verify hosted appointment-transition cron (staging + production)
+- [x] Production migration parity audit documented (7 migrations behind)
+
+## Stage 9 — Domain hardening (service layer)
+Status: `in_progress`
+
+- [x] Generate Supabase `Database` types + typed client
+- [x] Atomic `publish_barber_profile` RPC
+- [x] Atomic `replace_barber_settings` RPC + shared owner helper
+- [x] Extract `src/services/*` and thin hooks
+- [x] Split `useSession` façade (`useAuthActions`, `useLegalAcceptance`, `auth` service)
+- [x] Central `AppError` codes + mappers
+- [x] Search pagination args on booking/shops hooks
+- [x] Session cache clear on sign-out
+- [x] Frontend contract doc
+- [x] SQL structural test scripts under `supabase/tests/`
+- [x] RPC security audit note (`reference/RPC-SECURITY-AUDIT.md`)
+- [x] CI workflow (`typecheck` + `test`)
+- [ ] Restore Docker/local Supabase for full SQL fixture runs
+- [ ] Production migration apply + push path

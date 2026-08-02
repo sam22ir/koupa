@@ -11,8 +11,9 @@ Koupa is an Android-only Expo + React Native app for booking barber appointments
 - Email/password accounts confirm their email before onboarding. Phone/password accounts do not use SMS or OTP; they provide a recovery email that is attached and confirmed in Supabase Auth before onboarding. Password recovery is always sent to that confirmed Auth email.
 - Auth callbacks use PKCE and the `koupa://callback` deep link. Confirmation, recovery, expired-link, and provider-error outcomes are handled by the callback route instead of URL-fragment parsing in product screens.
 - The selected role and consent are provisional Auth metadata until profile creation. The database requires a confirmed email, current immutable legal acceptances, and a matching provisional role before it allows a profile insert; once created, the profile role cannot change.
+- Legal documents and acceptances are append-only by version. Existing users must explicitly accept a newly active Terms or Privacy version before continuing; the app never infers or records that consent automatically.
 - Identities are never silently merged. When a Google identity collides with an existing password account, the user must first prove ownership by signing in with the existing password method before any provider linking can be offered.
-- Account deletion is available in-app. Upcoming appointments are cancelled, affected users are notified, and personal data is deleted or anonymized.
+- Account deletion is available in-app, with a public explanation and email fallback at `https://koupa-website.pages.dev/account-deletion/`. Upcoming appointments are cancelled, affected users are notified, and personal data is deleted or anonymized.
 
 ## Frontend Reset
 
@@ -67,11 +68,16 @@ Barber tabs are `Today`, `Schedule`, `Shop`, and `Profile`.
 - Services have prices and durations in 5-minute increments.
 - Barbers choose a 5, 10, 15, or 30-minute appointment interval. Service durations reserve all required consecutive availability.
 - Weekly hours support date-specific exceptions, one or more breaks, a configurable booking window, minimum notice period, and pause-booking toggle.
+- Schedule is one three-tab workspace for weekly hours and breaks, date exceptions, services, and constrained booking rules. Changes remain local until the barber uses the explicit `حفظ التغييرات` action, then save transactionally as one workspace update.
+- Removing a service from new booking choices archives it instead of deleting it, preserving historical appointment references and allowing the barber to restore it later.
 - Today shows appointments and quick actions for `Present`, details, and the permanent QR code. The barber can display the code full-screen or save/share a printable copy.
 - The QR scanner is built into the customer app. Server validation opens 30 minutes before the appointment and closes at its scheduled end. A valid scan marks the appointment `Present`; repeat scans are successful and idempotent. The barber may undo a customer QR check-in back to `Booked`.
 - Each barber may own one shop or join one shop, never both or more than one. Every barber may create a shop.
+- The barber Shop experience uses a state-first hub: unaffiliated barbers start with searchable discovery or shop creation, while pending requests, invitations, active membership, and ownership each expose only their relevant next actions.
+- Joining is search-first. Results can be inspected by location, rating, owner, and affiliated barbers before a request is submitted; a raw shop identifier is not the primary workflow.
 - Shop owners can invite unaffiliated barbers or approve/reject join requests. Invitations expire after 30 days.
 - Owners can edit affiliated barbers' schedules, availability, services, and prices, but not personal profiles. Barbers can edit those settings afterward. Both receive change notifications; the owner and affected barber see activity history.
+- Selecting an active member opens a dedicated owner workspace with summary, schedule/services, activity, and removal views. Removal explains upcoming appointment cancellation, notifies the affected barber and customers, and is recorded in shop activity.
 - Leaving a shop cancels that barber's upcoming shop appointments and notifies customers. Deleting a shop does the same for its upcoming appointments and removes active membership.
 
 ## Appointment Lifecycle and Notifications
@@ -82,7 +88,7 @@ Firebase push notifications are sent for booking updates and every `Present`, `C
 
 ## Ratings and Support
 
-Customers can submit one 1-5 star rating after `Completed`. Ratings are publicly visible with average and count, including on shop profiles. Ratings can be edited within 24 hours but not deleted. Support is provided through a support-email link in Profile. No reporting or blocking tools are included in the MVP.
+Customers can submit one 1-5 star rating after `Completed`. Ratings are publicly visible with average and count, including on shop profiles. Ratings can be edited within 24 hours but not deleted. Both Profile roles link the active Terms, Privacy Policy, account-deletion information, and support at `saadisamir20200@gmail.com`. No reporting or blocking tools are included in the MVP.
 
 ## Environments and Release
 

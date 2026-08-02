@@ -1,32 +1,79 @@
-import { Redirect, Stack, router, usePathname } from 'expo-router';
-import { useEffect, useRef } from 'react';
-import { BackHandler, Platform } from 'react-native';
-import { useSession } from '@/src/hooks/useSession';
+import { Tabs } from 'expo-router';
+import { Text } from 'react-native';
+
+import { TabIcon } from '@/src/components/navigation/TabIcon';
+import { t } from '@/src/i18n';
+import { colors, typography } from '@/src/theme';
+
+function TabLabel({ label, focused }: { label: string; focused: boolean }) {
+  return (
+    <Text style={[typography.tab, focused && typography.tabActive, { textAlign: 'center' }]}>
+      {label}
+    </Text>
+  );
+}
 
 export default function BarberLayout() {
-  const { loading, profile } = useSession();
-  const pathname = usePathname();
-  const pathnameRef = useRef(pathname);
-  pathnameRef.current = pathname;
-  useEffect(() => {
-    if (loading || profile?.role !== 'barber' || !profile.is_published) return;
-    const handleNativeBack = () => {
-      if (pathnameRef.current === '/home') return false;
-      if (router.canGoBack()) { router.back(); return true; }
-      router.replace('/(barber)/home');
-      return true;
-    };
-    const nativeSubscription = Platform.OS === 'android' ? BackHandler.addEventListener('hardwareBackPress', handleNativeBack) : null;
-    if (Platform.OS !== 'web') return () => nativeSubscription?.remove();
-    const handleBrowserBack = () => {
-      if (pathnameRef.current === '/home') return;
-      if (!router.canGoBack()) router.replace('/(barber)/home');
-    };
-    window.history.pushState({ koupaBarberBackGuard: true }, '', window.location.href);
-    window.addEventListener('popstate', handleBrowserBack);
-    return () => { nativeSubscription?.remove(); window.removeEventListener('popstate', handleBrowserBack); };
-  }, [loading, profile?.is_published, profile?.role]);
-  if (loading) return null;
-  if (profile?.role !== 'barber' || !profile.is_published) return <Redirect href="/" />;
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          height: 64,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: t('tabs.profile'),
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name={focused ? 'person' : 'person-outline'} focused={focused} />
+          ),
+          tabBarLabel: ({ focused }) => <TabLabel label={t('tabs.profile')} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="shop"
+        options={{
+          title: t('tabs.shop'),
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name={focused ? 'storefront' : 'storefront-outline'} focused={focused} />
+          ),
+          tabBarLabel: ({ focused }) => <TabLabel label={t('tabs.shop')} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          title: t('tabs.schedule'),
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name={focused ? 'time' : 'time-outline'} focused={focused} />
+          ),
+          tabBarLabel: ({ focused }) => <TabLabel label={t('tabs.schedule')} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="today"
+        options={{
+          title: t('tabs.today'),
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name={focused ? 'today' : 'today-outline'} focused={focused} />
+          ),
+          tabBarLabel: ({ focused }) => <TabLabel label={t('tabs.today')} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen name="shop-search" options={{ href: null }} />
+      <Tabs.Screen name="shop-create" options={{ href: null }} />
+      <Tabs.Screen name="shop-details/[id]" options={{ href: null }} />
+      <Tabs.Screen name="shop-member/[barberId]" options={{ href: null }} />
+      <Tabs.Screen name="shop-activity/[id]" options={{ href: null }} />
+    </Tabs>
+  );
 }

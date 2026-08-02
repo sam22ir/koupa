@@ -36,6 +36,15 @@ export function buildBarberCheckInPayload(barberId: string): string {
   return `koupa://check-in/${barberId.toLowerCase()}`;
 }
 
+/** Build QR modules as plain booleans so native rendering does not depend on SVG events. */
+export function createQrMatrix(value: string): readonly (readonly boolean[])[] {
+  const qr = QRCode.create(value, { errorCorrectionLevel: 'M' });
+  const { size, data } = qr.modules;
+  return Array.from({ length: size }, (_, row) =>
+    Array.from({ length: size }, (_, column) => data[row * size + column] === 1),
+  );
+}
+
 export function parseBarberCheckInPayload(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -83,3 +92,4 @@ export function parseCheckInResult(value: unknown): CheckInResult {
     checkInOpensAt: stringField(row, 'check_in_opens_at'),
   };
 }
+import QRCode from 'qrcode';

@@ -1,23 +1,271 @@
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
-import { type CredentialMethod, isValidEmail, isValidPassword, normalizeAlgerianPhone } from '@/src/auth';
-import { PrimaryButton } from '@/src/components/atoms/PrimaryButton';
-import { BrandLogo } from '@/src/components/atoms/BrandLogo';
-import { FormField } from '@/src/components/molecules/FormField';
-import { Screen } from '@/src/components/organisms/Screen';
-import { copy } from '@/src/data/copy';
-import { useSession } from '@/src/hooks/useSession';
-import { colors, radii, spacing, typography } from '@/src/theme';
 
-export default function SignIn() {
-  const { signInWithGoogle, signInWithPassword } = useSession();
-  const [method, setMethod] = useState<CredentialMethod>('email'); const [identifier, setIdentifier] = useState(''); const [password, setPassword] = useState(''); const [loading, setLoading] = useState(false); const [error, setError] = useState('');
-  const signIn = async () => { const normalized = method === 'phone' ? normalizeAlgerianPhone(identifier) : identifier.trim(); const identifierIsValid = method === 'phone' ? Boolean(normalized) : isValidEmail(identifier.trim()); if (!identifierIsValid || !isValidPassword(password)) return setError(copy.auth.invalidCredentials); try { setLoading(true); setError(''); await signInWithPassword(method, normalized ?? '', password); router.replace('/'); } catch { setError(copy.auth.invalidCredentials); } finally { setLoading(false); } };
-  const google = async () => { try { setLoading(true); setError(''); await signInWithGoogle(); router.replace('/'); } catch (caught) { setError(caught instanceof Error && caught.message.includes('Existing password') ? copy.auth.existingMethodRequired : copy.auth.failed); } finally { setLoading(false); } };
-  return <Screen><View style={styles.brand}><BrandLogo size={96} /></View><View style={styles.header}><Text style={styles.title}>{copy.auth.signInTitle}</Text><Text style={styles.subtitle}>{copy.auth.chooseMethod}</Text></View><PrimaryButton label={copy.auth.google} variant="outline" onPress={() => void google()} loading={loading} /><MethodSwitch method={method} onChange={setMethod} /><FormField label={method === 'email' ? copy.auth.email : copy.auth.phone} value={identifier} onChangeText={(value) => { setIdentifier(value); setError(''); }} keyboardType={method === 'email' ? 'email-address' : 'phone-pad'} autoComplete={method === 'email' ? 'email' : 'tel'} autoCapitalize="none" /><FormField label={copy.auth.password} value={password} onChangeText={(value) => { setPassword(value); setError(''); }} secureTextEntry autoComplete="current-password" autoCapitalize="none" />{error ? <Text style={styles.error}>{error}</Text> : null}<Pressable accessibilityRole="link" accessibilityLabel={copy.auth.forgotPassword} onPress={() => router.push('/forgot-password')}><Text style={styles.forgot}>{copy.auth.forgotPassword}</Text></Pressable><View style={styles.footer}><PrimaryButton label={copy.auth.signInTitle} onPress={() => void signIn()} loading={loading} /></View></Screen>;
+import type { CredentialMethod } from '@/src/auth';
+import {
+  isGoogleCollisionMessage,
+  isValidEmail,
+  isValidSignInPassword,
+  normalizeAlgerianPhone,
+} from '@/src/auth';
+import {
+  AuthShell,
+  Button,
+  CredentialMethodTabs,
+  ErrorBanner,
+  Field,
+  Icon,
+} from '@/src/components/ui';
+import { t } from '@/src/i18n';
+import { useAppSession } from '@/src/providers/SessionProvider';
+import { colors, space, typography } from '@/src/theme';
+
+export default function SignInScreen() {
+  const params = useLocalSearchParams<{ collision?: string }>();
+  const { signInWithPassword, signInWithGoogle, linkGoogleIdentity, busy } = useAppSession();
+  const [method, setMethod] = useState<CredentialMethod>('email');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [identifierError, setIdentifierError] = useState<string | undefined>();
+  const [passwordError, setPasswordError] = useState<string | undefined>();
+  const [error, setError] = useState<unknown>(null);
+  const [linkGoogleAfterPassword, setLinkGoogleAfterPassword] = useState(false);
+
+  const collisionBanner = useMemo(
+    () => (params.collision === '1' ? t('auth.collisionBody') : null),
+    [params.collision],
+  );
+
+  const submit = async () => {
+    setError(null);
+    setIdentifierError(undefined);
+    setPasswordError(undefined);
+    const normalized =
+      method === 'email' ? identifier.trim() : normalizeAlgerianPhone(identifier);
+    if (method === 'email' && !isValidEmail(identifier)) {
+      setIdentifierError(t('auth.invalidEmail'));
+      return;
+    }
+    if (method === 'phone' && !normalized) {
+      setIdentifierError(t('auth.invalidPhone'));
+      return;
+    }
+    if (!isValidSignInPassword(password, method === 'email' ? identifier : normalized ?? '')) {
+      setPasswordError(t('auth.passwordTooShort'));
+      return;
+    }
+    try {
+      await signInWithPassword(
+        method,
+        method === 'email' ? identifier.trim() : normalized!,
+        password,
+      );
+      if (linkGoogleAfterPassword || params.collision === '1') {
+        const result = await linkGoogleIdentity();
+        if (result.kind === 'empty') {
+          setError(new Error(t('auth.googleCancelled')));
+          return;
+        }
+      }
+      router.replace('/');
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : String(caught ?? '');
+      const cause =
+        caught instanceof Error && 'cause' in caught && caught.cause instanceof Error
+          ? caught.cause.message
+          : '';
+      if (isGoogleCollisionMessage(`${message} ${cause}`)) {
+        setLinkGoogleAfterPassword(true);
+      }
+      if (method === 'email' && /email not confirmed/i.test(`${message} ${cause}`)) {
+        router.replace({
+          pathname: '/(auth)/confirm',
+          params: { email: identifier.trim() },
+        });
+        return;
+      }
+      setError(caught);
+    }
+  };
+
+  const google = async () => {
+    setError(null);
+    try {
+      const result = await signInWithGoogle();
+      if (result.kind === 'empty') {
+        setError(
+          new Error(
+            `${t('auth.googleCancelled')} — check Metro log for "ADD THIS EXACT URL TO SUPABASE REDIRECT URLS" and add it in Supabase Auth → URL Configuration.`,
+          ),
+        );
+        return;
+      }
+      if (result.kind === 'recovery') {
+        router.replace('/(auth)/reset-password');
+        return;
+      }
+      router.replace('/');
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : String(caught ?? '');
+      const cause =
+        caught instanceof Error && 'cause' in caught && caught.cause instanceof Error
+          ? caught.cause.message
+          : '';
+      if (isGoogleCollisionMessage(`${message} ${cause}`)) {
+        setLinkGoogleAfterPassword(true);
+      }
+      setError(caught);
+    }
+  };
+
+  return (
+    <AuthShell title={t('auth.signIn')} subtitle={t('auth.signInSubtitle')}>
+      {collisionBanner ? (
+        <View style={styles.infoBanner}>
+          <Text style={styles.infoTitle}>{t('auth.collisionTitle')}</Text>
+          <Text style={styles.infoBody}>{collisionBanner}</Text>
+        </View>
+      ) : null}
+
+      <CredentialMethodTabs
+        value={method}
+        emailLabel={t('auth.methodEmail')}
+        phoneLabel={t('auth.methodPhone')}
+        onChange={(value) => {
+          setMethod(value);
+          setIdentifier('');
+          setIdentifierError(undefined);
+          setPasswordError(undefined);
+          setPasswordVisible(false);
+          setLinkGoogleAfterPassword(false);
+          setError(null);
+        }}
+      />
+
+      <Field
+        label={method === 'email' ? t('auth.email') : t('auth.phone')}
+        value={identifier}
+        onChangeText={setIdentifier}
+        error={identifierError}
+        autoCapitalize="none"
+        keyboardType={method === 'email' ? 'email-address' : 'phone-pad'}
+      />
+      <Field
+        label={t('auth.password')}
+        value={password}
+        onChangeText={setPassword}
+        error={passwordError}
+        secureTextEntry={!passwordVisible}
+        accessory={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={passwordVisible ? t('auth.hidePassword') : t('auth.showPassword')}
+            onPress={() => setPasswordVisible((value) => !value)}
+            style={({ pressed }) => [styles.passwordToggle, pressed && styles.pressed]}
+          >
+            <Icon
+              name={passwordVisible ? 'eye-off-outline' : 'eye-outline'}
+              size={20}
+              color={colors.primary}
+            />
+          </Pressable>
+        }
+      />
+
+      <Pressable
+        accessibilityRole="link"
+        onPress={() => router.push('/(auth)/forgot-password')}
+      >
+        <Text style={styles.forgot}>{t('auth.forgotPassword')}</Text>
+      </Pressable>
+
+      <ErrorBanner error={error} />
+      <Button label={t('auth.signIn')} onPress={() => void submit()} loading={busy} />
+
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.or}>{t('auth.or')}</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      <Button
+        label={t('auth.google')}
+        variant="secondary"
+        onPress={() => void google()}
+        disabled={busy}
+      />
+
+      <View style={styles.accountSwitch}>
+        <Text style={styles.accountPrompt}>{t('auth.noAccount')}</Text>
+        <Pressable accessibilityRole="link" onPress={() => router.push('/(auth)/role')}>
+          <Text style={styles.accountLink}>{t('auth.createAccount')}</Text>
+        </Pressable>
+      </View>
+    </AuthShell>
+  );
 }
 
-export function MethodSwitch({ method, onChange }: { readonly method: CredentialMethod; readonly onChange: (method: CredentialMethod) => void; }) { return <View style={styles.switch}><Pressable accessibilityRole="radio" accessibilityLabel={copy.auth.emailMethod} accessibilityState={{ selected: method === 'email' }} onPress={() => onChange('email')} style={[styles.switchItem, method === 'email' && styles.switchSelected]}><Text style={[styles.switchText, method === 'email' && styles.switchTextSelected]}>{copy.auth.email}</Text></Pressable><Pressable accessibilityRole="radio" accessibilityLabel={copy.auth.phoneMethod} accessibilityState={{ selected: method === 'phone' }} onPress={() => onChange('phone')} style={[styles.switchItem, method === 'phone' && styles.switchSelected]}><Text style={[styles.switchText, method === 'phone' && styles.switchTextSelected]}>{copy.auth.phone}</Text></Pressable></View>; }
-
-const styles = StyleSheet.create({ brand: { alignItems: 'center' }, header: { gap: spacing.xs }, title: { color: colors.charcoal, fontFamily: typography.fontFamily.bold, fontSize: typography.size.hero, lineHeight: typography.line.hero, textAlign: 'right' }, subtitle: { color: colors.muted, fontFamily: typography.fontFamily.regular, fontSize: typography.size.body, textAlign: 'right' }, switch: { flexDirection: 'row-reverse', gap: spacing.xs, padding: spacing.xs, backgroundColor: colors.surfaceMuted, borderRadius: radii.xl }, switchItem: { flex: 1, minHeight: 44, justifyContent: 'center', alignItems: 'center', borderRadius: radii.lg }, switchSelected: { backgroundColor: colors.surface }, switchText: { color: colors.muted, fontFamily: typography.fontFamily.medium }, switchTextSelected: { color: colors.primary }, forgot: { color: colors.primary, fontFamily: typography.fontFamily.medium, fontSize: typography.size.body, textAlign: 'right' }, error: { color: colors.danger, fontFamily: typography.fontFamily.regular, textAlign: 'right' }, footer: { marginTop: 'auto' } });
+const styles = StyleSheet.create({
+  infoBanner: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    padding: space[3],
+    gap: space[1],
+  },
+  infoTitle: {
+    ...typography.label,
+    color: colors.accentText,
+    textAlign: 'right',
+  },
+  infoBody: {
+    ...typography.caption,
+    color: colors.accentText,
+    textAlign: 'right',
+  },
+  forgot: {
+    ...typography.label,
+    color: colors.primary,
+    textAlign: 'left',
+  },
+  passwordToggle: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -space[3],
+  },
+  pressed: {
+    transform: [{ scale: 0.98 }],
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[3],
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  or: {
+    ...typography.caption,
+    textAlign: 'center',
+  },
+  accountSwitch: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: space[2],
+  },
+  accountPrompt: {
+    ...typography.caption,
+  },
+  accountLink: {
+    ...typography.label,
+    color: colors.primary,
+  },
+});

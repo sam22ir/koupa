@@ -71,11 +71,23 @@ describe('customer QR entry points', () => {
     expect(mockPush).toHaveBeenCalledWith(expectedRoute);
   });
 
+  it('keeps the Home content scrollable when it exceeds the viewport', async () => {
+    mockLoadAppointments.mockResolvedValue([]);
+    const view = await render(<CustomerHomeScreen />);
+
+    await screen.findByRole('button', { name: 'اعثر على حلاق' });
+    const root = view.root;
+    if (!root) throw new Error('Home root was not rendered');
+    expect(String(root.type)).toContain('ScrollView');
+    expect(root.props.contentInsetAdjustmentBehavior).toBe('automatic');
+    expect(root.props.scrollEnabled).toBe(true);
+  });
+
   it('hides the Home scanner action after attendance is confirmed', async () => {
     mockLoadAppointments.mockResolvedValue([appointment('present')]);
     await render(<CustomerHomeScreen />);
 
-    await screen.findByText('حاضر');
+    await screen.findAllByText('حاضر');
     expect(screen.queryByText('مسح رمز الحضور')).toBeNull();
   });
 

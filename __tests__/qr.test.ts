@@ -1,5 +1,6 @@
 import {
   buildBarberCheckInPayload,
+  createQrMatrix,
   parseBarberCheckInPayload,
   parseCheckInResult,
 } from '@/src/qr';
@@ -7,6 +8,14 @@ import {
 const barberId = '11111111-2222-4333-8444-555555555555';
 
 describe('barber QR helpers', () => {
+  it('creates a square QR matrix without an SVG renderer', () => {
+    const matrix = createQrMatrix('koupa://check-in/barber-id');
+
+    expect(matrix.length).toBeGreaterThanOrEqual(21);
+    expect(matrix.every((row) => row.length === matrix.length)).toBe(true);
+    expect(matrix.some((row) => row.some(Boolean))).toBe(true);
+  });
+
   it('builds a permanent koupa check-in payload', () => {
     expect(buildBarberCheckInPayload(barberId)).toBe(`koupa://check-in/${barberId}`);
   });
