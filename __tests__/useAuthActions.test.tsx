@@ -13,12 +13,12 @@ jest.mock('@/src/services/sessionCache', () => ({
 
 import { useAuthActions } from '@/src/hooks/useAuthActions';
 
-describe('useAuthActions confirmation recovery', () => {
+describe('useAuthActions email authentication', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('restores email-change state after phone-password sign in', async () => {
+  it('restores signup confirmation state after email-password sign in', async () => {
     mockSignInWithPassword.mockResolvedValue({
       user: {
         email: 'recovery@example.com',
@@ -37,12 +37,12 @@ describe('useAuthActions confirmation recovery', () => {
     );
 
     await act(async () => {
-      await result.current.signInWithPassword('phone', '+213555000000', 'password123');
+      await result.current.signInWithPassword('recovery@example.com', 'password123');
     });
 
     expect(onPendingConfirmation).toHaveBeenCalledWith(
       'recovery@example.com',
-      'email_change',
+      'signup',
     );
   });
 });

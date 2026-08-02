@@ -133,8 +133,9 @@ https://supabase.com/dashboard/project/zhdwaizroczkqzwrvfxf/auth/providers
    - Enabled
    - Confirm email: **ON**
 4. **Authentication → Providers → Phone**
-   - Enable phone only if you use phone/password
-   - SMS OTP: **OFF** for Koupa MVP (recovery email flow, not SMS)
+   - Keep phone authentication **disabled** for Koupa MVP
+   - The required phone field is stored in `public.profiles.phone` for barber/customer calls only
+   - SMS and OTP are not used
 
 ### C. App side (already implemented)
 
@@ -263,7 +264,7 @@ Open: https://supabase.com/dashboard/project/hrcwhswzscfbpbllqkri/auth/providers
      ```
      Add Play / EAS preview URLs only if you use them for auth returns.
 3. **Email** provider: enabled, **confirm email ON**, password min length ≥ 8  
-4. **Phone**: password path only; SMS OTP off for MVP  
+4. **Phone**: keep Auth phone provider disabled; profile phone is contact data only and SMS/OTP are not used
 5. Email templates: confirmation + recovery must use `{{ .ConfirmationURL }}` / recovery link and resolve through `koupa://callback`
 
 #### C. Production data gates (CLI)

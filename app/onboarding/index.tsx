@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { getSignupPhone } from '@/src/auth';
 import { Button, ErrorBanner, Field, Screen, ScreenTitle } from '@/src/components/ui';
 import { AppointmentIntervalPicker } from '@/src/features/barber-schedule/AppointmentIntervalPicker';
 import { WeeklyScheduleEditor } from '@/src/features/barber-schedule/WeeklyScheduleEditor';
@@ -35,7 +36,7 @@ export default function BarberOnboardingScreen() {
   const { session, refreshProfile, signOut } = useAppSession();
   const onboarding = useOnboarding({
     userId: session?.user.id,
-    initialPhone: session?.user.phone,
+    initialPhone: getSignupPhone(session?.user ?? null) ?? session?.user.phone,
   });
   const [step, setStep] = useState<BarberOnboardingStep>(
     (onboarding.draftStep || 0) as BarberOnboardingStep,

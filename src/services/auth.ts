@@ -10,7 +10,6 @@ import {
   hasUnapprovedGoogleCollision,
   isExistingConfirmedEmailSignup,
   parseAuthCallback,
-  type CredentialMethod,
   type UserRole,
 } from '@/src/auth';
 import { AppError, toAppError } from '@/src/services/errors';
@@ -141,80 +140,45 @@ export async function updateUserRole(role: UserRole, withConsent = false): Promi
   if (error) throw toAppError(error, 'UNAUTHORIZED');
 }
 
-export async function signInWithPassword(
-  method: CredentialMethod,
-  identifier: string,
-  password: string,
-): Promise<Session> {
-  const credentials = method === 'email'
-    ? { email: identifier, password }
-    : { phone: identifier, password };
-  const { data, error } = await supabase.auth.signInWithPassword(credentials);
+export async function signInWithPassword(email: string, password: string): Promise<Session> {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    if (method === 'email' && /email not confirmed/i.test(error.message ?? '')) {
-      await setPendingEmailConfirmationStorage(identifier.trim(), 'signup');
+    if (/email not confirmed/i.test(error.message ?? '')) {
+      await setPendingEmailConfirmationStorage(email.trim(), 'signup');
     }
     throw toAppError(error, 'UNAUTHORIZED');
   }
   if (!data.session) throw new AppError('UNAUTHORIZED', new Error('Authentication session is unavailable'));
   const confirmationEmail = data.session.user.email?.trim();
   if (!data.session.user.email_confirmed_at && confirmationEmail) {
-    await setPendingEmailConfirmationStorage(
-      confirmationEmail,
-      method === 'phone' ? 'email_change' : 'signup',
-    );
+    await setPendingEmailConfirmationStorage(confirmationEmail, 'signup');
   }
   return data.session;
 }
 
-export async function attachPhoneRecoveryEmail(
-  email: string,
-  role: UserRole,
-): Promise<ConfirmationType> {
-  const address = email.trim();
-  if (!address) throw new AppError('VALIDATION', new Error('Recovery email is required'));
-  const { error } = await supabase.auth.updateUser({
-    email: address,
-    data: { koupa_role: role, koupa_signup_consent: true },
-  });
-  // Persist the recovery address/type even when Supabase rejects the update so
-  // a retry after a transient network failure does not restart signup.
-  await setPendingEmailConfirmationStorage(address, 'email_change');
-  if (error) throw new AppError('RECOVERY_EMAIL_ATTACH_FAILED', error);
-  return 'email_change';
-}
-
 export async function signUpWithPassword(input: {
-  readonly method: CredentialMethod;
   readonly email: string;
   readonly phone?: string;
   readonly password: string;
   readonly role: UserRole;
 }): Promise<ConfirmationType> {
-  const metadata = { koupa_role: input.role, koupa_signup_consent: true };
-  if (input.method === 'email') {
-    const { data, error } = await supabase.auth.signUp({
-      email: input.email,
-      password: input.password,
-      options: { emailRedirectTo: authCallbackUrl(), data: metadata },
-    });
-    if (error) throw toAppError(error, 'UNAUTHORIZED');
-    if (isExistingConfirmedEmailSignup(data.user)) {
-      throw new AppError('UNAUTHORIZED', new Error('User already registered'));
-    }
-    await setPendingEmailConfirmationStorage(input.email, 'signup');
-    return 'signup';
-  }
-
   if (!input.phone) throw new AppError('VALIDATION', new Error('Phone is required'));
+  const metadata = {
+    koupa_role: input.role,
+    koupa_signup_consent: true,
+    koupa_phone: input.phone,
+  };
   const { data, error } = await supabase.auth.signUp({
-    phone: input.phone,
+    email: input.email,
     password: input.password,
-    options: { data: metadata },
+    options: { emailRedirectTo: authCallbackUrl(), data: metadata },
   });
   if (error) throw toAppError(error, 'UNAUTHORIZED');
-  if (!data.session) throw new AppError('UNAUTHORIZED', new Error('Phone registration session is unavailable'));
-  return attachPhoneRecoveryEmail(input.email, input.role);
+  if (isExistingConfirmedEmailSignup(data.user)) {
+    throw new AppError('UNAUTHORIZED', new Error('User already registered'));
+  }
+  await setPendingEmailConfirmationStorage(input.email, 'signup');
+  return 'signup';
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {

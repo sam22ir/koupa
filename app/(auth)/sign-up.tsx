@@ -2,19 +2,17 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { CredentialMethod, UserRole } from '@/src/auth';
+import type { UserRole } from '@/src/auth';
 import { isValidEmail, isValidPassword, normalizeAlgerianPhone } from '@/src/auth';
 import {
   AuthShell,
   Button,
-  CredentialMethodTabs,
   ErrorBanner,
   Field,
   Icon,
 } from '@/src/components/ui';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
-import { errorCode } from '@/src/services/errors';
 import { colors, radii, space, typography } from '@/src/theme';
 
 export default function SignUpScreen() {
@@ -24,14 +22,12 @@ export default function SignUpScreen() {
     : null;
   const {
     signUpWithPassword,
-    retryPhoneRecoveryEmail,
     signInWithGoogle,
     setPendingRole,
     pendingRole,
     loading,
     busy,
   } = useAppSession();
-  const [method, setMethod] = useState<CredentialMethod>('email');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -40,7 +36,6 @@ export default function SignUpScreen() {
   const [phoneError, setPhoneError] = useState<string | undefined>();
   const [passwordError, setPasswordError] = useState<string | undefined>();
   const [error, setError] = useState<unknown>(null);
-  const [recoveryPending, setRecoveryPending] = useState(false);
 
   useEffect(() => {
     if (!loading && (!role || pendingRole !== role)) {
@@ -52,7 +47,6 @@ export default function SignUpScreen() {
 
   const submit = async () => {
     setError(null);
-    setRecoveryPending(false);
     setEmailError(undefined);
     setPhoneError(undefined);
     setPasswordError(undefined);
@@ -64,32 +58,19 @@ export default function SignUpScreen() {
       setPasswordError(t('auth.passwordTooShort'));
       return;
     }
-    const normalizedPhone = method === 'phone' ? normalizeAlgerianPhone(phone) : undefined;
-    if (method === 'phone' && !normalizedPhone) {
+    const normalizedPhone = normalizeAlgerianPhone(phone);
+    if (!normalizedPhone) {
       setPhoneError(t('auth.invalidPhone'));
       return;
     }
     try {
       await setPendingRole(role);
       await signUpWithPassword({
-        method,
         email: email.trim(),
-        phone: normalizedPhone ?? undefined,
+        phone: normalizedPhone,
         password,
         role,
       });
-      router.replace('/(auth)/confirm');
-    } catch (caught) {
-      setRecoveryPending(errorCode(caught) === 'RECOVERY_EMAIL_ATTACH_FAILED');
-      setError(caught);
-    }
-  };
-
-  const retryRecoveryEmail = async () => {
-    if (!retryPhoneRecoveryEmail || method !== 'phone') return;
-    setError(null);
-    try {
-      await retryPhoneRecoveryEmail(email.trim(), role);
       router.replace('/(auth)/confirm');
     } catch (caught) {
       setError(caught);
@@ -127,35 +108,20 @@ export default function SignUpScreen() {
         <Text style={styles.roleBadgeText}>{roleLabel}</Text>
       </View>
 
-      <CredentialMethodTabs
-        value={method}
-        emailLabel={t('auth.methodEmail')}
-        phoneLabel={t('auth.methodPhone')}
-        onChange={(value) => {
-          setMethod(value);
-          setEmailError(undefined);
-          setPhoneError(undefined);
-          setPasswordError(undefined);
-          setError(null);
-        }}
-      />
-
-      {method === 'phone' ? (
-        <Field
-          label={t('auth.phone')}
-          value={phone}
-          onChangeText={setPhone}
-          error={phoneError}
-          keyboardType="phone-pad"
-        />
-      ) : null}
       <Field
-        label={method === 'phone' ? t('auth.recoveryEmail') : t('auth.email')}
+        label={t('auth.email')}
         value={email}
         onChangeText={setEmail}
         error={emailError}
         autoCapitalize="none"
         keyboardType="email-address"
+      />
+      <Field
+        label={t('auth.phoneForContact')}
+        value={phone}
+        onChangeText={setPhone}
+        error={phoneError}
+        keyboardType="phone-pad"
       />
       <Field
         label={t('auth.password')}
@@ -180,14 +146,6 @@ export default function SignUpScreen() {
       />
 
       <ErrorBanner error={error} />
-      {recoveryPending ? (
-        <Button
-          label={t('common.retry')}
-          variant="secondary"
-          onPress={() => void retryRecoveryEmail()}
-          loading={busy}
-        />
-      ) : null}
       <Button label={t('auth.signUp')} onPress={() => void submit()} loading={busy} />
 
       <View style={styles.divider}>

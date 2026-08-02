@@ -101,12 +101,12 @@ describe('SignInScreen', () => {
     jest.clearAllMocks();
   });
 
-  it('switches from email to phone credentials', async () => {
+  it('uses email credentials as the only sign-in method', async () => {
     await render(<SignInScreen />);
 
     expect(screen.getByText('ادخل إلى حسابك لإدارة مواعيدك.')).toBeTruthy();
-    await fireEvent.press(screen.getByRole('tab', { name: 'هاتف' }));
-    expect(screen.getByLabelText('رقم الهاتف')).toBeTruthy();
+    expect(screen.getByLabelText('البريد الإلكتروني')).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'هاتف' })).toBeNull();
   });
 
   it('reveals the password without changing its value', async () => {
@@ -146,7 +146,6 @@ describe('SignInScreen', () => {
 
     await waitFor(() => {
       expect(mockSession.signInWithPassword).toHaveBeenCalledWith(
-        'email',
         'customer@example.com',
         'secret123',
       );
@@ -230,7 +229,7 @@ describe('SignUpScreen', () => {
   it('confirms the customer role in the shared sign-up form', async () => {
     await render(<SignUpScreen />);
 
-    expect(screen.getByText('أنشئ حسابك وابدأ حجز مواعيدك.')).toBeTruthy();
+    expect(screen.getByText('أنشئ حسابك ببريدك وأضف رقم هاتف للتواصل وابدأ حجز مواعيدك.')).toBeTruthy();
     expect(screen.getByText('زبون')).toBeTruthy();
     expect(screen.getByTestId('sign-up-role-badge')).toHaveStyle({
       alignSelf: 'flex-start',
@@ -242,7 +241,7 @@ describe('SignUpScreen', () => {
     mockSession.pendingRole = 'barber';
     await render(<SignUpScreen />);
 
-    expect(screen.getByText('أنشئ حسابك وابدأ تجهيز ملفك المهني.')).toBeTruthy();
+    expect(screen.getByText('أنشئ حسابك ببريدك وأضف رقم هاتف للتواصل وابدأ تجهيز ملفك المهني.')).toBeTruthy();
     expect(screen.getByText('حلاق')).toBeTruthy();
   });
 
@@ -256,12 +255,12 @@ describe('SignUpScreen', () => {
     });
   });
 
-  it('shows phone recovery fields and preserves a revealed password', async () => {
+  it('requires a contact phone alongside the account email', async () => {
     await render(<SignUpScreen />);
 
-    await fireEvent.press(screen.getByRole('tab', { name: 'هاتف' }));
-    expect(screen.getByLabelText('رقم الهاتف')).toBeTruthy();
-    expect(screen.getByLabelText('بريد الاستعادة')).toBeTruthy();
+    expect(screen.getByLabelText('رقم الهاتف للتواصل')).toBeTruthy();
+    expect(screen.getByLabelText('البريد الإلكتروني')).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'هاتف' })).toBeNull();
 
     const password = screen.getByLabelText('كلمة المرور');
     await fireEvent.changeText(password, 'secret123');
@@ -269,6 +268,26 @@ describe('SignUpScreen', () => {
 
     expect(screen.getByLabelText('كلمة المرور').props.secureTextEntry).toBe(false);
     expect(screen.getByDisplayValue('secret123')).toBeTruthy();
+  });
+
+  it('submits the email account and normalized contact phone together', async () => {
+    mockSession.signUpWithPassword.mockResolvedValueOnce('signup');
+    await render(<SignUpScreen />);
+
+    await fireEvent.changeText(screen.getByLabelText('البريد الإلكتروني'), 'customer@example.com');
+    await fireEvent.changeText(screen.getByLabelText('رقم الهاتف للتواصل'), '0555123456');
+    await fireEvent.changeText(screen.getByLabelText('كلمة المرور'), 'secret123');
+    await fireEvent.press(screen.getByRole('button', { name: 'إنشاء حساب' }));
+
+    await waitFor(() => {
+      expect(mockSession.signUpWithPassword).toHaveBeenCalledWith({
+        email: 'customer@example.com',
+        phone: '+213555123456',
+        password: 'secret123',
+        role: 'customer',
+      });
+      expect(mockRouter.replace).toHaveBeenCalledWith('/(auth)/confirm');
+    });
   });
 
   it('routes existing users to sign in', async () => {

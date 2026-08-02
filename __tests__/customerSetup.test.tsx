@@ -10,7 +10,13 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 const mockSession = {
-  session: { user: { id: 'customer-1', phone: '+213555000000' } },
+  session: {
+    user: {
+      id: 'customer-1',
+      phone: null,
+      user_metadata: { koupa_phone: '+213555000000' },
+    },
+  },
   refreshProfile: jest.fn(),
   signOut: jest.fn(async () => undefined),
 };
@@ -34,7 +40,7 @@ describe('CustomerSetupScreen', () => {
     jest.clearAllMocks();
   });
 
-  it('prefills the Auth phone and allows changing accounts', async () => {
+  it('prefills the signup contact phone and allows changing accounts', async () => {
     await render(<CustomerSetupScreen />);
 
     expect(screen.getByLabelText('رقم الهاتف')).toHaveDisplayValue('+213555000000');

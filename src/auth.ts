@@ -11,6 +11,11 @@ export function normalizeAlgerianPhone(value: string): string | null {
   return normalized && /^\+213[567]\d{8}$/.test(normalized) ? normalized : null;
 }
 
+export function getSignupPhone(user: User | null): string | null {
+  const phone = user?.user_metadata?.koupa_phone;
+  return typeof phone === 'string' && phone.trim() ? phone.trim() : null;
+}
+
 export function isValidPassword(value: string): boolean { return value.length >= 8; }
 export function isValidSignInPassword(value: string, identifier: string, appEnvironment = process.env.EXPO_PUBLIC_APP_ENV): boolean {
   if (isValidPassword(value)) return true;
