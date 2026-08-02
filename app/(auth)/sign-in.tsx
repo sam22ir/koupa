@@ -2,17 +2,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { CredentialMethod } from '@/src/auth';
 import {
   isGoogleCollisionMessage,
   isValidEmail,
   isValidSignInPassword,
-  normalizeAlgerianPhone,
 } from '@/src/auth';
 import {
   AuthShell,
   Button,
-  CredentialMethodTabs,
   ErrorBanner,
   Field,
   Icon,
@@ -24,7 +21,6 @@ import { colors, space, typography } from '@/src/theme';
 export default function SignInScreen() {
   const params = useLocalSearchParams<{ collision?: string }>();
   const { signInWithPassword, signInWithGoogle, linkGoogleIdentity, busy } = useAppSession();
-  const [method, setMethod] = useState<CredentialMethod>('email');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -42,24 +38,17 @@ export default function SignInScreen() {
     setError(null);
     setIdentifierError(undefined);
     setPasswordError(undefined);
-    const normalized =
-      method === 'email' ? identifier.trim() : normalizeAlgerianPhone(identifier);
-    if (method === 'email' && !isValidEmail(identifier)) {
+    if (!isValidEmail(identifier)) {
       setIdentifierError(t('auth.invalidEmail'));
       return;
     }
-    if (method === 'phone' && !normalized) {
-      setIdentifierError(t('auth.invalidPhone'));
-      return;
-    }
-    if (!isValidSignInPassword(password, method === 'email' ? identifier : normalized ?? '')) {
+    if (!isValidSignInPassword(password, identifier)) {
       setPasswordError(t('auth.passwordTooShort'));
       return;
     }
     try {
       await signInWithPassword(
-        method,
-        method === 'email' ? identifier.trim() : normalized!,
+        identifier.trim(),
         password,
       );
       if (linkGoogleAfterPassword || params.collision === '1') {
@@ -79,7 +68,7 @@ export default function SignInScreen() {
       if (isGoogleCollisionMessage(`${message} ${cause}`)) {
         setLinkGoogleAfterPassword(true);
       }
-      if (method === 'email' && /email not confirmed/i.test(`${message} ${cause}`)) {
+      if (/email not confirmed/i.test(`${message} ${cause}`)) {
         router.replace({
           pathname: '/(auth)/confirm',
           params: { email: identifier.trim() },
@@ -129,28 +118,13 @@ export default function SignInScreen() {
         </View>
       ) : null}
 
-      <CredentialMethodTabs
-        value={method}
-        emailLabel={t('auth.methodEmail')}
-        phoneLabel={t('auth.methodPhone')}
-        onChange={(value) => {
-          setMethod(value);
-          setIdentifier('');
-          setIdentifierError(undefined);
-          setPasswordError(undefined);
-          setPasswordVisible(false);
-          setLinkGoogleAfterPassword(false);
-          setError(null);
-        }}
-      />
-
       <Field
-        label={method === 'email' ? t('auth.email') : t('auth.phone')}
+        label={t('auth.email')}
         value={identifier}
         onChangeText={setIdentifier}
         error={identifierError}
         autoCapitalize="none"
-        keyboardType={method === 'email' ? 'email-address' : 'phone-pad'}
+        keyboardType="email-address"
       />
       <Field
         label={t('auth.password')}

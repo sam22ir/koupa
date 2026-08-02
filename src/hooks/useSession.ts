@@ -262,7 +262,6 @@ export function useSession(_: UseSessionProps = {}) {
     signInWithGoogle: auth.signInWithGoogle,
     linkGoogleIdentity: auth.linkGoogleIdentity,
     signUpWithPassword: auth.signUpWithPassword,
-    retryPhoneRecoveryEmail: auth.retryPhoneRecoveryEmail,
     signInWithPassword: auth.signInWithPassword,
     requestPasswordReset: auth.requestPasswordReset,
     updatePassword: auth.updatePassword,

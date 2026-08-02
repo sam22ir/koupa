@@ -1,6 +1,7 @@
 import {
   classifyAuthCallback,
   getPendingRole,
+  getSignupPhone,
   hasSignupConsent,
   hasUnapprovedGoogleCollision,
   isExistingConfirmedEmailSignup,
@@ -47,6 +48,11 @@ describe('auth helpers', () => {
     expect(hasSignupConsent(user)).toBe(true);
     expect(getPendingRole(invalidUser)).toBeNull();
     expect(hasSignupConsent(invalidUser)).toBe(false);
+  });
+
+  it('reads the signup contact phone from user metadata', () => {
+    expect(getSignupPhone({ user_metadata: { koupa_phone: '+213555123456' } } as never)).toBe('+213555123456');
+    expect(getSignupPhone({ user_metadata: { koupa_phone: 123 } } as never)).toBeNull();
   });
 
   it('detects an unapproved Google identity attached to an email/password account', () => {

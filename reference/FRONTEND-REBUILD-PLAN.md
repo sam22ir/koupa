@@ -51,10 +51,10 @@ src/services/*               Supabase (existing)
 ### Auth
 - Welcome (`إنشاء حساب` / `لدي حساب بالفعل`)
 - Role select + Terms/Privacy acceptance (provisional metadata)
-- Sign up: Google / email+password / phone+password (+ recovery email for phone)
-- Sign in: same methods
+- Sign up: Google / email+password, with a required contact phone stored on the profile
+- Sign in: Google / email+password only
 - Confirm email / pending confirmation
-- Forgot password → recovery email
+- Forgot password → account email
 - Auth callback route (PKCE outcomes)
 - Google collision: must sign in with password first (no silent merge)
 

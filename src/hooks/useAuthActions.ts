@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import type { CredentialMethod, UserRole } from '@/src/auth';
+import type { UserRole } from '@/src/auth';
 import { isGoogleCollisionMessage } from '@/src/auth';
 import * as authService from '@/src/services/auth';
 import type { AuthCallbackResult, ConfirmationType } from '@/src/services/auth';
@@ -85,9 +85,8 @@ export function useAuthActions({
   }, []);
 
   const signUpWithPassword = useCallback(async (input: {
-    readonly method: CredentialMethod;
     readonly email: string;
-    readonly phone?: string;
+    readonly phone: string;
     readonly password: string;
     readonly role: UserRole;
   }) => {
@@ -101,35 +100,17 @@ export function useAuthActions({
     }
   }, [onPendingConfirmation]);
 
-  const retryPhoneRecoveryEmail = useCallback(async (email: string, role: UserRole) => {
-    setBusy(true);
-    try {
-      const type = await authService.attachPhoneRecoveryEmail(email, role);
-      onPendingConfirmation(email.trim(), type);
-      return type;
-    } finally {
-      setBusy(false);
-    }
-  }, [onPendingConfirmation]);
-
-  const signInWithPassword = useCallback(async (
-    method: CredentialMethod,
-    identifier: string,
-    password: string,
-  ) => {
+  const signInWithPassword = useCallback(async (email: string, password: string) => {
     setBusy(true);
     try {
       // A normal sign-in must not inherit a role selected for an abandoned
       // signup attempt. Auth metadata is re-read after the session arrives.
       await authService.clearPendingRoleStorage();
       onPendingRole(null);
-      const session = await authService.signInWithPassword(method, identifier, password);
+      const session = await authService.signInWithPassword(email, password);
       const confirmationEmail = session.user.email?.trim();
       if (!session.user.email_confirmed_at && confirmationEmail) {
-        onPendingConfirmation(
-          confirmationEmail,
-          method === 'phone' ? 'email_change' : 'signup',
-        );
+        onPendingConfirmation(confirmationEmail, 'signup');
       }
       return session;
     } finally {
@@ -175,7 +156,6 @@ export function useAuthActions({
     signInWithGoogle,
     linkGoogleIdentity,
     signUpWithPassword,
-    retryPhoneRecoveryEmail,
     signInWithPassword,
     requestPasswordReset,
     updatePassword,

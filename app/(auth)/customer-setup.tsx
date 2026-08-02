@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { normalizeAlgerianPhone } from '@/src/auth';
+import { getSignupPhone, normalizeAlgerianPhone } from '@/src/auth';
 import { Button, ErrorBanner, Field, Screen, ScreenTitle } from '@/src/components/ui';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
@@ -10,7 +10,9 @@ import * as onboardingService from '@/src/services/onboarding';
 export default function CustomerSetupScreen() {
   const { session, refreshProfile, signOut } = useAppSession();
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState(session?.user.phone ?? '');
+  const [phone, setPhone] = useState(
+    getSignupPhone(session?.user ?? null) ?? session?.user.phone ?? '',
+  );
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 

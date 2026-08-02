@@ -54,50 +54,70 @@ describe('auth callback service', () => {
     jest.clearAllMocks();
   });
 
-  it('keeps a phone session recoverable when recovery-email attachment fails', async () => {
-    const phoneSession = {
-      access_token: 'phone-token',
-      user: { id: 'phone-user', phone: '+213555000000', email: null },
-    };
-    mockSignUp.mockResolvedValue({ data: { session: phoneSession, user: phoneSession.user }, error: null });
-    mockUpdateUser.mockResolvedValueOnce({ error: new Error('network') });
+  it('signs up with email/password and stores the required contact phone in metadata', async () => {
+    mockSignUp.mockResolvedValue({
+      data: { session: null, user: { id: 'email-user', identities: [{ provider: 'email' }] } },
+      error: null,
+    });
 
     await expect(signUpWithPassword({
-      method: 'phone',
       phone: '+213555000000',
-      email: 'recovery@example.com',
+      email: 'customer@example.com',
       password: 'password123',
       role: 'customer',
-    })).rejects.toMatchObject({ code: 'RECOVERY_EMAIL_ATTACH_FAILED' });
-    expect(mockSignUp).toHaveBeenCalledTimes(1);
+    })).resolves.toBe('signup');
+    expect(mockSignUp).toHaveBeenCalledWith({
+      email: 'customer@example.com',
+      password: 'password123',
+      options: {
+        emailRedirectTo: 'koupa://callback',
+        data: {
+          koupa_role: 'customer',
+          koupa_signup_consent: true,
+          koupa_phone: '+213555000000',
+        },
+      },
+    });
     expect(mockStorageSetItem).toHaveBeenCalledWith(
-      'koupa.pending-confirmation-type',
-      'email_change',
+      'koupa.pending-confirmation-email',
+      'customer@example.com',
     );
   });
 
-  it('returns the session and restores phone recovery-email confirmation state', async () => {
-    const phoneSession = {
-      access_token: 'phone-token',
+  it('rejects signup when the required contact phone is missing', async () => {
+    await expect(signUpWithPassword({
+      email: 'customer@example.com',
+      password: 'password123',
+      role: 'customer',
+    })).rejects.toMatchObject({ code: 'VALIDATION' });
+    expect(mockSignUp).not.toHaveBeenCalled();
+  });
+
+  it('signs in with the account email and password', async () => {
+    const emailSession = {
+      access_token: 'email-token',
       user: {
-        id: 'phone-user',
-        phone: '+213555000000',
-        email: 'recovery@example.com',
+        id: 'email-user',
+        email: 'customer@example.com',
         email_confirmed_at: null,
       },
     };
-    mockSignInWithPassword.mockResolvedValue({ data: { session: phoneSession }, error: null });
+    mockSignInWithPassword.mockResolvedValue({ data: { session: emailSession }, error: null });
 
     await expect(
-      signInWithPassword('phone', '+213555000000', 'password123'),
-    ).resolves.toEqual(phoneSession);
+      signInWithPassword('customer@example.com', 'password123'),
+    ).resolves.toEqual(emailSession);
+    expect(mockSignInWithPassword).toHaveBeenCalledWith({
+      email: 'customer@example.com',
+      password: 'password123',
+    });
     expect(mockStorageSetItem).toHaveBeenCalledWith(
       'koupa.pending-confirmation-email',
-      'recovery@example.com',
+      'customer@example.com',
     );
     expect(mockStorageSetItem).toHaveBeenCalledWith(
       'koupa.pending-confirmation-type',
-      'email_change',
+      'signup',
     );
   });
 
