@@ -25,6 +25,8 @@ export function useScheduleExceptions(userId?: string) {
   }, [userId]);
 
   useEffect(() => {
+    // Initial load intentionally synchronizes remote schedule exceptions.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 

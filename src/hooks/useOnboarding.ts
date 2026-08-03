@@ -24,16 +24,17 @@ export function useOnboarding({ userId, initialPhone }: UseOnboardingProps) {
   useEffect(() => {
     let active = true;
     if (!userId) {
-      setHydrating(false);
       hydratedUserRef.current = null;
+      const timeout = setTimeout(() => setHydrating(false), 0);
       return () => {
         active = false;
+        clearTimeout(timeout);
       };
     }
 
-    setLoadError(null);
-    setHydrating(true);
     const timeout = setTimeout(() => {
+      setLoadError(null);
+      setHydrating(true);
       void (async () => {
         try {
           const loaded = await onboardingService.loadOnboardingDraft(userId);

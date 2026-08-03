@@ -44,7 +44,11 @@ export default function RoleScreen() {
     };
   };
 
-  useEffect(() => loadDocuments(), []);
+  useEffect(() => {
+    // Initial legal-document loading intentionally synchronizes remote state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    return loadDocuments();
+  }, []);
 
   const terms = documents.find((doc) => doc.key === 'terms');
   const privacy = documents.find((doc) => doc.key === 'privacy');

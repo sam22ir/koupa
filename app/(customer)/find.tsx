@@ -58,6 +58,8 @@ export default function FindScreen() {
   }, [searchBarbers, searchShops]);
 
   useEffect(() => {
+    // Initial search intentionally synchronizes the directory with the backend.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void runSearch('', 'barbers');
   }, [runSearch]);
 

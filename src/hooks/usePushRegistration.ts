@@ -19,6 +19,8 @@ export function usePushRegistration(userId?: string) {
   }, [userId]);
 
   useEffect(() => {
+    // Registration intentionally starts an external async device-token sync.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void register();
   }, [register]);
 
