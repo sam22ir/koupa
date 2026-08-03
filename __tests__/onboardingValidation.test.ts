@@ -13,6 +13,7 @@ function validDraft(): BarberDraft {
     ...defaultBarberDraft,
     name: 'أمين',
     phone: '0555000000',
+    workplaceType: 'owner',
     city: 'الجزائر',
     neighborhood: 'باب الوادي',
     mapsUrl: 'https://maps.app.goo.gl/example',
@@ -37,14 +38,30 @@ describe('barber onboarding validation', () => {
     expect(validateBarberOnboardingStep(validDraft(), 0)).toBeNull();
   });
 
-  it('accepts a Google Maps URL or valid coordinates', () => {
+  it('requires a Google Maps URL for owners', () => {
     expect(validateBarberOnboardingStep({ ...validDraft(), mapsUrl: 'https://example.com' }, 1)).toBe('location');
+    expect(validateBarberOnboardingStep({ ...validDraft(), mapsUrl: 'https://evilgoogle.com/maps' }, 1)).toBe('location');
+    expect(validateBarberOnboardingStep({ ...validDraft(), mapsUrl: 'https://google.evil.com/maps' }, 1)).toBe('location');
+    expect(validateBarberOnboardingStep({ ...validDraft(), mapsUrl: 'https://goo.gl' }, 1)).toBe('location');
     expect(
       validateBarberOnboardingStep(
         { ...validDraft(), mapsUrl: '', latitude: '36.75', longitude: '3.05' },
         1,
       ),
+    ).toBe('location');
+  });
+
+  it('allows workers to continue without location details', () => {
+    expect(
+      validateBarberOnboardingStep(
+        { ...validDraft(), workplaceType: 'worker', mapsUrl: '', city: '', neighborhood: '' },
+        1,
+      ),
     ).toBeNull();
+  });
+
+  it('blocks owners without a valid Maps URL at the first invalid step', () => {
+    expect(firstInvalidBarberOnboardingStep({ ...validDraft(), workplaceType: 'owner', mapsUrl: '' })).toBe(1);
   });
 
   it('requires a valid positive service in five-minute increments', () => {

@@ -58,7 +58,7 @@ export default function CustomerHomeScreen() {
   );
 
   const cancel = () => {
-    if (!upcoming) return;
+    if (!upcoming || upcoming.status !== 'booked') return;
     if (!canCancelCustomerAppointment(upcoming.starts_at)) {
       setError(new Error(t('errors.CANCEL_NOT_ALLOWED')));
       return;
@@ -151,7 +151,7 @@ export default function CustomerHomeScreen() {
                   <Text style={styles.link}>{t('home.reschedule')}</Text>
                 </Pressable>
               ) : null}
-              {canCancelCustomerAppointment(upcoming.starts_at) ? (
+              {upcoming.status === 'booked' && canCancelCustomerAppointment(upcoming.starts_at) ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t('home.cancelAppt')}

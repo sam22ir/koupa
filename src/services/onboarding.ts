@@ -57,6 +57,7 @@ export async function publishBarberProfile(draft: BarberDraft): Promise<void> {
     name: draft.name,
     phone: draft.phone,
     bio: draft.bio,
+    workplace_type: draft.workplaceType,
     city: draft.city,
     neighborhood: draft.neighborhood,
     maps_url: draft.mapsUrl,

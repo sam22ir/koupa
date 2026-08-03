@@ -52,6 +52,26 @@ Use Jest for preserved domain and service behavior. When the frontend is rebuilt
 
 Use concise imperative commit subjects, such as `Add appointment screen` or `Fix Android deep link`. Keep commits focused. Pull requests should describe the user impact, list verification commands and device/emulator details, link related issues, and include screenshots or recordings for UI changes. Call out Expo config, native Android, dependency, or migration changes explicitly.
 
+### GitHub Workflow for Codex Tasks
+
+Treat `main` as the official version of Koupa. Do new work on a separate branch named `codex/<short-task-name>`, then commit, push, and open a pull request before adding the work to `main`.
+
+- A branch is a separate working copy for one task.
+- A commit is a saved checkpoint on the local machine.
+- Pushing uploads the branch and its commits to GitHub.
+- A pull request asks for the branch to be added to `main`.
+- Merging accepts the pull request and updates the official app.
+
+Before starting work, update `main` and create a feature branch. Before committing, review the staged files and run the relevant checks. Codex must not commit, push, merge, or delete branches unless the user explicitly requests that action. After a pull request is merged, update local `main` and remove the finished feature branch locally and on GitHub. Never commit credentials, local session logs, generated output, or other machine-specific artifacts.
+
+For difficult or wide-ranging tasks, plan the work before editing. Use sub-agents for independent implementation, investigation, testing, or review tasks when that improves coverage or speed. Review each sub-agent's findings and changes, resolve conflicts or inconsistencies, and run the relevant checks yourself before committing or opening a pull request.
+
 ## Security & Configuration
 
 Do not commit credentials, tokens, signing keys, keystores, or `.env` files. Document required variables in `.env.example` and use Expo-compatible public variable naming only for values safe to ship to the client. Keep Android signing credentials and production secrets in the approved secret store. Review `app.json`/`app.config.*` and native Android changes carefully before merging.
+
+## Collaboration Dispatch Safety
+
+- When delegation is requested, invoke the dedicated collaboration API (`spawn_agent` or the supported thread-creation tool) directly. Do not attempt collaboration through `exec`, shell commands, `echo`, `true`, or other no-op fallbacks.
+- Do not claim that reviewers were dispatched until the tool returns real agent or thread IDs. Verify those IDs with the collaboration status/read tool before reporting completion.
+- Collect spawned-agent results with the collaboration-specific wait/read mechanism, not generic exec-cell polling. If dispatch fails, report the actual tool error and stop; do not fabricate fallback reports.

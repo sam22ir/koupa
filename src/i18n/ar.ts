@@ -228,6 +228,7 @@ export const ar = {
     pauseBooking: 'إيقاف الحجز',
     publish: 'نشر الملف',
     onboarding: 'إعداد ملف الحلاق',
+    onboardingBody: 'خطوة واضحة في كل مرة، ويمكنك التعديل لاحقا.',
     stepBasic: 'المعلومات',
     stepLocation: 'الموقع',
     stepServices: 'الخدمات',

@@ -15,26 +15,21 @@ export function fromPersistedOnboardingStep(persistedStep: number): BarberOnboar
   return Math.min(4, Math.max(0, Math.trunc(persistedStep) - 1)) as BarberOnboardingStep;
 }
 
+const googleMapsHosts = new Set(['google.com', 'maps.google.com', 'www.google.com']);
+
 function hasValidMapsUrl(value: string): boolean {
   try {
     const url = new URL(value.trim());
     const host = url.hostname.toLowerCase();
+    const hasShortLinkPath = host === 'goo.gl' && url.pathname.length > 1;
+    const isGoogleMapsHost = googleMapsHosts.has(host) && url.pathname.includes('/maps');
     return (
       url.protocol === 'https:'
-      && (host === 'maps.app.goo.gl'
-        || host === 'goo.gl'
-        || (host.includes('google.') && url.pathname.includes('/maps')))
+      && (host === 'maps.app.goo.gl' || hasShortLinkPath || isGoogleMapsHost)
     );
   } catch {
     return false;
   }
-}
-
-function hasValidCoordinates(latitude: string, longitude: string): boolean {
-  if (!latitude.trim() || !longitude.trim()) return false;
-  const lat = Number(latitude);
-  const lng = Number(longitude);
-  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 }
 
 function hasValidServices(draft: BarberDraft): boolean {
@@ -81,9 +76,10 @@ export function validateBarberOnboardingStep(
     return draft.name.trim().length >= 2 && normalizeAlgerianPhone(draft.phone) ? null : 'basic';
   }
   if (step === 1) {
+    if (draft.workplaceType === 'worker') return null;
     return draft.city.trim().length >= 2
       && draft.neighborhood.trim().length >= 2
-      && (hasValidMapsUrl(draft.mapsUrl) || hasValidCoordinates(draft.latitude, draft.longitude))
+      && hasValidMapsUrl(draft.mapsUrl)
       ? null
       : 'location';
   }

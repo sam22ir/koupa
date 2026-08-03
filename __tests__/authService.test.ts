@@ -41,9 +41,17 @@ jest.mock('expo-linking', () => ({ addEventListener: jest.fn() }));
 jest.mock('expo-web-browser', () => ({
   maybeCompleteAuthSession: jest.fn(),
 }));
+jest.mock('react-native', () => ({
+  Platform: {
+    get OS() {
+      return process.env.TEST_PLATFORM_OS || 'ios';
+    },
+  },
+}));
 
 import {
   completeAuthCallback,
+  authCallbackUrl,
   linkGoogleIdentity,
   signInWithPassword,
   signUpWithPassword,
@@ -52,6 +60,15 @@ import {
 describe('auth callback service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.TEST_PLATFORM_OS;
+    delete process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL;
+  });
+
+  it('uses the configured public callback URL for production web auth', () => {
+    process.env.TEST_PLATFORM_OS = 'web';
+    process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL = 'https://app.example.com/callback';
+
+    expect(authCallbackUrl()).toBe('https://app.example.com/callback');
   });
 
   it('signs up with email/password and stores the required contact phone in metadata', async () => {

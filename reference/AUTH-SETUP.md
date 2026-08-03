@@ -257,15 +257,20 @@ Open: https://supabase.com/dashboard/project/hrcwhswzscfbpbllqkri/auth/providers
 1. **Providers → Google** → enable → paste **production** Client ID/secret → Save  
    (Never paste the staging client here.)
 2. **URL Configuration**
-   - Site URL: `koupa://callback`
-   - Redirect URLs (production-focused; no random LAN exp:// unless debugging a prod build):
+   - Site URL: `koupa://callback` for the installed Android app
+   - Redirect URLs (production-focused; no random LAN `exp://` unless debugging a prod build):
      ```text
      koupa://callback
      ```
+   - If Koupa web is deployed, set `EXPO_PUBLIC_AUTH_REDIRECT_URL` in that web build to the exact
+     deployed callback URL (for example `https://app.example.com/callback`) and add that same URL
+     to this allow-list. Do not use `http://localhost:8081/callback` in production.
      Add Play / EAS preview URLs only if you use them for auth returns.
 3. **Email** provider: enabled, **confirm email ON**, password min length ≥ 8  
 4. **Phone**: keep Auth phone provider disabled; profile phone is contact data only and SMS/OTP are not used
-5. Email templates: confirmation + recovery must use `{{ .ConfirmationURL }}` / recovery link and resolve through `koupa://callback`
+5. Email templates: confirmation + recovery must use `{{ .ConfirmationURL }}` / recovery link. On
+   installed production builds they resolve through `koupa://callback`; on a production web build
+   they resolve through the configured HTTPS callback URL.
 
 #### C. Production data gates (CLI)
 

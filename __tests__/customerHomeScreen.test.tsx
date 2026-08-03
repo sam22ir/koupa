@@ -95,14 +95,24 @@ describe('customer Home recent barbers', () => {
   });
 
   it('keeps appointment actions contextual for booked and present appointments', async () => {
-    mockLoadAppointments.mockResolvedValue([appointment({ status: 'booked', starts_at: '2026-08-03T10:00:00.000Z' })]);
+    const bookedStart = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+    mockLoadAppointments.mockResolvedValue([appointment({
+      status: 'booked',
+      starts_at: bookedStart,
+      ends_at: new Date(new Date(bookedStart).getTime() + 30 * 60_000).toISOString(),
+    })]);
     const bookedView = await render(<CustomerHomeScreen />);
     expect(await bookedView.findByText('إدارة الموعد')).toBeTruthy();
     expect(bookedView.getByText('مسح رمز الحضور')).toBeTruthy();
     expect(bookedView.getByText('إعادة جدولة')).toBeTruthy();
     expect(bookedView.getByText('إلغاء الموعد')).toBeTruthy();
 
-    mockLoadAppointments.mockResolvedValue([appointment({ status: 'present' })]);
+    const futureStart = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+    mockLoadAppointments.mockResolvedValue([appointment({
+      status: 'present',
+      starts_at: futureStart,
+      ends_at: new Date(new Date(futureStart).getTime() + 30 * 60_000).toISOString(),
+    })]);
     const presentView = await render(<CustomerHomeScreen />);
     expect(await presentView.findByText('إدارة الموعد')).toBeTruthy();
     expect(presentView.queryByText('مسح رمز الحضور')).toBeNull();

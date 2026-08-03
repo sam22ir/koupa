@@ -30,7 +30,7 @@ export const pendingConfirmationTypeKey = 'koupa.pending-confirmation-type';
  * Dev client / Play:
  *   koupa://callback
  * Web:
- *   http://localhost:8081/callback
+ *   EXPO_PUBLIC_AUTH_REDIRECT_URL (production) or the current Expo web origin (development)
  *
  * CRITICAL: the exact string returned here MUST be in
  * Supabase → Authentication → URL Configuration → Redirect URLs.
@@ -38,6 +38,8 @@ export const pendingConfirmationTypeKey = 'koupa.pending-confirmation-type';
  */
 export function authCallbackUrl(): string {
   if (Platform.OS === 'web') {
+    const configuredWebRedirect = process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL?.trim();
+    if (configuredWebRedirect) return configuredWebRedirect;
     return makeRedirectUri({ path: 'callback' });
   }
 

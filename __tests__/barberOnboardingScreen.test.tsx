@@ -78,6 +78,49 @@ describe('BarberOnboardingScreen', () => {
     expect(mockSaveDraft).not.toHaveBeenCalled();
   });
 
+  it('renders the workplace choice on the profile step', async () => {
+    await render(<BarberOnboardingScreen />);
+
+    expect(screen.getByRole('radio', { name: 'أملك محلا' })).toBeSelected();
+    expect(screen.getByRole('radio', { name: 'أعمل في محل' })).not.toBeSelected();
+  });
+
+  it('skips location fields for workers', async () => {
+    mockHookValue = {
+      ...mockHookValue,
+      draftStep: 1,
+      draft: { ...validDraft, workplaceType: 'worker', city: '', neighborhood: '', mapsUrl: '' },
+    };
+    await render(<BarberOnboardingScreen />);
+
+    expect(screen.getByText('نكمل ملفك أولا')).toBeTruthy();
+    expect(screen.queryByLabelText('رابط Google Maps')).toBeNull();
+  });
+
+  it('shows owner location fields', async () => {
+    mockHookValue = { ...mockHookValue, draftStep: 1 };
+    await render(<BarberOnboardingScreen />);
+    expect(screen.getByLabelText('رابط Google Maps')).toBeTruthy();
+  });
+
+  it('shows service add actions', async () => {
+    mockHookValue = {
+      ...mockHookValue,
+      draftStep: 2,
+      draft: { ...validDraft, services: [{ name: '', priceDzd: '', durationMinutes: '30' }] },
+    };
+    await render(<BarberOnboardingScreen />);
+    expect(screen.getByRole('button', { name: '+ إضافة خدمة' })).toBeTruthy();
+  });
+
+  it('allows direct review edits', async () => {
+    mockHookValue = { ...mockHookValue, draftStep: 4 };
+    await render(<BarberOnboardingScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'تعديل الملف' }));
+    await waitFor(() => expect(screen.getByText(/1\/5/)).toBeTruthy());
+  });
+
   it('renders weekly hours and constrained intervals in the working-hours step', async () => {
     mockHookValue = { ...mockHookValue, draftStep: 3 };
     await render(<BarberOnboardingScreen />);

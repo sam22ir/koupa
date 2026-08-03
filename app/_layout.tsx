@@ -1,7 +1,7 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
@@ -10,11 +10,14 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useEffect, useRef } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 import { usePushRegistration } from '@/src/hooks/usePushRegistration';
 import { bootstrapRtl } from '@/src/i18n/rtl';
+import { resolveAppDestination, type AppDestination } from '@/src/navigation/resolveRoute';
+import { getGuardedRoute, routeIsAllowed } from '@/src/navigation/routeGuard';
 import { SessionProvider, useAppSession } from '@/src/providers/SessionProvider';
 import { colors } from '@/src/theme/colors';
 import { getFontAssets } from '@/src/theme/fonts';
@@ -48,6 +51,59 @@ function PushBootstrap() {
   return null;
 }
 
+function destinationForSession(session: ReturnType<typeof useAppSession>): AppDestination {
+  return resolveAppDestination({
+    loading: session.loading,
+    hasSession: Boolean(session.session),
+    emailConfirmed: session.emailConfirmed,
+    pendingConfirmationEmail: session.pendingConfirmationEmail,
+    profile: session.profile,
+    pendingRole: session.pendingRole,
+    legalAccepted: session.legalAccepted,
+    legalConsentRequired: session.legalConsentRequired,
+    legalError: session.legalError,
+    bootstrapError: session.bootstrapError,
+    profileError: session.profileError,
+  });
+}
+
+/**
+ * Expo Router can mount a deep-linked screen without first visiting `/`.
+ * Reuse the root session decision so private routes cannot bypass auth or role checks.
+ */
+function SessionRouteGuard({ children }: { readonly children: React.ReactNode }) {
+  const router = useRouter();
+  const segments = useSegments();
+  const session = useAppSession();
+  const route = getGuardedRoute(segments);
+  const destination = destinationForSession(session);
+  const redirectKey = `${route ?? 'public'}:${destination}`;
+  const lastRedirect = useRef<string | null>(null);
+  const blocked = route !== null && destination !== 'loading' && !routeIsAllowed(route, destination);
+  const waiting = route !== null && destination === 'loading';
+
+  useEffect(() => {
+    if (!blocked) {
+      lastRedirect.current = null;
+      return;
+    }
+    if (lastRedirect.current === redirectKey) return;
+    lastRedirect.current = redirectKey;
+    router.replace('/');
+  }, [blocked, redirectKey, router]);
+
+  return (
+    <View style={styles.routeGuardContainer}>
+      {children}
+      {blocked || waiting ? (
+        <View style={styles.routeGuard}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(getFontAssets());
 
@@ -68,47 +124,49 @@ export default function RootLayout() {
           <SessionProvider>
             <PushBootstrap />
             <StatusBar style="light" />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: colors.background },
-                animation: 'fade',
-              }}
-            >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(customer)" />
-              <Stack.Screen name="(barber)" />
-              <Stack.Screen name="onboarding/index" />
-              <Stack.Screen
-                name="barber/[id]"
-                options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
-              />
-              <Stack.Screen
-                name="shop/[id]"
-                options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
-              />
-              <Stack.Screen
-                name="book/[barberId]"
-                options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
-              />
-              <Stack.Screen
-                name="appointment/[id]"
-                options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
-              />
-              <Stack.Screen
-                name="scan"
-                options={{
+            <SessionRouteGuard>
+              <Stack
+                screenOptions={{
                   headerShown: false,
-                  presentation: 'modal',
+                  contentStyle: { backgroundColor: colors.background },
+                  animation: 'fade',
                 }}
-              />
-              <Stack.Screen
-                name="notifications"
-                options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
-              />
-              <Stack.Screen name="callback" />
-            </Stack>
+              >
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(customer)" />
+                <Stack.Screen name="(barber)" />
+                <Stack.Screen name="onboarding/index" />
+                <Stack.Screen
+                  name="barber/[id]"
+                  options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
+                />
+                <Stack.Screen
+                  name="shop/[id]"
+                  options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
+                />
+                <Stack.Screen
+                  name="book/[barberId]"
+                  options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
+                />
+                <Stack.Screen
+                  name="appointment/[id]"
+                  options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
+                />
+                <Stack.Screen
+                  name="scan"
+                  options={{
+                    headerShown: false,
+                    presentation: 'modal',
+                  }}
+                />
+                <Stack.Screen
+                  name="notifications"
+                  options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
+                />
+                <Stack.Screen name="callback" />
+              </Stack>
+            </SessionRouteGuard>
           </SessionProvider>
         </ErrorBoundary>
       </SafeAreaProvider>
@@ -132,5 +190,18 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 22,
     fontWeight: '700',
+  },
+  routeGuard: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  routeGuardContainer: {
+    flex: 1,
   },
 });

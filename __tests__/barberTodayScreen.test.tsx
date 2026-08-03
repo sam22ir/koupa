@@ -203,5 +203,6 @@ describe('BarberTodayScreen', () => {
 
     await fireEvent.press(await screen.findByTestId('today-appointment-row'));
     expect(screen.queryByRole('button', { name: 'التراجع عن الحضور' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'إلغاء الموعد' })).toBeNull();
   });
 });

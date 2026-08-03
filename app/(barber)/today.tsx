@@ -440,8 +440,7 @@ export default function BarberTodayScreen() {
                     style={styles.modalButton}
                   />
                 ) : null}
-                {selectedAppointment.status === 'booked' ||
-                selectedAppointment.status === 'present' ? (
+                {selectedAppointment.status === 'booked' ? (
                   <Button
                     label={t('home.cancelAppt')}
                     variant="danger"

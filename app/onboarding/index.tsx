@@ -1,9 +1,13 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { getSignupPhone } from '@/src/auth';
-import { Button, ErrorBanner, Field, Screen, ScreenTitle } from '@/src/components/ui';
+import { Button, ErrorBanner, Field, Screen, Stage } from '@/src/components/ui';
+import { OnboardingLocationStep } from '@/src/components/onboarding/OnboardingLocationStep';
+import { OnboardingReview } from '@/src/components/onboarding/OnboardingReview';
+import { OnboardingServiceCard } from '@/src/components/onboarding/OnboardingServiceCard';
+import { WorkplaceChoice } from '@/src/components/onboarding/WorkplaceChoice';
 import { AppointmentIntervalPicker } from '@/src/features/barber-schedule/AppointmentIntervalPicker';
 import { WeeklyScheduleEditor } from '@/src/features/barber-schedule/WeeklyScheduleEditor';
 import { useOnboarding } from '@/src/hooks/useOnboarding';
@@ -27,7 +31,7 @@ const steps = [
 
 const validationCopy: Record<BarberOnboardingError, string> = {
   basic: 'أدخل اسما ورقم هاتف جزائريا صالحا.',
-  location: 'أدخل رابط Google Maps صالحا أو إحداثيات صحيحة.',
+  location: 'أدخل المدينة والحي ورابط Google Maps صالحا.',
   services: 'أضف خدمة صالحة بسعر موجب ومدة من مضاعفات 5 دقائق.',
   schedule: 'حدد يوم عمل واحدا على الأقل وتحقق من الساعات والاستراحات.',
 };
@@ -41,6 +45,7 @@ export default function BarberOnboardingScreen() {
   const [step, setStep] = useState<BarberOnboardingStep>(
     (onboarding.draftStep || 0) as BarberOnboardingStep,
   );
+  const syncedDraftStep = useRef(false);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const draft = onboarding.draft;
@@ -48,12 +53,13 @@ export default function BarberOnboardingScreen() {
   const title = useMemo(() => steps[step] ?? t('barber.onboarding'), [step]);
 
   useEffect(() => {
-    if (onboarding.hydrating) return;
-    const timeout = setTimeout(
-      () => setStep(onboarding.draftStep as BarberOnboardingStep),
-      0,
-    );
-    return () => clearTimeout(timeout);
+    if (onboarding.hydrating) {
+      syncedDraftStep.current = false;
+      return;
+    }
+    if (syncedDraftStep.current) return;
+    syncedDraftStep.current = true;
+    setStep(onboarding.draftStep as BarberOnboardingStep);
   }, [onboarding.draftStep, onboarding.hydrating]);
 
   const persist = async (nextStep: BarberOnboardingStep) => {
@@ -96,7 +102,13 @@ export default function BarberOnboardingScreen() {
 
   return (
     <Screen scroll loading={onboarding.hydrating && !onboarding.loadError}>
-      <ScreenTitle title={t('barber.onboarding')} subtitle={`${step + 1}/5 · ${title}`} />
+      <Stage decoration="subtle">
+        <View style={styles.stageHeader}>
+          <Text style={styles.stageKicker}>{t('barber.onboarding')} · {step + 1}/5</Text>
+          <Text style={styles.stageTitle}>{title}</Text>
+          <Text style={styles.stageBody}>{t('barber.onboardingBody')}</Text>
+        </View>
+      </Stage>
       <ErrorBanner error={error || onboarding.saveError || onboarding.loadError} />
       {onboarding.loadError ? (
         <Button label={t('common.retry')} variant="secondary" onPress={() => void onboarding.retryLoad()} />
@@ -107,66 +119,51 @@ export default function BarberOnboardingScreen() {
 
       {step === 0 ? (
         <View style={styles.block}>
+          <View style={styles.intro}>
+            <Text style={styles.introTitle}>ابدأ ملفك</Text>
+            <Text style={styles.introBody}>معلومات بسيطة ليعرفك الزبائن ويجدوا وقتا مناسبا للحجز.</Text>
+          </View>
           <Field label={t('auth.name')} value={draft.name} onChangeText={(name) => onboarding.setDraft({ ...draft, name })} />
           <Field label={t('auth.phone')} value={draft.phone} onChangeText={(phone) => onboarding.setDraft({ ...draft, phone })} />
-          <Field label="نبذة" value={draft.bio} onChangeText={(bio) => onboarding.setDraft({ ...draft, bio })} />
+          <Field label="نبذة قصيرة" value={draft.bio} onChangeText={(bio) => onboarding.setDraft({ ...draft, bio })} multiline />
+          <WorkplaceChoice
+            value={draft.workplaceType}
+            onChange={(workplaceType) => onboarding.setDraft({
+              ...draft,
+              workplaceType,
+              ...(workplaceType === 'worker' ? { city: '', neighborhood: '', mapsUrl: '', latitude: '', longitude: '' } : {}),
+            })}
+          />
         </View>
       ) : null}
 
       {step === 1 ? (
-        <View style={styles.block}>
-          <Field label="المدينة" value={draft.city} onChangeText={(city) => onboarding.setDraft({ ...draft, city })} />
-          <Field label="الحي" value={draft.neighborhood} onChangeText={(neighborhood) => onboarding.setDraft({ ...draft, neighborhood })} />
-          <Field label="رابط Google Maps" value={draft.mapsUrl} onChangeText={(mapsUrl) => onboarding.setDraft({ ...draft, mapsUrl })} />
-          <Field label="خط العرض" value={draft.latitude} onChangeText={(latitude) => onboarding.setDraft({ ...draft, latitude })} />
-          <Field label="خط الطول" value={draft.longitude} onChangeText={(longitude) => onboarding.setDraft({ ...draft, longitude })} />
-        </View>
+        <OnboardingLocationStep draft={draft} onChange={(next) => onboarding.setDraft({ ...draft, ...next })} />
       ) : null}
 
       {step === 2 ? (
         <View style={styles.block}>
+          <View style={styles.intro}>
+            <Text style={styles.introTitle}>خدماتك</Text>
+            <Text style={styles.introBody}>أضف الخدمات التي تقدمها للزبائن.</Text>
+          </View>
           {draft.services.map((service, index) => (
-            <View key={`service-${index}`} style={styles.service}>
-              <Field
-                label="الخدمة"
-                value={service.name}
-                onChangeText={(name) => {
-                  const services = draft.services.map((item, i) => (i === index ? { ...item, name } : item));
-                  onboarding.setDraft({ ...draft, services });
-                }}
-              />
-              <Field
-                label={`السعر (${t('common.dzd')})`}
-                value={service.priceDzd}
-                keyboardType="number-pad"
-                onChangeText={(priceDzd) => {
-                  const services = draft.services.map((item, i) => (i === index ? { ...item, priceDzd } : item));
-                  onboarding.setDraft({ ...draft, services });
-                }}
-              />
-              <Field
-                label={t('common.minutes')}
-                value={service.durationMinutes}
-                keyboardType="number-pad"
-                onChangeText={(durationMinutes) => {
-                  const services = draft.services.map((item, i) => (i === index ? { ...item, durationMinutes } : item));
-                  onboarding.setDraft({ ...draft, services });
-                }}
-              />
-              {draft.services.length > 1 ? (
-                <Button
-                  label="حذف الخدمة"
-                  variant="ghost"
-                  onPress={() => onboarding.setDraft({
-                    ...draft,
-                    services: draft.services.filter((_, i) => i !== index),
-                  })}
-                />
-              ) : null}
-            </View>
+            <OnboardingServiceCard
+              key={`service-${index}`}
+              service={service}
+              canRemove={draft.services.length > 1}
+              onChange={(next) => onboarding.setDraft({
+                ...draft,
+                services: draft.services.map((item, i) => (i === index ? next : item)),
+              })}
+              onRemove={() => onboarding.setDraft({
+                ...draft,
+                services: draft.services.filter((_, i) => i !== index),
+              })}
+            />
           ))}
           <Button
-            label="إضافة خدمة"
+            label="+ إضافة خدمة"
             variant="secondary"
             onPress={() =>
               onboarding.setDraft({
@@ -180,6 +177,10 @@ export default function BarberOnboardingScreen() {
 
       {step === 3 ? (
         <View style={styles.block}>
+          <View style={styles.intro}>
+            <Text style={styles.introTitle}>ساعات عملك</Text>
+            <Text style={styles.introBody}>اختر الأيام والأوقات التي تستقبل فيها الحجوزات.</Text>
+          </View>
           <WeeklyScheduleEditor
             schedules={draft.schedules}
             onChange={(schedules) => onboarding.setDraft({ ...draft, schedules })}
@@ -196,9 +197,7 @@ export default function BarberOnboardingScreen() {
 
       {step === 4 ? (
         <View style={styles.block}>
-          <Text style={styles.review}>{draft.name}</Text>
-          <Text style={styles.hint}>{draft.city} · {draft.neighborhood}</Text>
-          <Text style={styles.hint}>{draft.services.filter((s) => s.name).length} خدمات</Text>
+          <OnboardingReview draft={draft} onEdit={(nextStep) => void persist(nextStep)} />
           <Button label={t('barber.publish')} onPress={() => void publish()} loading={busy || onboarding.saving} />
         </View>
       ) : null}
@@ -224,26 +223,19 @@ export default function BarberOnboardingScreen() {
 }
 
 const styles = StyleSheet.create({
+  stageHeader: { gap: space[1], alignItems: 'flex-end' },
+  stageKicker: { ...typography.caption, color: colors.onPrimaryMuted, textAlign: 'right' },
+  stageTitle: { ...typography.title, color: colors.onPrimary, textAlign: 'right' },
+  stageBody: { ...typography.caption, color: colors.onPrimaryMuted, textAlign: 'right' },
   block: {
     gap: space[3],
   },
-  service: {
-    gap: space[3],
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: space[3],
-  },
+  intro: { gap: space[1], alignItems: 'flex-end' },
+  introTitle: { ...typography.titleSm, textAlign: 'right' },
+  introBody: { ...typography.caption, textAlign: 'right' },
   nav: {
     gap: space[3],
     marginTop: space[2],
-  },
-  review: {
-    ...typography.titleSm,
-    textAlign: 'right',
-  },
-  hint: {
-    ...typography.caption,
-    textAlign: 'right',
   },
   intervalBlock: {
     gap: space[2],
