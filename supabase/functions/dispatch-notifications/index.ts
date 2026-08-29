@@ -12,6 +12,7 @@ interface PendingNotification {
   title: string;
   body: string;
   appointment_id: string | null;
+  destination: Record<string, unknown>;
 }
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -70,7 +71,17 @@ async function sendToFirebase(accessToken: string, account: ServiceAccount, toke
   const response = await fetch(`https://fcm.googleapis.com/v1/projects/${account.project_id}/messages:send`, {
     method: 'POST',
     headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ message: { token, notification: { title, body }, data: { notification_id: notification.id, appointment_id: notification.appointment_id ?? '' } } }),
+    body: JSON.stringify({
+      message: {
+        token,
+        notification: { title, body },
+        data: {
+          notification_id: notification.id,
+          appointment_id: notification.appointment_id ?? '',
+          destination: JSON.stringify(notification.destination),
+        },
+      },
+    }),
   });
   if (response.ok) return { ok: true, invalidToken: false };
   const text = await response.text();
@@ -91,7 +102,7 @@ Deno.serve(async (request) => {
     const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data: notifications, error: notificationError } = await admin
       .from('notifications')
-      .select('id,user_id,title,body,appointment_id')
+      .select('id,user_id,title,body,appointment_id,destination')
       .is('push_delivered_at', null)
       .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
       .order('created_at', { ascending: true })

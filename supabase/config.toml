@@ -2,3 +2,6 @@ project_id = "zhdwaizroczkqzwrvfxf"
 
 [functions.dispatch-notifications]
 verify_jwt = false
+
+[functions.sign-in-with-phone]
+verify_jwt = false
