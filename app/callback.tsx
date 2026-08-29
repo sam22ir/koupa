@@ -8,6 +8,7 @@ import { Button, Screen } from '@/src/components/ui';
 import { formatAuthError } from '@/src/i18n/errors';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
+import { authCallbackUrl } from '@/src/services/authCallbackUrl';
 import { colors, space, typography } from '@/src/theme';
 
 type CallbackUi =
@@ -26,8 +27,13 @@ function buildCallbackUrl(
     .filter(([, value]) => typeof value === 'string' && value.length > 0)
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
     .join('&');
-  if (query) return `koupa://callback?${query}`;
+  if (query) return `${authCallbackUrl()}?${query}`;
   return fallbackUrl;
+}
+
+function preferIncomingCallback(incomingUrl: string | null, reconstructedUrl: string | null): string | null {
+  if (incomingUrl && classifyAuthCallback(incomingUrl) !== 'unknown') return incomingUrl;
+  return reconstructedUrl ?? incomingUrl;
 }
 
 /**
@@ -54,7 +60,7 @@ export default function CallbackScreen() {
     let active = true;
 
     const run = async (incomingUrl: string | null) => {
-      const url = routeCallbackUrl ?? incomingUrl;
+      const url = preferIncomingCallback(incomingUrl, routeCallbackUrl);
       if (!url) {
         if (active) setUi({ status: 'done' });
         return;

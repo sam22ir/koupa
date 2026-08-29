@@ -9,11 +9,9 @@ import { PRIVACY_URL, TERMS_URL } from '@/src/config/legal';
 import { colors, space, typography } from '@/src/theme';
 
 export default function LegalErrorScreen() {
-  const { legalDocuments, retryLegalAcceptance, signOut } = useAppSession();
+  const { retryLegalAcceptance, signOut } = useAppSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const terms = legalDocuments.find((document) => document.key === 'terms');
-  const privacy = legalDocuments.find((document) => document.key === 'privacy');
 
   const retry = async () => {
     setBusy(true);
@@ -32,16 +30,12 @@ export default function LegalErrorScreen() {
     <Screen scroll>
       <ScreenTitle title={t('auth.legalRecoveryTitle')} subtitle={t('auth.legalRecoveryBody')} />
       <View style={styles.links}>
-        {terms?.url || !terms ? (
-          <Pressable accessibilityRole="link" accessibilityLabel={t('auth.openTerms')} onPress={() => void Linking.openURL(TERMS_URL).catch(() => undefined)}>
-            <Text style={styles.link}>{t('auth.openTerms')}</Text>
-          </Pressable>
-        ) : null}
-        {privacy?.url || !privacy ? (
-          <Pressable accessibilityRole="link" accessibilityLabel={t('auth.openPrivacy')} onPress={() => void Linking.openURL(PRIVACY_URL).catch(() => undefined)}>
-            <Text style={styles.link}>{t('auth.openPrivacy')}</Text>
-          </Pressable>
-        ) : null}
+        <Pressable accessibilityRole="link" accessibilityLabel={t('auth.openTerms')} onPress={() => void Linking.openURL(TERMS_URL).catch(() => undefined)}>
+          <Text style={styles.link}>{t('auth.openTerms')}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="link" accessibilityLabel={t('auth.openPrivacy')} onPress={() => void Linking.openURL(PRIVACY_URL).catch(() => undefined)}>
+          <Text style={styles.link}>{t('auth.openPrivacy')}</Text>
+        </Pressable>
       </View>
       <ErrorBanner error={error} />
       <Button label={t('common.retry')} loading={busy} onPress={() => void retry()} />

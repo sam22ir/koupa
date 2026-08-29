@@ -77,17 +77,16 @@ export function ShopMemberList({
 }: Props) {
   return (
     <View style={styles.wrap}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{t('shopWorkspace.members')}</Text>
+      <View testID="shop-members-header" style={styles.sectionHeader}>
         {onInvite ? (
           <Button
             label={t('shopWorkspace.invite')}
-            variant="secondary"
             loading={inviteLoading}
             onPress={onInvite}
             style={styles.inviteButton}
           />
         ) : null}
+        <Text style={styles.sectionTitle}>{t('shopWorkspace.members')}</Text>
       </View>
       {members.length ? (
         <Card style={styles.listCard}>

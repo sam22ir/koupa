@@ -1,6 +1,7 @@
-import { StyleSheet, View, type ViewProps } from 'react-native';
+import { type ViewProps } from 'react-native';
+import { Card as HeroCard } from 'heroui-native/card';
 
-import { colors, elevation, layout, radii } from '@/src/theme';
+import { layout } from '@/src/theme';
 
 type Props = ViewProps & {
   readonly elevated?: boolean;
@@ -8,18 +9,12 @@ type Props = ViewProps & {
 
 export function Card({ elevated, style, children, ...rest }: Props) {
   return (
-    <View style={[styles.card, elevated && elevation.card, style]} {...rest}>
+    <HeroCard
+      style={[{ padding: layout.cardPadding }, style]}
+      className={elevated ? 'shadow-surface' : undefined}
+      {...rest}
+    >
       {children}
-    </View>
+    </HeroCard>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radii['2xl'],
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: layout.cardPadding,
-  },
-});

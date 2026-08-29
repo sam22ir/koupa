@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { haversineKm, parseCoordinatesFromMapsUrl, parseGeoPoint, type GeoPoint } from '@/src/location';
 import type {
   BarberShopState,
   ShopBarberCandidate,
@@ -45,6 +46,32 @@ type ShopSearchRow = {
   readonly average_rating: number | null;
   readonly rating_count: number | null;
   readonly owner_name: string;
+  readonly latitude?: number | null;
+  readonly longitude?: number | null;
+  readonly distance_km?: number | null;
+};
+
+type PublicShopOwnerRow = {
+  readonly name: string;
+  readonly city: string | null;
+  readonly neighborhood: string | null;
+  readonly role: string;
+  readonly is_published: boolean;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+  readonly maps_url: string | null;
+};
+
+type PublicShopRow = {
+  readonly id: string;
+  readonly name: string;
+  readonly bio: string | null;
+  readonly maps_url: string | null;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+  readonly average_rating: number | null;
+  readonly rating_count: number | null;
+  readonly owner: PublicShopOwnerRow | readonly PublicShopOwnerRow[] | null;
 };
 
 function isMissingVersionedShopSearch(error: { readonly code?: string; readonly message?: string } | null): boolean {
@@ -53,6 +80,79 @@ function isMissingVersionedShopSearch(error: { readonly code?: string; readonly 
 
 function isMissingVersionedShopProfile(error: { readonly code?: string; readonly message?: string } | null): boolean {
   return error?.code === 'PGRST202' && error.message?.includes('get_public_shop_profile_v2') === true;
+}
+
+function isMissingNearbyShopSearch(error: { readonly code?: string; readonly message?: string } | null): boolean {
+  return error?.code === 'PGRST202' && error.message?.includes('search_nearby_shops') === true;
+}
+
+function oneRelation<T>(relation: T | readonly T[] | null | undefined): T | null {
+  if (Array.isArray(relation)) return (relation[0] as T | undefined) ?? null;
+  return (relation as T | null | undefined) ?? null;
+}
+
+function matchesNearbyQuery(row: PublicShopRow, owner: PublicShopOwnerRow, query: string): boolean {
+  const normalizedQuery = query.trim().toLocaleLowerCase('ar-DZ');
+  if (!normalizedQuery) return true;
+  return [
+    row.name,
+    row.bio ?? '',
+    owner.name,
+    owner.city ?? '',
+    owner.neighborhood ?? '',
+  ]
+    .join(' ')
+    .toLocaleLowerCase('ar-DZ')
+    .includes(normalizedQuery);
+}
+
+async function searchNearbyPublicRows(
+  origin: GeoPoint,
+  query: string,
+  page: number,
+  radiusKm: number,
+): Promise<readonly ShopSummary[]> {
+  const { data, error } = await supabase
+    .from('shops')
+    .select('id,name,bio,maps_url,latitude,longitude,average_rating,rating_count,owner:profiles!shops_owner_id_fkey(name,city,neighborhood,role,is_published,latitude,longitude,maps_url)');
+  if (error) throw toAppError(error);
+
+  const safeRadius = Math.min(Math.max(Number.isFinite(radiusKm) ? radiusKm : 25, 1), 100);
+  const rows = (data ?? []) as unknown as readonly PublicShopRow[];
+  const matches = rows.flatMap((row) => {
+    const owner = oneRelation(row.owner);
+    if (!owner || owner.role !== 'barber' || !owner.is_published || !matchesNearbyQuery(row, owner, query)) return [];
+
+    const location = parseGeoPoint(row.latitude, row.longitude)
+      ?? parseGeoPoint(owner.latitude, owner.longitude)
+      ?? parseCoordinatesFromMapsUrl(row.maps_url ?? '')
+      ?? parseCoordinatesFromMapsUrl(owner.maps_url ?? '');
+    if (!location) return [];
+
+    const distance = haversineKm(origin, location);
+    if (distance > safeRadius) return [];
+    return [{
+      id: row.id,
+      name: row.name,
+      bio: row.bio,
+      maps_url: row.maps_url,
+      city: owner.city,
+      neighborhood: owner.neighborhood,
+      average_rating: Number(row.average_rating ?? 0),
+      rating_count: row.rating_count ?? 0,
+      owner_name: owner.name,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      distance_km: Number(distance.toFixed(2)),
+    } satisfies ShopSummary];
+  });
+
+  matches.sort((left, right) =>
+    (left.distance_km ?? Number.POSITIVE_INFINITY) - (right.distance_km ?? Number.POSITIVE_INFINITY)
+      || left.name.localeCompare(right.name)
+      || left.id.localeCompare(right.id));
+  const offset = Math.max(page, 0) * SEARCH_PAGE_SIZE;
+  return matches.slice(offset, offset + SEARCH_PAGE_SIZE);
 }
 
 export function mapShopMembershipRow(row: MembershipRow): ShopMembership {
@@ -234,6 +334,46 @@ export async function searchShops(query: string, page = 0): Promise<readonly Sho
     average_rating: Number(item.average_rating ?? 0),
     rating_count: item.rating_count ?? 0,
     owner_name: item.owner_name,
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
+    distance_km: item.distance_km ?? null,
+  }));
+}
+
+export async function searchNearbyShops(
+  latitude: number,
+  longitude: number,
+  query = '',
+  page = 0,
+  radiusKm = 25,
+): Promise<readonly ShopSummary[]> {
+  const { data, error } = await supabase.rpc('search_nearby_shops', {
+    origin_latitude: latitude,
+    origin_longitude: longitude,
+    search_query: query,
+    radius_km: radiusKm,
+    page_number: page,
+  });
+  if (error) {
+    if (isMissingNearbyShopSearch(error)) {
+      const origin = parseGeoPoint(latitude, longitude);
+      if (origin) return searchNearbyPublicRows(origin, query, page, radiusKm);
+    }
+    throw toAppError(error);
+  }
+  return (data ?? []).map((item) => ({
+    id: item.id,
+    name: item.name,
+    bio: item.bio,
+    maps_url: item.maps_url,
+    city: item.city ?? null,
+    neighborhood: item.neighborhood ?? null,
+    average_rating: Number(item.average_rating ?? 0),
+    rating_count: item.rating_count ?? 0,
+    owner_name: item.owner_name,
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
+    distance_km: item.distance_km ?? null,
   }));
 }
 

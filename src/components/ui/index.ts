@@ -1,4 +1,5 @@
 export { Avatar } from './Avatar';
+export { BackButton } from './BackButton';
 export { AuthShell } from './AuthShell';
 export { BrandLogo } from './BrandLogo';
 export { Button } from './Button';

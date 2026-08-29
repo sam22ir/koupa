@@ -6,10 +6,13 @@ import {
   isGoogleCollisionMessage,
   isValidEmail,
   isValidSignInPassword,
+  normalizeAlgerianPhone,
+  type CredentialMethod,
 } from '@/src/auth';
 import {
   AuthShell,
   Button,
+  CredentialMethodTabs,
   ErrorBanner,
   Field,
   Icon,
@@ -20,7 +23,8 @@ import { colors, space, typography } from '@/src/theme';
 
 export default function SignInScreen() {
   const params = useLocalSearchParams<{ collision?: string }>();
-  const { signInWithPassword, signInWithGoogle, linkGoogleIdentity, busy } = useAppSession();
+  const { signInWithPassword, signInWithPhone, signInWithGoogle, linkGoogleIdentity, busy } = useAppSession();
+  const [method, setMethod] = useState<CredentialMethod>('email');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -38,19 +42,25 @@ export default function SignInScreen() {
     setError(null);
     setIdentifierError(undefined);
     setPasswordError(undefined);
-    if (!isValidEmail(identifier)) {
+    const normalizedPhone = method === 'phone' ? normalizeAlgerianPhone(identifier) : null;
+    if (method === 'email' && !isValidEmail(identifier)) {
       setIdentifierError(t('auth.invalidEmail'));
       return;
     }
-    if (!isValidSignInPassword(password, identifier)) {
+    if (method === 'phone' && !normalizedPhone) {
+      setIdentifierError(t('auth.invalidPhone'));
+      return;
+    }
+    if (!isValidSignInPassword(password, method === 'email' ? identifier : normalizedPhone ?? '')) {
       setPasswordError(t('auth.passwordTooShort'));
       return;
     }
     try {
-      await signInWithPassword(
-        identifier.trim(),
-        password,
-      );
+      if (method === 'phone') {
+        await signInWithPhone(normalizedPhone!, password);
+      } else {
+        await signInWithPassword(identifier.trim(), password);
+      }
       if (linkGoogleAfterPassword || params.collision === '1') {
         const result = await linkGoogleIdentity();
         if (result.kind === 'empty') {
@@ -68,7 +78,7 @@ export default function SignInScreen() {
       if (isGoogleCollisionMessage(`${message} ${cause}`)) {
         setLinkGoogleAfterPassword(true);
       }
-      if (/email not confirmed/i.test(`${message} ${cause}`)) {
+      if (method === 'email' && /email not confirmed/i.test(`${message} ${cause}`)) {
         router.replace({
           pathname: '/(auth)/confirm',
           params: { email: identifier.trim() },
@@ -84,11 +94,12 @@ export default function SignInScreen() {
     try {
       const result = await signInWithGoogle();
       if (result.kind === 'empty') {
-        setError(
-          new Error(
-            `${t('auth.googleCancelled')} — check Metro log for "ADD THIS EXACT URL TO SUPABASE REDIRECT URLS" and add it in Supabase Auth → URL Configuration.`,
-          ),
-        );
+        // The Supabase redirect-URL reminder belongs in the Metro log, which
+        // src/services/auth.ts already prints, not in a user-facing error.
+        if (__DEV__) {
+          console.warn('[auth] Google sign-in cancelled. Check the Supabase redirect URL.');
+        }
+        setError(new Error(t('auth.googleCancelled')));
         return;
       }
       if (result.kind === 'recovery') {
@@ -112,19 +123,38 @@ export default function SignInScreen() {
   return (
     <AuthShell title={t('auth.signIn')} subtitle={t('auth.signInSubtitle')}>
       {collisionBanner ? (
-        <View style={styles.infoBanner}>
-          <Text style={styles.infoTitle}>{t('auth.collisionTitle')}</Text>
-          <Text style={styles.infoBody}>{collisionBanner}</Text>
+        <View style={styles.notice}>
+          {/* Gold as a spine, never as a fill. */}
+          <View style={styles.noticeSpine} />
+          <View style={styles.noticeCopy}>
+            <Text style={styles.noticeTitle}>{t('auth.collisionTitle')}</Text>
+            <Text style={styles.noticeBody}>{collisionBanner}</Text>
+          </View>
         </View>
       ) : null}
 
+      <CredentialMethodTabs
+        value={method}
+        emailLabel={t('auth.methodEmail')}
+        phoneLabel={t('auth.methodPhone')}
+        onChange={(value) => {
+          setMethod(value);
+          setIdentifier('');
+          setIdentifierError(undefined);
+          setPasswordError(undefined);
+          setPasswordVisible(false);
+          setLinkGoogleAfterPassword(false);
+          setError(null);
+        }}
+      />
+
       <Field
-        label={t('auth.email')}
+        label={method === 'email' ? t('auth.email') : t('auth.phone')}
         value={identifier}
         onChangeText={setIdentifier}
         error={identifierError}
         autoCapitalize="none"
-        keyboardType="email-address"
+        keyboardType={method === 'email' ? 'email-address' : 'phone-pad'}
       />
       <Field
         label={t('auth.password')}
@@ -150,7 +180,9 @@ export default function SignInScreen() {
 
       <Pressable
         accessibilityRole="link"
+        accessibilityLabel={t('auth.forgotPassword')}
         onPress={() => router.push('/(auth)/forgot-password')}
+        style={({ pressed }) => [styles.forgotHit, pressed && styles.pressed]}
       >
         <Text style={styles.forgot}>{t('auth.forgotPassword')}</Text>
       </Pressable>
@@ -173,7 +205,7 @@ export default function SignInScreen() {
 
       <View style={styles.accountSwitch}>
         <Text style={styles.accountPrompt}>{t('auth.noAccount')}</Text>
-        <Pressable accessibilityRole="link" onPress={() => router.push('/(auth)/role')}>
+        <Pressable accessibilityRole="link" onPress={() => router.push('/(auth)/welcome')}>
           <Text style={styles.accountLink}>{t('auth.createAccount')}</Text>
         </Pressable>
       </View>
@@ -182,28 +214,40 @@ export default function SignInScreen() {
 }
 
 const styles = StyleSheet.create({
-  infoBanner: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    padding: space[3],
+  notice: {
+    flexDirection: 'row-reverse',
+    gap: space[3],
+  },
+  noticeSpine: {
+    width: 3,
+    alignSelf: 'stretch',
+    borderRadius: 2,
+    backgroundColor: colors.accent,
+  },
+  noticeCopy: {
+    flex: 1,
     gap: space[1],
   },
-  infoTitle: {
+  noticeTitle: {
     ...typography.label,
-    color: colors.accentText,
+    color: colors.text,
     textAlign: 'right',
   },
-  infoBody: {
+  noticeBody: {
     ...typography.caption,
-    color: colors.accentText,
+    lineHeight: 20,
+    color: colors.textMuted,
     textAlign: 'right',
   },
   forgot: {
     ...typography.label,
     color: colors.primary,
     textAlign: 'left',
+  },
+  forgotHit: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    justifyContent: 'center',
   },
   passwordToggle: {
     width: 48,
@@ -213,7 +257,7 @@ const styles = StyleSheet.create({
     marginLeft: -space[3],
   },
   pressed: {
-    transform: [{ scale: 0.98 }],
+    opacity: 0.6,
   },
   divider: {
     flexDirection: 'row',

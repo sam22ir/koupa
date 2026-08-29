@@ -1,6 +1,5 @@
-import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
-
-import { colors, radii, typography } from '@/src/theme';
+import { type ViewStyle } from 'react-native';
+import { Avatar as HeroAvatar } from 'heroui-native/avatar';
 
 type Props = {
   readonly initials: string;
@@ -10,40 +9,15 @@ type Props = {
 };
 
 export function Avatar({ initials, size = 44, tone = 'soft', style }: Props) {
+  const avatarSize = size <= 32 ? 'sm' : size <= 48 ? 'md' : 'lg';
   return (
-    <View
-      style={[
-        styles.base,
-        {
-          width: size,
-          height: size,
-          borderRadius: size > 40 ? radii.avatarSquare : radii.md,
-          backgroundColor: tone === 'stage' ? colors.stageOverlay : colors.primarySoft,
-        },
-        style,
-      ]}
+    <HeroAvatar
+      size={avatarSize}
+      color={tone === 'stage' ? 'default' : 'accent'}
+      variant="soft"
+      style={[{ width: size, height: size }, style]}
     >
-      <Text
-        style={[
-          styles.text,
-          {
-            color: tone === 'stage' ? colors.onPrimary : colors.primary,
-            fontSize: Math.max(12, size * 0.32),
-          },
-        ]}
-      >
-        {initials}
-      </Text>
-    </View>
+      <HeroAvatar.Fallback>{initials}</HeroAvatar.Fallback>
+    </HeroAvatar>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    ...typography.label,
-  },
-});

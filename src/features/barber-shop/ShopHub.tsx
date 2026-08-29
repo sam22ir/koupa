@@ -71,9 +71,12 @@ export function ShopHub({
       >
         <ErrorBanner error={shops.error || null} />
         {shops.message ? <Text style={styles.message}>{t(`shopWorkspace.${shops.message}`)}</Text> : null}
+        <Text testID="shop-owner-summary-title" style={styles.ownerSummaryTitle}>
+          {t('shopWorkspace.shopSummary')}
+        </Text>
         <ShopStateCard
           kind="owner"
-          title={t('shopWorkspace.shopSummary')}
+          title=""
           shopName={owned.name}
           shopLocation={locationLabel(owned)}
           metrics={[
@@ -96,25 +99,16 @@ export function ShopHub({
         {onActivity ? (
           <Button
             label={t('shopWorkspace.activity')}
-            variant="ghost"
             onPress={() => onActivity(owned.id)}
           />
         ) : null}
-        <View style={styles.dangerSection}>
-          <Text style={styles.dangerTitle}>{t('shopWorkspace.deleteShop')}</Text>
-          <Text style={styles.dangerBody}>{t('shopWorkspace.deleteConfirmBody')}</Text>
+        {onDetails ? (
           <Button
-            label={t('shopWorkspace.deleteShop')}
-            variant="danger"
-            loading={shops.saving}
-            onPress={() =>
-              Alert.alert(t('shopWorkspace.deleteConfirmTitle'), t('shopWorkspace.deleteConfirmBody'), [
-                { text: t('common.cancel'), style: 'cancel' },
-                { text: t('shopWorkspace.deleteShop'), style: 'destructive', onPress: () => void shops.removeShop() },
-              ])
-            }
+            label={t('shopWorkspace.details')}
+            variant="secondary"
+            onPress={() => onDetails(owned.id)}
           />
-        </View>
+        ) : null}
       </ScrollView>
     );
   }
@@ -207,6 +201,7 @@ const styles = StyleSheet.create({
   statusState: { minHeight: 120, alignItems: 'center', justifyContent: 'center', gap: space[3] },
   statusText: { ...typography.body, color: colors.textMuted, textAlign: 'center' },
   message: { ...typography.caption, color: colors.primary, textAlign: 'right' },
+  ownerSummaryTitle: { ...typography.titleSm, textAlign: 'right' },
   steps: { gap: space[2], padding: layout.cardPadding, borderWidth: 1, borderColor: colors.border, borderRadius: 18, backgroundColor: colors.surface },
   stepsTitle: { ...typography.bodyStrong, textAlign: 'right' },
   step: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },

@@ -283,6 +283,7 @@ export type Database = {
           appointment_id: string | null
           body: string
           created_at: string
+          destination: Json
           id: string
           push_delivered_at: string | null
           push_delivery_error: string | null
@@ -294,6 +295,7 @@ export type Database = {
           appointment_id?: string | null
           body: string
           created_at?: string
+          destination?: Json
           id?: string
           push_delivered_at?: string | null
           push_delivery_error?: string | null
@@ -305,6 +307,7 @@ export type Database = {
           appointment_id?: string | null
           body?: string
           created_at?: string
+          destination?: Json
           id?: string
           push_delivered_at?: string | null
           push_delivery_error?: string | null
@@ -739,6 +742,19 @@ export type Database = {
           starts_at: string
         }[]
       }
+      barber_appointment_event: {
+        Args: { target_appointment_id: string }
+        Returns: {
+          customer_name: string
+          customer_phone: string
+          ends_at: string
+          id: string
+          price_dzd: number
+          service_name: string
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+        }[]
+      }
       barber_shop_id: { Args: { target_barber_id: string }; Returns: string }
       barber_today_appointments: {
         Args: never
@@ -805,6 +821,7 @@ export type Database = {
           phone: string
           rating_count: number
           services: Json
+          shop: Json
           weekly_hours: Json
         }[]
       }
@@ -821,10 +838,35 @@ export type Database = {
           rating_count: number
         }[]
       }
+      get_public_shop_profile_v2: {
+        Args: { target_shop_id: string }
+        Returns: {
+          average_rating: number
+          barbers: Json
+          bio: string
+          city: string
+          id: string
+          maps_url: string
+          name: string
+          neighborhood: string
+          owner_name: string
+          rating_count: number
+        }[]
+      }
       insert_booking_notification: {
         Args: {
           appointment_id_value: string
           body_value: string
+          recipient_id: string
+          title_value: string
+        }
+        Returns: undefined
+      }
+      insert_notification: {
+        Args: {
+          appointment_id_value?: string
+          body_value: string
+          destination_value?: Json
           recipient_id: string
           title_value: string
         }
@@ -858,9 +900,17 @@ export type Database = {
         Args: { stars_value: number; target_appointment_id: string }
         Returns: string
       }
+      remove_shop_member: {
+        Args: { target_membership_id: string }
+        Returns: undefined
+      }
       replace_barber_settings: { Args: { settings: Json }; Returns: undefined }
       replace_barber_workspace_settings: {
         Args: { workspace: Json }
+        Returns: undefined
+      }
+      replace_future_barber_schedule_exceptions: {
+        Args: { exceptions: Json; target_barber_id: string }
         Returns: undefined
       }
       request_join_shop: { Args: { target_shop_id: string }; Returns: string }
@@ -879,6 +929,29 @@ export type Database = {
       respond_shop_membership: {
         Args: { accept: boolean; target_membership_id: string }
         Returns: string
+      }
+      search_nearby_shops: {
+        Args: {
+          origin_latitude: number
+          origin_longitude: number
+          page_number?: number
+          radius_km?: number
+          search_query?: string
+        }
+        Returns: {
+          average_rating: number
+          bio: string
+          city: string
+          distance_km: number
+          id: string
+          latitude: number
+          longitude: number
+          maps_url: string
+          name: string
+          neighborhood: string
+          owner_name: string
+          rating_count: number
+        }[]
       }
       search_published_barbers: {
         Args: {
@@ -926,33 +999,6 @@ export type Database = {
           rating_count: number
         }[]
       }
-      get_public_shop_profile_v2: {
-        Args: { target_shop_id: string }
-        Returns: {
-          average_rating: number
-          barbers: Json
-          bio: string
-          city: string
-          id: string
-          maps_url: string
-          name: string
-          neighborhood: string
-          owner_name: string
-          rating_count: number
-        }[]
-      }
-      remove_shop_member: {
-        Args: { target_membership_id: string }
-        Returns: undefined
-      }
-      shop_owner_barber_workspace: {
-        Args: { target_barber_id: string }
-        Returns: Json
-      }
-      shop_owner_replace_barber_workspace: {
-        Args: { target_barber_id: string; workspace: Json }
-        Returns: undefined
-      }
       shop_activity_history: {
         Args: { target_shop_id: string }
         Returns: {
@@ -963,7 +1009,29 @@ export type Database = {
           id: string
         }[]
       }
+      shop_effective_latitude: {
+        Args: {
+          explicit_shop_latitude: number
+          owner_latitude: number
+          owner_maps_url: string
+          shop_maps_url: string
+        }
+        Returns: number
+      }
+      shop_effective_longitude: {
+        Args: {
+          explicit_shop_longitude: number
+          owner_longitude: number
+          owner_maps_url: string
+          shop_maps_url: string
+        }
+        Returns: number
+      }
       shop_owner_barber_settings: {
+        Args: { target_barber_id: string }
+        Returns: Json
+      }
+      shop_owner_barber_workspace: {
         Args: { target_barber_id: string }
         Returns: Json
       }
@@ -980,6 +1048,10 @@ export type Database = {
           status: Database["public"]["Enums"]["membership_status"]
           updated_at: string
         }[]
+      }
+      shop_owner_replace_barber_workspace: {
+        Args: { target_barber_id: string; workspace: Json }
+        Returns: undefined
       }
       shop_owner_update_barber_settings: {
         Args: { settings: Json; target_barber_id: string }

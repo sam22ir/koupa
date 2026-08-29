@@ -1,9 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
-
-import { colors, space, typography } from '@/src/theme';
+import { StyleSheet, View } from 'react-native';
+import { Typography } from 'heroui-native/text';
 
 import { Button } from './Button';
 import { Icon, type IconName } from './Icon';
+import { colors, space } from '@/src/theme';
 
 type Props = {
   readonly title: string;
@@ -25,8 +25,8 @@ export function EmptyState({
       <View style={styles.iconWrap}>
         <Icon name={icon} size={28} color={colors.primary} />
       </View>
-      <Text style={styles.title}>{title}</Text>
-      {body ? <Text style={styles.body}>{body}</Text> : null}
+      <Typography type="h5" align="center">{title}</Typography>
+      {body ? <Typography type="body" color="muted" align="center">{body}</Typography> : null}
       {actionLabel && onAction ? <Button label={actionLabel} onPress={onAction} /> : null}
     </View>
   );
@@ -46,14 +46,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  title: {
-    ...typography.titleSm,
-    textAlign: 'center',
-  },
-  body: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
   },
 });

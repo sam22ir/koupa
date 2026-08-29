@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/src/components/ui/Button';
+import { BackButton } from '@/src/components/ui/BackButton';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { ErrorBanner } from '@/src/components/ui/ErrorBanner';
 import { Field } from '@/src/components/ui/Field';
@@ -42,23 +43,23 @@ export default function ShopSearchScreen() {
 
   const invite = async (barberId: string) => {
     const ok = await shops.inviteBarber(barberId);
-    if (ok) setInviteMessage('تم إرسال الدعوة.');
+    if (ok) setInviteMessage(t('shopWorkspace.invitationSent'));
   };
 
   return (
     <Screen scroll>
       <View style={styles.header}>
-        <Button label={t('common.back')} variant="ghost" onPress={() => router.back()} />
+        <BackButton fallback="/(barber)/shop" onPress={() => router.replace('/shop')} />
         <ScreenTitle
           title={inviteMode ? t('shopWorkspace.inviteBarber') : t('shopWorkspace.search')}
-          subtitle={inviteMode ? 'ابحث عن حلاق لإرسال دعوة' : t('shopWorkspace.searchHint')}
+          subtitle={inviteMode ? t('shopWorkspace.inviteSearchSubtitle') : t('shopWorkspace.searchHint')}
         />
       </View>
       <Field
-        label={inviteMode ? 'البحث عن حلاق' : 'البحث عن محل'}
+        label={inviteMode ? t('shopWorkspace.barberSearchLabel') : t('shopWorkspace.shopSearchLabel')}
         value={query}
         onChangeText={setQuery}
-        placeholder={inviteMode ? 'اسم الحلاق أو المنطقة' : 'اسم المحل أو المدينة أو الحي'}
+        placeholder={inviteMode ? t('shopWorkspace.barberSearchPlaceholder') : t('shopWorkspace.shopSearchPlaceholder')}
         returnKeyType="search"
         onSubmitEditing={() => void runSearch()}
       />
@@ -66,7 +67,7 @@ export default function ShopSearchScreen() {
       <ErrorBanner error={searched ? shops.error || null : null} />
       {searched && shops.error && !shops.ownedShop ? (
         <Button
-          label="إعادة المحاولة"
+          label={t('common.retry')}
           variant="secondary"
           onPress={() => void shops.retry()}
           loading={shops.loading}
@@ -76,7 +77,7 @@ export default function ShopSearchScreen() {
 
       {inviteMode ? (
         searched && !candidates.length ? (
-          <EmptyState title={t('find.empty')} body="جرّب اسما أو منطقة مختلفة." />
+          <EmptyState title={t('find.empty')} body={t('shopWorkspace.tryDifferentSearch')} />
         ) : (
           <View style={styles.list}>
             {candidates.map((candidate) => (
@@ -86,7 +87,7 @@ export default function ShopSearchScreen() {
                   <Text style={styles.meta}>{[candidate.neighborhood, candidate.city].filter(Boolean).join('، ')}</Text>
                 </View>
                 <Button
-                  label="دعوة"
+                  label={t('shopWorkspace.invite')}
                   variant="secondary"
                   onPress={() => void invite(candidate.id)}
                   loading={shops.saving}
@@ -97,14 +98,14 @@ export default function ShopSearchScreen() {
           </View>
         )
       ) : searched && !results.length ? (
-        <EmptyState title={t('shopWorkspace.noSearchResults')} body="جرّب اسما أو منطقة مختلفة." />
+        <EmptyState title={t('shopWorkspace.noSearchResults')} body={t('shopWorkspace.tryDifferentSearch')} />
       ) : (
         <View style={styles.list}>
           {results.map((shop) => (
             <ShopSearchResult
               key={shop.id}
               shop={shop}
-              onPress={() => router.push(`/shop-details/${shop.id}` as never)}
+              onPress={() => router.push(`/shop-details/${shop.id}`)}
             />
           ))}
         </View>

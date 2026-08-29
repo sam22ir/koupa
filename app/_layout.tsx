@@ -1,7 +1,7 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useFonts } from 'expo-font';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useGlobalSearchParams, usePathname, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
@@ -13,11 +13,16 @@ import {
 import { useEffect, useRef } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import '../global.css';
+import { HeroUINativeProvider } from 'heroui-native/provider';
+import { Uniwind } from 'uniwind';
+
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 import { usePushRegistration } from '@/src/hooks/usePushRegistration';
 import { bootstrapRtl } from '@/src/i18n/rtl';
 import { resolveAppDestination, type AppDestination } from '@/src/navigation/resolveRoute';
 import { getGuardedRoute, routeIsAllowed } from '@/src/navigation/routeGuard';
+import { setPendingIntentFromPath } from '@/src/navigation/pendingIntent';
 import { SessionProvider, useAppSession } from '@/src/providers/SessionProvider';
 import { colors } from '@/src/theme/colors';
 import { getFontAssets } from '@/src/theme/fonts';
@@ -40,14 +45,19 @@ if (globalAny.ErrorUtils?.setGlobalHandler) {
 
 bootstrapRtl();
 
+// Koupa's design (DESIGN.md) is a light paper/teal theme. Pin the active
+// theme to "light" regardless of the OS setting so the app never renders the
+// unpolished dark palette.
+Uniwind.setTheme('light');
+
 LogBox.ignoreLogs([
   'Reduced motion setting is enabled',
   'style.resizeMode is deprecated',
 ]);
 
 function PushBootstrap() {
-  const { session } = useAppSession();
-  usePushRegistration(session?.user.id);
+  const { session, profile } = useAppSession();
+  usePushRegistration(session?.user.id, profile?.role);
   return null;
 }
 
@@ -74,6 +84,8 @@ function destinationForSession(session: ReturnType<typeof useAppSession>): AppDe
 function SessionRouteGuard({ children }: { readonly children: React.ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
+  const pathname = usePathname();
+  const params = useGlobalSearchParams();
   const session = useAppSession();
   const route = getGuardedRoute(segments);
   const destination = destinationForSession(session);
@@ -89,8 +101,9 @@ function SessionRouteGuard({ children }: { readonly children: React.ReactNode })
     }
     if (lastRedirect.current === redirectKey) return;
     lastRedirect.current = redirectKey;
+    setPendingIntentFromPath(pathname, params);
     router.replace('/');
-  }, [blocked, redirectKey, router]);
+  }, [blocked, params, pathname, redirectKey, router]);
 
   return (
     <View style={styles.routeGuardContainer}>
@@ -119,7 +132,8 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
+      <HeroUINativeProvider>
+        <SafeAreaProvider>
         <ErrorBoundary>
           <SessionProvider>
             <PushBootstrap />
@@ -138,38 +152,26 @@ export default function RootLayout() {
                 <Stack.Screen name="(barber)" />
                 <Stack.Screen name="onboarding/index" />
                 <Stack.Screen
-                  name="barber/[id]"
-                  options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
-                />
-                <Stack.Screen
-                  name="shop/[id]"
-                  options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
-                />
-                <Stack.Screen
-                  name="book/[barberId]"
-                  options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
-                />
-                <Stack.Screen
-                  name="appointment/[id]"
-                  options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
-                />
-                <Stack.Screen
                   name="scan"
                   options={{
                     headerShown: false,
                     presentation: 'modal',
                   }}
                 />
-                <Stack.Screen
-                  name="notifications"
-                  options={{ headerShown: true, title: '', headerTintColor: colors.primary }}
-                />
+                <Stack.Screen name="barber/[id]" />
+                <Stack.Screen name="shop/[id]" />
+                <Stack.Screen name="book/[barberId]" />
+                <Stack.Screen name="appointment/[id]" />
+                <Stack.Screen name="barber-appointment/[id]" />
+                <Stack.Screen name="notifications" />
+                <Stack.Screen name="notification/[id]" />
                 <Stack.Screen name="callback" />
               </Stack>
             </SessionRouteGuard>
           </SessionProvider>
         </ErrorBoundary>
       </SafeAreaProvider>
+      </HeroUINativeProvider>
     </GestureHandlerRootView>
   );
 }

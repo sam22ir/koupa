@@ -1,15 +1,19 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { AppNotification } from '@/src/notifications';
-import { Button, CustomerStageHeader, EmptyState, ErrorBanner, Screen } from '@/src/components/ui';
+import { notificationDestinationHref } from '@/src/notificationDestination';
+import { BackButton, Button, CustomerStageHeader, EmptyState, ErrorBanner, Screen } from '@/src/components/ui';
 import { useNotifications } from '@/src/hooks/useNotifications';
 import { t } from '@/src/i18n';
+import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors, radii, space, typography } from '@/src/theme';
 
 export default function NotificationsScreen() {
   const { items, loading, error, load, markRead } = useNotifications();
+  const { profile } = useAppSession();
+  const profileHref = profile?.role === 'barber' ? '/(barber)/profile' : '/(customer)/profile';
 
   useFocusEffect(
     useCallback(() => {
@@ -19,7 +23,7 @@ export default function NotificationsScreen() {
 
   return (
     <Screen padded={false}>
-      <CustomerStageHeader title={t('notifications.title')} />
+      <CustomerStageHeader title={t('notifications.title')} trailing={<BackButton fallback={profileHref} />} />
       <View style={styles.content}>
         <ErrorBanner error={error || null} />
         <Button
@@ -32,11 +36,19 @@ export default function NotificationsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={loading ? <ActivityIndicator color={colors.primary} /> : <EmptyState title={t('notifications.empty')} />}
-        renderItem={({ item }) => (
-          <View style={[styles.row, !item.read_at && styles.unread]}>
+          renderItem={({ item }) => (
+            <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={item.title ?? t('notifications.title')}
+            style={[styles.row, !item.read_at && styles.unread]}
+            onPress={() => {
+              void markRead([item.id]);
+              router.push(notificationDestinationHref(item, profile?.role ?? 'customer'));
+            }}
+          >
             <Text style={styles.title}>{item.title ?? t('notifications.title')}</Text>
             {item.body ? <Text style={styles.notificationBody}>{item.body}</Text> : null}
-          </View>
+          </Pressable>
         )}
         />
       </View>

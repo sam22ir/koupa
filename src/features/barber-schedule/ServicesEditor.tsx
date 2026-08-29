@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ManagedServiceDraft } from '@/src/barberSettings';
 import { Button, Field, Icon } from '@/src/components/ui';
@@ -29,6 +29,7 @@ export function ServicesEditor({
 }) {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const active = services.map((service, index) => ({ service, index })).filter(({ service }) => service.isActive !== false);
   const archived = services.map((service, index) => ({ service, index })).filter(({ service }) => service.isActive === false);
 
@@ -41,28 +42,23 @@ export function ServicesEditor({
 
   const archive = () => {
     if (!editor || editor.index === null) return;
-    Alert.alert(
-      'أرشفة الخدمة',
-      'لن تظهر هذه الخدمة للحجوزات الجديدة، وستبقى محفوظة في المواعيد السابقة.',
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        {
-          text: 'أرشفة',
-          style: 'destructive',
-          onPress: () => {
-            onChange(updateWorkspaceService(services, editor.index as number, { isActive: false }));
-            setEditor(null);
-          },
-        },
-      ],
-    );
+    onChange(updateWorkspaceService(services, editor.index, { isActive: false }));
+    setConfirmArchive(false);
+    setEditor(null);
   };
 
   return (
     <View style={styles.section}>
-      <View style={styles.titleCopy}>
-        <Text style={styles.title}>الخدمات المتاحة</Text>
-        <Text style={styles.helper}>السعر بالدينار والمدة بالدقائق</Text>
+      <View testID="services-overview-header" style={styles.overviewHeader}>
+        <Button
+          label="إضافة خدمة"
+          onPress={() => setEditor({ index: null, value: { ...emptyService } })}
+          style={styles.addButton}
+        />
+        <View style={styles.titleCopy}>
+          <Text style={styles.title}>الخدمات المتاحة</Text>
+          <Text style={styles.helper}>السعر والمدة لكل حجز</Text>
+        </View>
       </View>
 
       {error ? (
@@ -84,20 +80,21 @@ export function ServicesEditor({
           >
             <View style={styles.rowCopy}>
               <Text style={styles.serviceName}>{service.name || 'خدمة بدون اسم'}</Text>
-              <Text style={styles.serviceMeta}>
-                {service.priceDzd || '0'} دج · {service.durationMinutes || '0'} دقيقة
-              </Text>
+              <View style={styles.serviceFacts}>
+                <View style={styles.serviceFact}>
+                  <Text style={styles.serviceFactValue}>{service.priceDzd || '0'} دج</Text>
+                  <Text style={styles.serviceFactLabel}>السعر</Text>
+                </View>
+                <View style={styles.serviceFact}>
+                  <Text style={styles.serviceFactValue}>{service.durationMinutes || '0'} دقيقة</Text>
+                  <Text style={styles.serviceFactLabel}>المدة</Text>
+                </View>
+              </View>
             </View>
-            <Icon name="create-outline" size={19} color={colors.textMuted} />
           </Pressable>
         ))}
+        {!active.length ? <Text style={styles.empty}>أضف خدمتك الأولى لتظهر للحجز.</Text> : null}
       </View>
-
-      <Button
-        label="إضافة خدمة"
-        variant="secondary"
-        onPress={() => setEditor({ index: null, value: { ...emptyService } })}
-      />
 
       {archived.length ? (
         <View style={styles.archivedSection}>
@@ -116,19 +113,28 @@ export function ServicesEditor({
           </Pressable>
           {showArchived
             ? archived.map(({ service, index }) => (
-                <View key={service.id ?? `${service.name}-${index}`} style={styles.archivedRow}>
-                  <View style={styles.rowCopy}>
+                <View key={service.id ?? `${service.name}-${index}`} testID={`archived-service-${service.id ?? index}`} style={styles.archivedRow}>
+                  <View testID={`archived-service-header-${service.id ?? index}`} style={styles.archivedServiceHeader}>
+                    <Button
+                      label="استعادة"
+                      accessibilityLabel={`استعادة خدمة ${service.name}`}
+                      onPress={() => onChange(updateWorkspaceService(services, index, { isActive: true }))}
+                      style={styles.restore}
+                    />
                     <Text style={styles.serviceName}>{service.name}</Text>
-                    <Text style={styles.serviceMeta}>{service.priceDzd} دج · {service.durationMinutes} دقيقة</Text>
                   </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`استعادة خدمة ${service.name}`}
-                    onPress={() => onChange(updateWorkspaceService(services, index, { isActive: true }))}
-                    style={styles.restore}
-                  >
-                    <Text style={styles.restoreText}>استعادة</Text>
-                  </Pressable>
+                  <View testID={`archived-service-facts-${service.id ?? index}`} style={styles.archivedFacts}>
+                    <View style={styles.serviceFacts}>
+                      <View style={styles.archivedFact}>
+                        <Text style={styles.archivedFactValue}>{service.priceDzd} دج</Text>
+                        <Text style={styles.archivedFactLabel}>السعر</Text>
+                      </View>
+                      <View style={styles.archivedFact}>
+                        <Text style={styles.archivedFactValue}>{service.durationMinutes} دقيقة</Text>
+                        <Text style={styles.archivedFactLabel}>المدة</Text>
+                      </View>
+                    </View>
+                  </View>
                 </View>
               ))
             : null}
@@ -141,16 +147,28 @@ export function ServicesEditor({
             <View style={styles.modalSheet} accessibilityViewIsModal>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{editor.index === null ? 'إضافة خدمة' : 'تعديل الخدمة'}</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="إغلاق" onPress={() => setEditor(null)} style={styles.closeButton}>
+                <Pressable accessibilityRole="button" accessibilityLabel="إغلاق" onPress={() => { setConfirmArchive(false); setEditor(null); }} style={styles.closeButton}>
                   <Icon name="close" size={22} />
                 </Pressable>
               </View>
               <Field label="اسم الخدمة" value={editor.value.name} onChangeText={(name) => setEditor({ ...editor, value: { ...editor.value, name } })} />
               <Field label="السعر (دج)" value={editor.value.priceDzd} keyboardType="number-pad" onChangeText={(priceDzd) => setEditor({ ...editor, value: { ...editor.value, priceDzd } })} />
               <Field label="المدة (دقائق)" value={editor.value.durationMinutes} keyboardType="number-pad" onChangeText={(durationMinutes) => setEditor({ ...editor, value: { ...editor.value, durationMinutes } })} />
-              {editor.index !== null ? <Button label="أرشفة الخدمة" variant="ghost" onPress={archive} /> : null}
+              {editor.index !== null && !confirmArchive ? (
+                <Button label="أرشفة الخدمة" variant="danger" onPress={() => setConfirmArchive(true)} />
+              ) : null}
+              {editor.index !== null && confirmArchive ? (
+                <View style={styles.archiveConfirm}>
+                  <Text style={styles.archiveConfirmTitle}>هل تريد أرشفة هذه الخدمة؟</Text>
+                  <Text style={styles.archiveConfirmBody}>لن تظهر للحجوزات الجديدة، وستبقى محفوظة في المواعيد السابقة.</Text>
+                  <View style={styles.archiveConfirmActions}>
+                    <Button label="إلغاء" variant="secondary" onPress={() => setConfirmArchive(false)} style={styles.action} />
+                    <Button label="تأكيد الأرشفة" variant="danger" onPress={archive} style={styles.action} />
+                  </View>
+                </View>
+              ) : null}
               <View style={styles.modalActions}>
-                <Button label="إلغاء" variant="ghost" onPress={() => setEditor(null)} style={styles.action} />
+                <Button label="إلغاء" variant="ghost" onPress={() => { setConfirmArchive(false); setEditor(null); }} style={styles.action} />
                 <Button label="حفظ الخدمة" onPress={saveEditor} style={styles.action} />
               </View>
             </View>
@@ -163,29 +181,43 @@ export function ServicesEditor({
 
 const styles = StyleSheet.create({
   section: { gap: space[4] },
+  overviewHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: space[3] },
   titleCopy: { flex: 1, gap: space[1] },
   title: { ...typography.titleSm, textAlign: 'right' },
   helper: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
+  addButton: { minHeight: 44, minWidth: 118, paddingHorizontal: space[3] },
   error: { ...typography.caption, color: colors.danger, textAlign: 'right' },
-  list: { borderTopWidth: 1, borderTopColor: colors.border },
-  row: { minHeight: 68, flexDirection: 'row-reverse', alignItems: 'center', gap: space[3], borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: space[3] },
-  rowCopy: { flex: 1, gap: space[1] },
+  list: { gap: space[2] },
+  row: { minHeight: 82, flexDirection: 'row-reverse', alignItems: 'center', gap: space[3], borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surface, padding: space[3] },
+  rowCopy: { flex: 1, gap: space[2], alignItems: 'flex-end' },
   serviceName: { ...typography.bodyStrong, textAlign: 'right' },
-  serviceMeta: { ...typography.caption, color: colors.textMuted, textAlign: 'right', fontVariant: ['tabular-nums'] },
-  pressed: { opacity: 0.65 },
+  serviceFacts: { flexDirection: 'row-reverse', gap: space[2] },
+  serviceFact: { minWidth: 78, gap: 2, borderRadius: radii.sm, backgroundColor: colors.primarySoft, paddingHorizontal: space[2], paddingVertical: space[1], alignItems: 'center' },
+  serviceFactValue: { ...typography.label, color: colors.primary, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  serviceFactLabel: { ...typography.caption, color: colors.primary, textAlign: 'center' },
+  empty: { ...typography.caption, color: colors.textMuted, textAlign: 'right', paddingVertical: space[3] },
+  pressed: { opacity: 0.7, borderColor: colors.primary },
   archivedSection: { borderTopWidth: 1, borderTopColor: colors.border },
   archivedHeader: { minHeight: 54, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
   archivedTitleRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[2] },
   archivedTitle: { ...typography.label, textAlign: 'right' },
   archivedCount: { ...typography.caption, color: colors.textMuted },
-  archivedRow: { minHeight: 64, flexDirection: 'row-reverse', alignItems: 'center', gap: space[3], borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: space[3] },
-  restore: { minHeight: 40, justifyContent: 'center', paddingHorizontal: space[2] },
-  restoreText: { ...typography.label, color: colors.primary },
+  archivedRow: { gap: space[3], borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surfaceMuted, padding: space[3] },
+  archivedServiceHeader: { minHeight: 40, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: space[3] },
+  archivedFacts: { alignItems: 'flex-end' },
+  archivedFact: { minWidth: 78, gap: 2, borderRadius: radii.sm, backgroundColor: colors.surface, paddingHorizontal: space[2], paddingVertical: space[1], alignItems: 'center' },
+  archivedFactValue: { ...typography.label, color: colors.text, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  archivedFactLabel: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
+  restore: { minHeight: 40, minWidth: 82, paddingHorizontal: space[3] },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,30,38,0.42)' },
   modalSheet: { gap: space[4], borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, backgroundColor: colors.surface, padding: space[5] },
   modalHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
   modalTitle: { ...typography.titleSm, textAlign: 'right' },
   closeButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  archiveConfirm: { gap: space[2], borderWidth: 1, borderColor: colors.danger, borderRadius: radii.lg, backgroundColor: colors.dangerSoft, padding: space[3] },
+  archiveConfirmTitle: { ...typography.bodyStrong, color: colors.danger, textAlign: 'right' },
+  archiveConfirmBody: { ...typography.caption, color: colors.textMuted, textAlign: 'right', lineHeight: 20 },
+  archiveConfirmActions: { flexDirection: 'row-reverse', gap: space[2] },
   modalActions: { flexDirection: 'row-reverse', gap: space[2] },
   action: { flex: 1 },
 });

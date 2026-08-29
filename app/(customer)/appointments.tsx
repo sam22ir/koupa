@@ -5,7 +5,6 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View }
 import {
   appointmentStatusLabel,
   canCancelCustomerAppointment,
-  canRescheduleCustomerAppointment,
   formatAppointmentWhen,
   type Appointment,
 } from '@/src/booking';
@@ -16,9 +15,9 @@ import {
   CustomerStageHeader,
   EmptyState,
   ErrorBanner,
-  Icon,
   Screen,
 } from '@/src/components/ui';
+import { UpcomingAppointmentCard } from '@/src/features/customer-home/UpcomingAppointmentCard';
 import { loadCustomerAppointments, useBooking } from '@/src/hooks/useBooking';
 import { t } from '@/src/i18n';
 import { colors, radii, space, typography } from '@/src/theme';
@@ -99,7 +98,7 @@ export default function AppointmentsScreen() {
 
   return (
     <Screen padded={false}>
-      <CustomerStageHeader title={t('appointments.title')} />
+      <CustomerStageHeader title={t('appointments.title')} tone="paper" />
       <View style={styles.body}>
         <View style={styles.tabs} accessibilityRole="tablist">
           {tabs.map((tab) => {
@@ -169,6 +168,26 @@ function AppointmentCard({
 }) {
   const openDetails = () => router.push(`/appointment/${item.id}`);
 
+  if (upcoming) {
+    return (
+      <UpcomingAppointmentCard
+        appointment={item}
+        onManage={openDetails}
+        onScan={() => router.push({ pathname: '/scan', params: { appointmentId: item.id, barberName: item.barber_name, startsAt: item.starts_at } })}
+        onReschedule={() => router.push({
+          pathname: '/book/[barberId]',
+          params: {
+            barberId: item.barber_id,
+            appointmentId: item.id,
+            serviceId: item.service_id,
+            returnTo: `/appointment/${item.id}`,
+          },
+        })}
+        onCancel={onCancel}
+      />
+    );
+  }
+
   return (
     <View style={styles.card}>
       <Pressable
@@ -182,51 +201,10 @@ function AppointmentCard({
           <Text style={styles.service}>{item.service_name}</Text>
         </View>
         <Text style={styles.meta}>{item.barber_name ?? '—'}</Text>
+        {item.shop_name ? <Text style={styles.meta}>{item.shop_name}</Text> : null}
         <Text style={styles.meta}>{formatAppointmentWhen(item.starts_at)}</Text>
       </Pressable>
-
-      {upcoming ? (
-        <>
-          <Button label={t('home.manage')} onPress={openDetails} />
-          <View style={styles.actions}>
-            {item.status === 'booked' ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('home.scanQr')}
-                style={styles.action}
-                onPress={() => router.push({ pathname: '/scan', params: { appointmentId: item.id, barberName: item.barber_name, startsAt: item.starts_at } })}
-              >
-                <Icon name="qr-code-outline" size={16} color={colors.primary} />
-                <Text style={styles.actionText}>{t('home.scanQr')}</Text>
-              </Pressable>
-            ) : null}
-            {canRescheduleCustomerAppointment(item.status) ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('home.reschedule')}
-                style={styles.action}
-                onPress={() => router.push(`/book/${item.barber_id}?appointmentId=${item.id}&serviceId=${item.service_id}`)}
-              >
-                <Icon name="calendar-outline" size={16} color={colors.primary} />
-                <Text style={styles.actionText}>{t('home.reschedule')}</Text>
-              </Pressable>
-            ) : null}
-            {item.status === 'booked' && canCancelCustomerAppointment(item.starts_at) ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('home.cancelAppt')}
-                style={styles.action}
-                onPress={onCancel}
-              >
-                <Icon name="close-circle-outline" size={16} color={colors.textMuted} />
-                <Text style={styles.actionMuted}>{t('home.cancelAppt')}</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </>
-      ) : (
-        <Button label={t('appointments.openDetails')} variant="secondary" onPress={openDetails} />
-      )}
+      <Button label={t('appointments.openDetails')} variant="secondary" onPress={openDetails} />
     </View>
   );
 }
@@ -304,27 +282,5 @@ const styles = StyleSheet.create({
   meta: {
     ...typography.caption,
     textAlign: 'right',
-  },
-  actions: {
-    flexDirection: 'row-reverse',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: space[2],
-  },
-  action: {
-    minHeight: 44,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space[1],
-    paddingHorizontal: space[2],
-  },
-  actionText: {
-    ...typography.label,
-    color: colors.primary,
-  },
-  actionMuted: {
-    ...typography.label,
-    color: colors.textMuted,
   },
 });

@@ -8,12 +8,14 @@ import type { ConfirmationType } from '@/src/services/auth';
 import type { LegalDocument } from '@/src/services/legal';
 import * as profileService from '@/src/services/profile';
 import type { Profile } from '@/src/services/profile';
+import { AppError } from '@/src/services/errors';
 import {
   clearUserScopedCaches,
   profileCache,
   sessionCache,
   setSessionCache,
 } from '@/src/services/sessionCache';
+import { withTimeout } from '@/src/utils/withTimeout';
 
 export type { Profile, LegalDocument };
 export interface UseSessionProps {}
@@ -21,6 +23,11 @@ export interface UseSessionProps {}
 type BootstrapState = readonly [Session | null, UserRole | null, string, ConfirmationType];
 
 let bootstrapPromise: Promise<BootstrapState> | null = null;
+export const SESSION_BOOTSTRAP_TIMEOUT_MS = 12_000;
+
+function sessionBootstrapTimeout(): AppError {
+  return new AppError('NETWORK', new Error('Session bootstrap timed out'));
+}
 
 function loadBootstrap(): Promise<BootstrapState> {
   if (!bootstrapPromise) {
@@ -139,7 +146,6 @@ export function useSession(_: UseSessionProps = {}) {
   }, [resetLegal]);
 
   const auth = useAuthActions({
-    hasSession: Boolean(session),
     pendingConfirmationType,
     onPendingRole: setPendingRoleState,
     onPendingConfirmation,
@@ -149,21 +155,24 @@ export function useSession(_: UseSessionProps = {}) {
   // Subscribe once — never re-bind when syncUser identity changes.
   useEffect(() => {
     let active = true;
+    let cancelled = false;
     const bootstrapGeneration = generationRef.current;
-    void loadBootstrap()
-      .then(async ([current, storedRole, storedEmail, storedType]) => {
-        if (!active || generationRef.current !== bootstrapGeneration) return;
-        setBootstrapError(null);
-        setSession(current);
-        currentUserIdRef.current = current?.user.id ?? null;
-        setPendingRoleState(storedRole ?? getPendingRole(current?.user ?? null));
-        setPendingConfirmationEmail(storedEmail);
-        setPendingConfirmationType(storedType);
-        await syncUserRef.current(current?.user ?? null);
-        if (active) setLoading(false);
-      })
+    const bootstrapWork = async () => {
+      const [current, storedRole, storedEmail, storedType] = await loadBootstrap();
+      if (!active || cancelled || generationRef.current !== bootstrapGeneration) return;
+      setBootstrapError(null);
+      setSession(current);
+      currentUserIdRef.current = current?.user.id ?? null;
+      setPendingRoleState(storedRole ?? getPendingRole(current?.user ?? null));
+      setPendingConfirmationEmail(storedEmail);
+      setPendingConfirmationType(storedType);
+      await syncUserRef.current(current?.user ?? null);
+      if (active && !cancelled) setLoading(false);
+    };
+    void withTimeout(bootstrapWork(), SESSION_BOOTSTRAP_TIMEOUT_MS, sessionBootstrapTimeout())
       .catch((caught) => {
         if (!active) return;
+        cancelled = true;
         setBootstrapError(caught);
         setLoading(false);
       });
@@ -192,11 +201,13 @@ export function useSession(_: UseSessionProps = {}) {
       } else {
         setLoading(false);
       }
-      void syncUserRef.current(next?.user ?? null)
+      void withTimeout(syncUserRef.current(next?.user ?? null), SESSION_BOOTSTRAP_TIMEOUT_MS, sessionBootstrapTimeout())
         .then(() => {
           if (generationRef.current !== eventGeneration) return;
         })
-        .catch(() => undefined)
+        .catch((caught) => {
+          if (active && generationRef.current === eventGeneration) setBootstrapError(caught);
+        })
         .finally(() => {
           if (active && generationRef.current === eventGeneration) setLoading(false);
         });
@@ -204,6 +215,7 @@ export function useSession(_: UseSessionProps = {}) {
 
     return () => {
       active = false;
+      cancelled = true;
       subscription.subscription.unsubscribe();
     };
   }, []);
@@ -216,14 +228,18 @@ export function useSession(_: UseSessionProps = {}) {
     setLoading(true);
     bootstrapPromise = null;
     try {
-      const [current, storedRole, storedEmail, storedType] = await loadBootstrap();
+      const [current, storedRole, storedEmail, storedType] = await withTimeout(
+        loadBootstrap(),
+        SESSION_BOOTSTRAP_TIMEOUT_MS,
+        sessionBootstrapTimeout(),
+      );
       if (generationRef.current !== retryGeneration) return;
       setSession(current);
       currentUserIdRef.current = current?.user.id ?? null;
       setPendingRoleState(storedRole ?? getPendingRole(current?.user ?? null));
       setPendingConfirmationEmail(storedEmail);
       setPendingConfirmationType(storedType);
-      await syncUser(current?.user ?? null);
+      await withTimeout(syncUser(current?.user ?? null), SESSION_BOOTSTRAP_TIMEOUT_MS, sessionBootstrapTimeout());
     } catch (caught) {
       setBootstrapError(caught);
       throw caught;
@@ -263,6 +279,7 @@ export function useSession(_: UseSessionProps = {}) {
     linkGoogleIdentity: auth.linkGoogleIdentity,
     signUpWithPassword: auth.signUpWithPassword,
     signInWithPassword: auth.signInWithPassword,
+    signInWithPhone: auth.signInWithPhone,
     requestPasswordReset: auth.requestPasswordReset,
     updatePassword: auth.updatePassword,
     resendEmailConfirmation: auth.resendEmailConfirmation,

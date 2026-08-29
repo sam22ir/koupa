@@ -4,9 +4,10 @@ import { isGoogleCollisionMessage } from '@/src/auth';
 import * as authService from '@/src/services/auth';
 import type { AuthCallbackResult, ConfirmationType } from '@/src/services/auth';
 import { clearSessionCaches } from '@/src/services/sessionCache';
+import { clearPendingIntent } from '@/src/navigation/pendingIntent';
 
 export interface UseAuthActionsProps {
-  readonly hasSession: boolean;
+  readonly hasSession?: boolean;
   readonly pendingConfirmationType: ConfirmationType;
   readonly onPendingRole: (role: UserRole | null) => void;
   readonly onPendingConfirmation: (email: string, type: ConfirmationType) => void;
@@ -14,7 +15,7 @@ export interface UseAuthActionsProps {
 }
 
 export function useAuthActions({
-  hasSession,
+  hasSession: _hasSession,
   pendingConfirmationType,
   onPendingRole,
   onPendingConfirmation,
@@ -25,7 +26,7 @@ export function useAuthActions({
   const setPendingRole = useCallback(async (role: UserRole) => {
     await authService.setPendingRoleStorage(role);
     onPendingRole(role);
-  }, [hasSession, onPendingRole]);
+  }, [onPendingRole]);
 
   const clearPendingRole = useCallback(async () => {
     await authService.clearPendingRoleStorage();
@@ -54,7 +55,7 @@ export function useAuthActions({
       }
       throw error;
     }
-  }, [onPendingConfirmation, onSignedOut]);
+  }, [onPendingConfirmation, onPendingRole, onSignedOut]);
 
   const signInWithGoogle = useCallback(async (role?: UserRole): Promise<AuthCallbackResult> => {
     setBusy(true);
@@ -118,6 +119,22 @@ export function useAuthActions({
     }
   }, [onPendingConfirmation, onPendingRole]);
 
+  const signInWithPhone = useCallback(async (phone: string, password: string) => {
+    setBusy(true);
+    try {
+      await authService.clearPendingRoleStorage();
+      onPendingRole(null);
+      const session = await authService.signInWithPhone(phone, password);
+      const confirmationEmail = session.user.email?.trim();
+      if (!session.user.email_confirmed_at && confirmationEmail) {
+        onPendingConfirmation(confirmationEmail, 'signup');
+      }
+      return session;
+    } finally {
+      setBusy(false);
+    }
+  }, [onPendingConfirmation, onPendingRole]);
+
   const requestPasswordReset = useCallback(async (email: string) => {
     await authService.requestPasswordReset(email);
   }, []);
@@ -145,6 +162,7 @@ export function useAuthActions({
     ]);
     onPendingRole(null);
     onPendingConfirmation('', 'signup');
+    clearPendingIntent();
     onSignedOut();
   }, [onPendingConfirmation, onPendingRole, onSignedOut]);
 
@@ -157,6 +175,7 @@ export function useAuthActions({
     linkGoogleIdentity,
     signUpWithPassword,
     signInWithPassword,
+    signInWithPhone,
     requestPasswordReset,
     updatePassword,
     resendEmailConfirmation,

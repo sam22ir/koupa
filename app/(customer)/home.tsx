@@ -1,24 +1,37 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert as RNAlert, StyleSheet, View } from 'react-native';
+import { Alert } from 'heroui-native/alert';
+import { Button } from 'heroui-native/button';
+import { Card } from 'heroui-native/card';
+import { Typography } from 'heroui-native/text';
 
 import {
-  appointmentStatusLabel,
   canCancelCustomerAppointment,
-  canRescheduleCustomerAppointment,
-  formatBookingTime,
-  formatAppointmentWhen,
   type Appointment,
 } from '@/src/booking';
-import { Avatar, Button, Card, Chip, CustomerStageHeader, EmptyState, ErrorBanner, Icon, Screen } from '@/src/components/ui';
+import { CustomerStageHeader, Screen } from '@/src/components/ui';
 import { deriveRecentBarbers } from '@/src/customerHome';
 import { CustomerHomeSkeleton } from '@/src/features/customer-home/CustomerHomeSkeleton';
 import { RecentBarbers } from '@/src/features/customer-home/RecentBarbers';
+import { UpcomingAppointmentCard } from '@/src/features/customer-home/UpcomingAppointmentCard';
 import { loadCustomerAppointments, useBooking } from '@/src/hooks/useBooking';
 import { t } from '@/src/i18n';
+import { formatAppError } from '@/src/i18n/errors';
 import { useAppSession } from '@/src/providers/SessionProvider';
-import { colors, layout, space, typography } from '@/src/theme';
-import { initialsFromName } from '@/src/utils/initials';
+import { colors, layout, space } from '@/src/theme';
+
+function ErrorAlert({ error }: { readonly error: unknown }) {
+  if (!error) return null;
+  return (
+    <Alert status="danger">
+      <Alert.Indicator />
+      <Alert.Content>
+        <Alert.Title>{formatAppError(error)}</Alert.Title>
+      </Alert.Content>
+    </Alert>
+  );
+}
 
 export default function CustomerHomeScreen() {
   const { profile, legalError, retryLegalAcceptance } = useAppSession();
@@ -63,7 +76,7 @@ export default function CustomerHomeScreen() {
       setError(new Error(t('errors.CANCEL_NOT_ALLOWED')));
       return;
     }
-    Alert.alert(t('home.cancelAppt'), t('home.cancelConfirm'), [
+    RNAlert.alert(t('home.cancelAppt'), t('home.cancelConfirm'), [
       { text: t('common.no'), style: 'cancel' },
       {
         text: t('common.yes'),
@@ -80,6 +93,7 @@ export default function CustomerHomeScreen() {
   return (
     <Screen padded={false} scroll>
       <CustomerStageHeader
+        tone="stage"
         title={`${t('home.greeting')}${profile?.name ? `، ${profile.name}` : ''}`}
         subtitle={upcoming ? t('home.upcomingSubtitle') : t('home.startBookingSubtitle')}
       />
@@ -87,97 +101,62 @@ export default function CustomerHomeScreen() {
       <View style={styles.body}>
         {legalError ? (
           <View style={styles.initialError}>
-            <ErrorBanner error={legalError} />
-            <Button label={t('common.retry')} variant="secondary" onPress={() => void retryLegalAcceptance()} />
+            <ErrorAlert error={legalError} />
+            <Button variant="secondary" onPress={() => void retryLegalAcceptance()}>
+              <Button.Label>{t('common.retry')}</Button.Label>
+            </Button>
           </View>
         ) : null}
-        <ErrorBanner error={dataError} />
+        {dataError && (!hasLoadedSuccessfully || !upcoming) ? <ErrorAlert error={dataError} /> : null}
+        {dataError && hasLoadedSuccessfully && upcoming ? (
+          <View style={styles.refreshNotice}>
+            <Typography type="body-xs" color="muted" align="end" className="flex-1">
+              {t('home.refreshFailed')}
+            </Typography>
+            <Button variant="ghost" onPress={() => void refresh()}>
+              <Button.Label>{t('common.retry')}</Button.Label>
+            </Button>
+          </View>
+        ) : null}
         {loading ? <CustomerHomeSkeleton /> : showInitialError ? (
           <View style={styles.initialError}>
-            <Button
-              label={t('home.retryAppointments')}
-              variant="secondary"
-              onPress={() => void refresh()}
-            />
+            <Button variant="secondary" onPress={() => void refresh()}>
+              <Button.Label>{t('home.retryAppointments')}</Button.Label>
+            </Button>
           </View>
         ) : upcoming ? (
-          <Card elevated style={styles.card}>
-            <View style={styles.cardTop}>
-              <Chip label={appointmentStatusLabel(upcoming.status)} tone="accent" />
-              <Text style={styles.meta}>{formatAppointmentWhen(upcoming.starts_at)}</Text>
-            </View>
-            <Text style={styles.service}>{upcoming.service_name}</Text>
-            <View style={styles.person}>
-              <Avatar initials={initialsFromName(upcoming.barber_name ?? 'ح')} />
-              <View style={styles.personCopy}>
-                <Text style={styles.personName}>{upcoming.barber_name ?? '—'}</Text>
-              </View>
-            </View>
-            <View style={styles.chips}>
-              <Chip label={formatBookingTime(upcoming.starts_at)} />
-              <Chip label={`${upcoming.price_dzd.toLocaleString('ar-DZ')} ${t('common.dzd')}`} />
-            </View>
-            <Button
-              label={t('home.manage')}
-              onPress={() => router.push(`/appointment/${upcoming.id}`)}
+          <View style={styles.upcomingSection}>
+            <Typography type="body" weight="semibold" color="muted" align="end">
+              {t('home.nextAppointment')}
+            </Typography>
+            <UpcomingAppointmentCard
+              appointment={upcoming}
+              onManage={() => router.push(`/appointment/${upcoming.id}`)}
+              onScan={() => router.push({
+                pathname: '/scan',
+                params: { appointmentId: upcoming.id, barberName: upcoming.barber_name, startsAt: upcoming.starts_at },
+              })}
+              onReschedule={() => router.push(`/book/${upcoming.barber_id}?appointmentId=${upcoming.id}&serviceId=${upcoming.service_id}&returnTo=${encodeURIComponent(`/appointment/${upcoming.id}`)}`)}
+              onCancel={cancel}
             />
-            <View style={styles.links}>
-              {upcoming.status === 'booked' ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('home.scanQr')}
-                  style={styles.linkRow}
-                  onPress={() => router.push({
-                    pathname: '/scan',
-                    params: {
-                      appointmentId: upcoming.id,
-                      barberName: upcoming.barber_name,
-                      startsAt: upcoming.starts_at,
-                    },
-                  })}
-                >
-                  <Icon name="qr-code-outline" size={16} color={colors.primary} />
-                  <Text style={styles.link}>{t('home.scanQr')}</Text>
-                </Pressable>
-              ) : null}
-              {canRescheduleCustomerAppointment(upcoming.status) ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('home.reschedule')}
-                  style={styles.linkRow}
-                  onPress={() => router.push(`/book/${upcoming.barber_id}?appointmentId=${upcoming.id}&serviceId=${upcoming.service_id}`)}
-                >
-                  <Icon name="calendar-outline" size={16} color={colors.primary} />
-                  <Text style={styles.link}>{t('home.reschedule')}</Text>
-                </Pressable>
-              ) : null}
-              {upcoming.status === 'booked' && canCancelCustomerAppointment(upcoming.starts_at) ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('home.cancelAppt')}
-                  style={styles.linkRow}
-                  onPress={cancel}
-                >
-                  <Icon name="close-circle-outline" size={16} color={colors.textMuted} />
-                  <Text style={styles.linkMuted}>{t('home.cancelAppt')}</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          </Card>
+          </View>
         ) : (
-          <Card elevated>
-            <EmptyState
-              title={t('home.findCta')}
-              body={t('home.findBody')}
-              actionLabel={t('home.findCta')}
-              onAction={() => router.push('/(customer)/find')}
-            />
+          <Card className="p-6 items-center gap-3">
+            <Typography type="h5" align="center">
+              {t('home.noAppointment')}
+            </Typography>
+            <Typography type="body" color="muted" align="center">
+              {t('home.findBody')}
+            </Typography>
+            <Button onPress={() => router.push('/(customer)/find')}>
+              <Button.Label>{t('home.findCta')}</Button.Label>
+            </Button>
           </Card>
         )}
         {!loading && !showInitialError && recentBarbers.length ? (
           <RecentBarbers
             items={recentBarbers}
-            onSelect={(barberId) => router.push(`/barber/${barberId}`)}
+            onSelect={(barberId) => router.push({ pathname: '/barber/[id]', params: { id: barberId, returnTo: '/home' } })}
           />
         ) : null}
       </View>
@@ -193,55 +172,6 @@ const styles = StyleSheet.create({
     paddingBottom: space[6],
   },
   initialError: { gap: space[3] },
-  card: {
-    gap: space[3],
-  },
-  cardTop: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  meta: {
-    ...typography.caption,
-  },
-  service: {
-    ...typography.title,
-    textAlign: 'right',
-  },
-  person: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: space[3],
-  },
-  personCopy: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  personName: {
-    ...typography.bodyStrong,
-  },
-  chips: {
-    flexDirection: 'row-reverse',
-    flexWrap: 'wrap',
-    gap: space[2],
-  },
-  links: {
-    flexDirection: 'row-reverse',
-    flexWrap: 'wrap',
-    gap: space[3],
-    justifyContent: 'center',
-  },
-  linkRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: space[1],
-  },
-  link: {
-    ...typography.label,
-    color: colors.primary,
-  },
-  linkMuted: {
-    ...typography.label,
-    color: colors.textMuted,
-  },
+  upcomingSection: { gap: space[2] },
+  refreshNotice: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: space[2], paddingHorizontal: space[2], paddingVertical: space[1], borderRadius: 8, backgroundColor: colors.accentSoft },
 });

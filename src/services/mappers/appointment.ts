@@ -11,7 +11,7 @@ type AppointmentQueryRow = {
   readonly status: Appointment['status'];
   readonly services?: { readonly name?: string | null } | { readonly name?: string | null }[] | null;
   readonly profiles?: { readonly name?: string | null; readonly maps_url?: string | null } | { readonly name?: string | null; readonly maps_url?: string | null }[] | null;
-  readonly shops?: { readonly maps_url?: string | null } | { readonly maps_url?: string | null }[] | null;
+  readonly shops?: { readonly name?: string | null; readonly maps_url?: string | null } | { readonly name?: string | null; readonly maps_url?: string | null }[] | null;
   readonly ratings?:
     | { readonly id: string; readonly stars: number; readonly created_at: string; readonly updated_at: string }
     | { readonly id: string; readonly stars: number; readonly created_at: string; readonly updated_at: string }[]
@@ -47,6 +47,7 @@ export function mapCustomerAppointment(row: AppointmentQueryRow): Appointment {
     status: row.status,
     service_name: service?.name ?? '',
     barber_name: profile?.name ?? undefined,
+    shop_name: shop?.name ?? undefined,
     location_maps_url: shop?.maps_url ?? profile?.maps_url ?? null,
     rating,
   };

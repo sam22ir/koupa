@@ -32,6 +32,8 @@ export function useShops(userId?: string) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const activeRef = useRef(true);
+  const searchRequestRef = useRef(0);
+  const detailRequestRef = useRef(0);
 
   useEffect(() => () => {
     activeRef.current = false;
@@ -124,12 +126,14 @@ export function useShops(userId?: string) {
   }, [load]);
 
   const searchBarbers = useCallback(async (query: string, page = 0): Promise<readonly ShopBarberCandidate[] | null> => {
+    const requestId = ++searchRequestRef.current;
     setError('');
     try {
       const candidates = await shopsService.searchShopBarberCandidates(query, page);
+      if (requestId !== searchRequestRef.current) return null;
       return candidates.filter((candidate) => candidate.id !== userId);
     } catch (caught) {
-      setError(toUiError(caught));
+      if (requestId === searchRequestRef.current) setError(toUiError(caught));
       return null;
     }
   }, [userId]);
@@ -232,25 +236,48 @@ export function useShops(userId?: string) {
   }, [load]);
 
   const searchShops = useCallback(async (query: string, page = 0): Promise<readonly ShopSummary[] | null> => {
+    const requestId = ++searchRequestRef.current;
     setError('');
     try {
-      return await shopsService.searchShops(query, page);
+      const results = await shopsService.searchShops(query, page);
+      return requestId === searchRequestRef.current ? results : null;
     } catch (caught) {
-      setError(toUiError(caught));
+      if (requestId === searchRequestRef.current) setError(toUiError(caught));
+      return null;
+    }
+  }, []);
+
+  const searchNearbyShops = useCallback(async (
+    latitude: number,
+    longitude: number,
+    query = '',
+    page = 0,
+  ): Promise<readonly ShopSummary[] | null> => {
+    const requestId = ++searchRequestRef.current;
+    setError('');
+    try {
+      const results = await shopsService.searchNearbyShops(latitude, longitude, query, page);
+      return requestId === searchRequestRef.current ? results : null;
+    } catch (caught) {
+      if (requestId === searchRequestRef.current) setError(toUiError(caught));
       return null;
     }
   }, []);
 
   const getShop = useCallback(async (shopId: string): Promise<ShopProfile | null> => {
+    const requestId = ++detailRequestRef.current;
+    setError('');
     try {
-      return await shopsService.getShop(shopId);
+      const result = await shopsService.getShop(shopId);
+      return requestId === detailRequestRef.current ? result : null;
     } catch (caught) {
-      setError(toUiError(caught));
+      if (requestId === detailRequestRef.current) setError(toUiError(caught));
       return null;
     }
   }, []);
 
   const getActivity = useCallback(async (shopId: string) => {
+    setError('');
     try {
       return await shopsService.getShopActivity(shopId);
     } catch (caught) {
@@ -286,6 +313,7 @@ export function useShops(userId?: string) {
     removeShop,
     removeMember,
     searchShops,
+    searchNearbyShops,
     getShop,
     getActivity,
     retry: load,

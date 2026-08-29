@@ -25,18 +25,22 @@ import {
 } from '@/src/barberToday';
 import {
   Avatar,
-  BrandLogo,
   Button,
   Chip,
+  CustomerStageHeader,
   EmptyState,
   ErrorBanner,
   Icon,
   Screen,
-  Stage,
 } from '@/src/components/ui';
 import { QrCodeMatrix } from '@/src/components/QrCodeMatrix';
 import { useBooking } from '@/src/hooks/useBooking';
 import { t } from '@/src/i18n';
+import {
+  clearBarberOnboardingHints,
+  readBarberOnboardingHints,
+  type BarberActivationWorkplace,
+} from '@/src/navigation/barberActivation';
 import { buildBarberCheckInPayload } from '@/src/qr';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
@@ -76,6 +80,7 @@ export default function BarberTodayScreen() {
   const [qrPayload, setQrPayload] = useState<string | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<TodayAppointment | null>(null);
   const [sharingQr, setSharingQr] = useState(false);
+  const [activationWorkplace, setActivationWorkplace] = useState<BarberActivationWorkplace | null>(null);
   const qrCardRef = useRef<View | null>(null);
 
   const dashboard = useMemo(() => getTodayDashboard(items), [items]);
@@ -93,8 +98,14 @@ export default function BarberTodayScreen() {
   useFocusEffect(
     useCallback(() => {
       void refresh();
+      void readBarberOnboardingHints().then(setActivationWorkplace);
     }, [refresh]),
   );
+
+  const dismissActivationTips = async () => {
+    await clearBarberOnboardingHints();
+    setActivationWorkplace(null);
+  };
 
   const onMarkPresent = async (id: string) => {
     if (pendingId) return;
@@ -136,20 +147,15 @@ export default function BarberTodayScreen() {
 
   const shareQr = async () => {
     if (!qrCardRef.current || sharingQr) return;
-    if (!(await Sharing.isAvailableAsync())) {
-      Alert.alert(t('barber.shareUnavailable'));
-      return;
-    }
-
-    // Expo Go does not guarantee the optional RNViewShot native module.
-    // Keep it out of startup evaluation; a development build can still share.
-    if (Constants.appOwnership === 'expo') {
-      Alert.alert(t('barber.shareUnavailable'));
-      return;
-    }
-
     setSharingQr(true);
     try {
+      if (!(await Sharing.isAvailableAsync()) || Constants.appOwnership === 'expo') {
+        Alert.alert(t('barber.shareUnavailable'));
+        return;
+      }
+
+      // Expo Go does not guarantee the optional RNViewShot native module.
+      // Keep it out of startup evaluation; a development build can still share.
       const { captureRef } = require('react-native-view-shot') as typeof import('react-native-view-shot');
       const uri = await captureRef(qrCardRef.current, {
         format: 'png',
@@ -161,6 +167,8 @@ export default function BarberTodayScreen() {
         dialogTitle: t('barber.shareQr'),
         UTI: 'public.png',
       });
+    } catch {
+      Alert.alert(t('errors.FAILED'));
     } finally {
       setSharingQr(false);
     }
@@ -206,6 +214,24 @@ export default function BarberTodayScreen() {
 
       <ErrorBanner error={error} />
 
+      {activationWorkplace ? (
+        <View style={styles.activationCard} accessibilityLabel={t('barber.activationTitle')}>
+          <Text style={styles.activationTitle}>{t('barber.activationTitle')}</Text>
+          <Text style={styles.activationLine}>{t('barber.activationQr')}</Text>
+          <Text style={styles.activationLine}>{t('barber.activationSchedule')}</Text>
+          <Text style={styles.activationLine}>
+            {activationWorkplace === 'owner'
+              ? t('barber.activationShopOwner')
+              : t('barber.activationShopWorker')}
+          </Text>
+          <Button
+            label={t('barber.activationDismiss')}
+            variant="secondary"
+            onPress={() => void dismissActivationTips()}
+          />
+        </View>
+      ) : null}
+
       <Pressable
         style={({ pressed }) => [styles.qrAction, pressed && styles.pressed]}
         onPress={showQr}
@@ -224,27 +250,11 @@ export default function BarberTodayScreen() {
 
   return (
     <Screen padded={false} style={styles.screen}>
-      <Stage decoration="subtle">
-        <View style={styles.stageTopRow}>
-          <View testID="today-logo-wrap" style={styles.logoWrap}>
-            <BrandLogo variant="full" height={56} imageStyle={styles.logoImage} />
-            <View testID="today-logo-accent" style={styles.logoAccent} />
-          </View>
-          <Pressable
-            style={({ pressed }) => [styles.headerQrButton, pressed && styles.headerQrPressed]}
-            onPress={showQr}
-            accessibilityRole="button"
-            accessibilityLabel={t('barber.showQr')}
-            disabled={!profile?.id}
-          >
-            <Icon name="qr-code-outline" size={22} color={colors.onPrimary} />
-          </Pressable>
-        </View>
-        <View style={styles.stageTitleBlock}>
-          <Text style={styles.title}>{t('barber.todayTitle')}</Text>
-          <Text style={styles.date}>{todayFormatter.format(new Date())}</Text>
-        </View>
-      </Stage>
+      <CustomerStageHeader
+        tone="stage"
+        title={t('barber.todayTitle')}
+        subtitle={todayFormatter.format(new Date())}
+      />
 
       <View style={styles.body}>
         {listHeader}
@@ -572,6 +582,23 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     textAlign: 'center',
+  },
+  activationCard: {
+    gap: space[2],
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radii.xl,
+    backgroundColor: colors.primarySoft,
+    padding: space[4],
+  },
+  activationTitle: {
+    ...typography.bodyStrong,
+    color: colors.primary,
+    textAlign: 'right',
+  },
+  activationLine: {
+    ...typography.caption,
+    textAlign: 'right',
   },
   qrAction: {
     minHeight: 52,

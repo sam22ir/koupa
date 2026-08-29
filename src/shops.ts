@@ -10,6 +10,9 @@ export interface ShopSummary {
   readonly average_rating: number;
   readonly rating_count: number;
   readonly owner_name: string;
+  readonly latitude?: number | null;
+  readonly longitude?: number | null;
+  readonly distance_km?: number | null;
 }
 
 export interface ShopBarber {

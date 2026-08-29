@@ -26,14 +26,12 @@ export function LegalSupportLinks({ documents }: { readonly documents: readonly 
       <Button
         label={t('auth.openTerms')}
         variant="ghost"
-        disabled={!terms}
-        onPress={() => terms && openExternalUrl(TERMS_URL)}
+        onPress={() => openExternalUrl(TERMS_URL)}
       />
       <Button
         label={t('profile.privacyPolicy')}
         variant="ghost"
-        disabled={!privacy}
-        onPress={() => privacy && openExternalUrl(PRIVACY_URL)}
+        onPress={() => openExternalUrl(PRIVACY_URL)}
       />
       <Button
         label={t('profile.accountDeletionInfo')}

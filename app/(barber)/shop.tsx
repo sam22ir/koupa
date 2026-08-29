@@ -1,20 +1,19 @@
-import { useRouter } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
-import { BrandLogo } from '@/src/components/ui/BrandLogo';
+import { CustomerStageHeader } from '@/src/components/ui/CustomerStageHeader';
 import { Screen } from '@/src/components/ui/Screen';
-import { Stage } from '@/src/components/ui/Stage';
 import { ShopHub } from '@/src/features/barber-shop/ShopHub';
 import { useShops } from '@/src/hooks/useShops';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
-import { colors, radii, space, typography } from '@/src/theme';
+import { colors } from '@/src/theme';
 
 export default function BarberShopScreen() {
   const router = useRouter();
   const { session } = useAppSession();
   const shops = useShops(session?.user.id);
-  const push = (href: string) => router.push(href as never);
+  const push = (href: Href) => router.push(href);
   const subtitle = shops.ownedShop
     ? t('shopWorkspace.ownerSubtitle')
     : shops.relationship.kind === 'member'
@@ -27,18 +26,11 @@ export default function BarberShopScreen() {
 
   return (
     <Screen padded={false} style={styles.screen}>
-      <Stage decoration="subtle">
-        <View style={styles.stageTopRow}>
-          <View style={styles.logoWrap}>
-            <BrandLogo variant="full" height={56} imageStyle={styles.logoImage} />
-            <View style={styles.logoAccent} />
-          </View>
-        </View>
-        <View style={styles.stageTitleBlock}>
-          <Text style={styles.title}>{t('shopWorkspace.title')}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
-        </View>
-      </Stage>
+      <CustomerStageHeader
+        tone="paper"
+        title={t('shopWorkspace.title')}
+        subtitle={subtitle}
+      />
       <View style={styles.surface}>
         <ShopHub
           shops={shops}
@@ -56,12 +48,5 @@ export default function BarberShopScreen() {
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.workspace },
-  stageTopRow: { minHeight: 58, position: 'relative' },
-  logoWrap: { position: 'absolute', left: 0, top: 0, alignItems: 'center', gap: space[2] },
-  logoImage: { tintColor: colors.onPrimary, opacity: 0.96 },
-  logoAccent: { width: space[6], height: 3, borderRadius: radii.pill, backgroundColor: colors.accent },
-  stageTitleBlock: { gap: space[1], alignItems: 'flex-end' },
-  title: { ...typography.title, color: colors.onPrimary, textAlign: 'right' },
-  subtitle: { ...typography.body, color: colors.onPrimaryMuted, textAlign: 'right' },
-  surface: { flex: 1, marginTop: -space[5], backgroundColor: colors.workspace },
+  surface: { flex: 1, backgroundColor: colors.workspace },
 });

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, radii, space, typography } from '@/src/theme';
+import { t } from '@/src/i18n';
 
 export type WorkplaceType = 'owner' | 'worker';
 
@@ -12,12 +13,12 @@ export function WorkplaceChoice({
   readonly onChange: (value: WorkplaceType) => void;
 }) {
   return (
-    <View style={styles.wrap} accessibilityRole="radiogroup" accessibilityLabel="الوضع المهني">
-      <Text style={styles.label}>الوضع المهني</Text>
+    <View style={styles.wrap} accessibilityRole="radiogroup" accessibilityLabel={t('onboarding.workplaceLabel')}>
+      <Text style={styles.label}>{t('onboarding.workplaceLabel')}</Text>
       <View style={styles.options}>
         {([
-          ['owner', 'أملك محلا', 'أدير محلي وأستقبل الحجوزات.'],
-          ['worker', 'أعمل في محل', 'أنضم إلى محل بعد نشر ملفي.'],
+          ['owner', t('onboarding.ownerTitle'), t('onboarding.ownerBody')],
+          ['worker', t('onboarding.workerTitle'), t('onboarding.workerBody')],
         ] as const).map(([option, title, body]) => {
           const selected = value === option;
           return (
