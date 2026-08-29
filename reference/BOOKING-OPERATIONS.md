@@ -2,14 +2,16 @@
 
 ## Appointment transitions (database cron)
 
-The `20260723000100_hardened_booking.sql` migration schedules `public.transition_overdue_appointments()` every minute through Supabase Cron. Migration `20260729000100_qr_check_in_workflow.sql` keeps that schedule but changes the `Booked` to `Absent` boundary to `ends_at`, preserving the approved QR check-in window through the appointment end. Elapsed `Present` appointments still become `Completed`; each transition writes immutable in-app notification records in the same transaction.
+The `20260723000100_hardened_booking.sql` migration schedules `public.transition_overdue_appointments()` every minute through Supabase Cron. Migration `20260729000200_qr_check_in_workflow.sql` keeps that schedule but changes the `Booked` to `Absent` boundary to `ends_at`, preserving the approved QR check-in window through the appointment end. Elapsed `Present` appointments still become `Completed`; each transition writes immutable in-app notification records in the same transaction.
 
-### Verified 2026-07-28
+### Last runtime verification 2026-08-18
 
-| Environment | Job | Schedule | Active |
-|---|---|---|---|
-| Staging `zhdwaizroczkqzwrvfxf` | `koupa-appointment-transitions` | `* * * * *` | yes |
-| Production `hrcwhswzscfbpbllqkri` | `koupa-appointment-transitions` | `* * * * *` | yes |
+| Environment | Job | Schedule | Active | Recent runs |
+|---|---|---|---|---|
+| Staging `zhdwaizroczkqzwrvfxf` | `koupa-appointment-transitions` | `* * * * *` | yes | succeeded (sampled) |
+| Staging `zhdwaizroczkqzwrvfxf` | `koupa-notification-dispatch` | `* * * * *` | yes | present |
+| Production `hrcwhswzscfbpbllqkri` | `koupa-appointment-transitions` | `* * * * *` | yes | present |
+| Production `hrcwhswzscfbpbllqkri` | `koupa-notification-dispatch` | `* * * * *` | yes | present |
 
 Command on both: `select public.transition_overdue_appointments()`
 
@@ -60,15 +62,7 @@ Do not reintroduce multi-table client write loops for these paths.
 
 ## Production schema parity
 
-As of 2026-07-28, production is missing migrations:
-
-- `20260726000100` shop owner controls
-- `20260726000200` push delivery columns
-- `20260726000300` shop owner SQL fixes
-- `20260726000400` shop activity history
-- `20260726000500` remove staging demo data (fixed demo UUIDs only)
-- `20260727000100` enrich search published barbers
-- `20260728000100` atomic barber publish and settings
-- `20260729000100` atomic QR check-in workflow and attendance audit
-
-Apply with temporary production link only after review; re-link staging afterward.
+Production and staging migration lists matched through
+`20260818000100_phone_sign_in_alias.sql` on 2026-08-18 (includes nearby search,
+notification destinations, and phone uniqueness). Production push secrets including
+`FIREBASE_SERVICE_ACCOUNT_JSON` for `koupa-prod` were set on 2026-08-18.

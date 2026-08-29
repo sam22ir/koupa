@@ -24,7 +24,7 @@ UI screens
 | Shops | `useShops` |
 | Managed barber settings | `useManagedBarberSettings` |
 | Schedule exceptions | `useScheduleExceptions` |
-| Notifications | `useNotifications` |
+| Notifications | `useNotifications`, `notificationDestinationHref` |
 | Account deletion | `useAccountLifecycle` |
 | Push token registration | `usePushRegistration` |
 | Pure helpers | `@/src/booking`, `@/src/auth`, `@/src/shops`, … |
@@ -70,6 +70,14 @@ Hooks currently map many of these to legacy UI strings/codes (`failed`, `validat
 - Owner workspace: `shop_owner_barber_workspace`, `shop_owner_replace_barber_workspace`
 
 Do not reintroduce multi-table client write loops for these paths.
+
+## Notification events
+
+`notifications.destination` is a typed JSON event descriptor written by server-side
+producers. The client must use `notificationDestinationHref`; it must never navigate
+from a stored URL or infer an event from Arabic title/body text. Appointment rows retain
+`appointment_id` as a legacy fallback. Native FCM data uses the same serialized
+destination so a push tap and an inbox tap open the same event.
 
 ## Locale / money / time
 

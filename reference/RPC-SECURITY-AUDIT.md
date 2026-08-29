@@ -51,25 +51,27 @@ Scope: public SQL functions created by repo migrations, grants, and dispatch pos
 
 Recent write RPCs set `search_path = public`. Historical functions should keep this pattern on future edits.
 
-## Dispatch secret posture (staging)
+## Dispatch secret posture (CLI 2026-08-18)
 
 - Edge Function `dispatch-notifications` uses `verify_jwt = false` and checks header `x-notification-dispatch-secret`.
-- Staging `pg_cron` job `koupa-notification-dispatch` calls the function via `net.http_post` every minute.
-- Secret is stored in **Vault** as `koupa_notification_dispatch_secret` (not only as a function env var).
-- Function env also has `NOTIFICATION_DISPATCH_SECRET`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `APP_ENV=staging`.
-- Production still lacks function + push secrets + vault/cron dispatch job.
+- Staging and production `pg_cron` jobs `koupa-notification-dispatch` call the function via `net.http_post` every minute.
+- Staging function env has `NOTIFICATION_DISPATCH_SECRET`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `APP_ENV=staging` (function **v6**).
+- Production function env has `NOTIFICATION_DISPATCH_SECRET`, `APP_ENV`, `FIREBASE_SERVICE_ACCOUNT_JSON` (function **v3**; SA set 2026-08-18).
+- `sign-in-with-phone` is ACTIVE on staging and production (`verify_jwt = false`; Auth Phone provider stays disabled).
 
 ## Findings / residual risk
 
-1. **Production schema lag** — missing migrations from `20260726000100` through `20260728000100` (shops owner controls, push columns, activity history, demo cleanup, search enrich, atomic publish/settings). Apply only after review.
+1. **Production push** — function + cron + `FIREBASE_SERVICE_ACCOUNT_JSON` are present (2026-08-18). Remaining gate is a real Android device token delivery check.
 2. **Legal documents** — staging and production serve approved active version `2026-07-29`; staging placeholder versions are inactive and historical acceptances remain append-only.
-3. **Retired Edge Function** — `appointment-transitions` remains ACTIVE on staging v4 and production v1 while DB cron already runs `transition_overdue_appointments`. Safe to undeploy after ops confirmation; not required for correctness if unused.
+3. **Retired Edge Function** — `appointment-transitions` remains ACTIVE on staging v4 and production v2 while DB cron already runs `transition_overdue_appointments`. Safe to undeploy after ops confirmation; not required for correctness if unused.
 4. **No SQL grant drift found** on newly added atomic RPCs; helper `apply_barber_settings_payload` is not executable by `authenticated`/`anon` (verified by structural SQL tests).
+5. **Schema** — staging and production are current through `20260818000100` (destinations + phone unique index).
 
 ## Recommended follow-ups
 
-- [ ] Production `db push` of missing migrations (explicit approval)
-- [ ] Production deploy `dispatch-notifications` + vault secret + cron job (mirror staging)
-- [ ] Undeploy `appointment-transitions` on both envs after final cron run proof
+- [x] Production `db push` through `20260818000100` (2026-08-18)
+- [x] Production deploy `dispatch-notifications` + notification cron (verified present 2026-08-18)
+- [x] Set production `FIREBASE_SERVICE_ACCOUNT_JSON` from `koupa-prod` (2026-08-18)
+- [x] Undeploy `appointment-transitions` on both envs after final cron run proof (2026-08-18)
 - [x] Replace staging legal documents with approved active versions
 - [x] Apply and verify approved legal versions on production

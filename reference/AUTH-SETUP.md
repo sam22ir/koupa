@@ -22,14 +22,18 @@ Linked default project for CLI work: **Koupa Staging** `zhdwaizroczkqzwrvfxf`.
 
 ---
 
-## 1. Staging status (verified via CLI)
+## 1. Staging status (CLI/migrations verified 2026-08-18)
+
+The staging project is linked and its migration state is current through
+`20260818000100` (notification destinations + phone unique index).
+`sign-in-with-phone` is ACTIVE on staging and production.
 
 ```sh
 supabase link --project-ref zhdwaizroczkqzwrvfxf
 supabase db query --linked "select key, version, url, is_active from public.legal_documents order by key, version;"
 ```
 
-Current staging legal rows:
+Staging legal rows observed in the historical audit:
 
 | key | version | url | active |
 |---|---|---|---|
@@ -97,11 +101,12 @@ https://supabase.com/dashboard/project/zhdwaizroczkqzwrvfxf/auth/providers
      ```text
      koupa://callback
      exp://127.0.0.1:8081/--/callback
-     exp://192.168.132.184:8081/--/callback
      exp://192.168.*.*:8081/--/callback
      http://localhost:8081/callback
      http://127.0.0.1:8081/callback
      ```
+     Installed Android builds and the dev client always send **exact** `koupa://callback`
+     (not `koupa:///callback` and not `exp+koupa://expo-development-client/--/callback`).
 
    **Expo Go hang after picking a Google account** is almost always a missing redirect URL.
    In Expo Go the app redirects to something like:
@@ -133,9 +138,10 @@ https://supabase.com/dashboard/project/zhdwaizroczkqzwrvfxf/auth/providers
    - Enabled
    - Confirm email: **ON**
 4. **Authentication → Providers → Phone**
-   - Keep phone authentication **disabled** for Koupa MVP
-   - The required phone field is stored in `public.profiles.phone` for barber/customer calls only
-   - SMS and OTP are not used
+   - Keep Supabase phone authentication **disabled**; Koupa does not use SMS or OTP
+   - The required phone field is stored in `public.profiles.phone` for barber/customer calls and the phone sign-in alias
+   - The `sign-in-with-phone` Edge Function resolves the profile phone to the linked Auth email server-side, then uses the existing email/password flow
+   - Deploy it with `supabase functions deploy sign-in-with-phone`; keep the service-role key only in the Edge Function environment, never in Expo variables
 
 ### C. App side (already implemented)
 
@@ -220,17 +226,21 @@ supabase secrets list
 supabase link --project-ref zhdwaizroczkqzwrvfxf   # always re-link staging after
 ```
 
-Last checked:
+Last checked in the production audit (2026-08-04):
 
 | Item | Production |
 |---|---|
 | Auth users | **0** (empty) |
 | Profiles | **0** (empty) |
-| Legal documents | **0 rows** (table exists, not seeded) |
-| Migrations | **Behind** local — remote has through `20260725000400`; missing `20260726*` … `20260728*` |
+| Legal documents | Approved active Terms/Privacy version `2026-07-29` |
+| Migrations | **23/23 in sync** through `20260803000100` |
 | Edge secrets | Platform keys only — **missing** `APP_ENV`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `NOTIFICATION_DISPATCH_SECRET` |
 | Firebase | `koupa-prod` (see `.env.production.local`) |
 | App ID | `com.koupa.app` |
+
+The working tree, staging, and production currently contain 23 migration files
+through `20260803000100_owner_shop_onboarding.sql`. Production push secrets and
+the dispatch worker remain unconfigured.
 
 ### Production Google OAuth (do this in order)
 
@@ -267,7 +277,7 @@ Open: https://supabase.com/dashboard/project/hrcwhswzscfbpbllqkri/auth/providers
      to this allow-list. Do not use `http://localhost:8081/callback` in production.
      Add Play / EAS preview URLs only if you use them for auth returns.
 3. **Email** provider: enabled, **confirm email ON**, password min length ≥ 8  
-4. **Phone**: keep Auth phone provider disabled; profile phone is contact data only and SMS/OTP are not used
+4. **Phone**: keep Auth phone provider disabled; profile phone is contact data plus a server-side sign-in alias, and SMS/OTP are not used
 5. Email templates: confirmation + recovery must use `{{ .ConfirmationURL }}` / recovery link. On
    installed production builds they resolve through `koupa://callback`; on a production web build
    they resolve through the configured HTTPS callback URL.

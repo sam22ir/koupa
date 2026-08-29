@@ -17,17 +17,23 @@ Edge Function dispatch-notifications (verify_jwt = false)
 FCM HTTP v1 → device_push_tokens for that user/environment
 ```
 
-In-app list still reads `notifications` directly; push is fan-out only.
+In-app list still reads `notifications` directly; push is fan-out only. Each FCM
+payload includes `notification_id`, legacy `appointment_id`, and serialized typed
+`destination` metadata. The Android client resolves that destination through the same
+allowlisted event router used by the in-app inbox; it never accepts a route string from
+the payload.
 
-## Staging (verified 2026-07-28)
+## Staging (CLI verified 2026-08-18)
 
 | Piece | Status |
 |---|---|
-| Function | `dispatch-notifications` ACTIVE v5 |
+| Function | `dispatch-notifications` ACTIVE **v6** (redeployed 2026-08-18; destination-aware) |
+| Phone alias | `sign-in-with-phone` ACTIVE v1 |
 | Secrets | `APP_ENV`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `NOTIFICATION_DISPATCH_SECRET` |
-| Vault | `koupa_notification_dispatch_secret` |
+| Vault | `koupa_notification_dispatch_secret` (historical name; cron active) |
 | Scheduler | `pg_cron` job `koupa-notification-dispatch` `* * * * *` **active** |
-| Appointment transitions | DB cron `koupa-appointment-transitions` **active** (not the Edge Function) |
+| Appointment transitions | DB cron `koupa-appointment-transitions` **active** (recent runs succeeded) |
+| Schema | Through `20260818000100` (notification destinations + phone unique index) |
 
 Manual invoke (optional):
 
@@ -44,52 +50,53 @@ supabase functions deploy dispatch-notifications
 # secrets already present; only set when rotating
 ```
 
-## Production (still open)
+## Production (CLI verified 2026-08-18)
 
-Project `hrcwhswzscfbpbllqkri` currently has:
+Project `hrcwhswzscfbpbllqkri`:
 
-- `appointment-transitions` Edge Function v1 only
-- **no** `dispatch-notifications`
-- **no** push secrets (`APP_ENV`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `NOTIFICATION_DISPATCH_SECRET`)
-- appointment DB cron **is** active
-- schema lag: missing migrations `20260726000100` … `20260728000100`
+| Piece | Status |
+|---|---|
+| Function | `dispatch-notifications` ACTIVE **v3** (redeployed 2026-08-18) |
+| Phone alias | `sign-in-with-phone` ACTIVE v1 (deployed 2026-08-18) |
+| Secrets | `APP_ENV`, `NOTIFICATION_DISPATCH_SECRET`, `FIREBASE_SERVICE_ACCOUNT_JSON` present (SA set 2026-08-18) |
+| Scheduler | `koupa-notification-dispatch` **active** · `koupa-appointment-transitions` **active** |
+| Schema | Through `20260818000100` |
 
-### Production cutover checklist
+Push delivery on production still fails closed until the Firebase service-account secret is set. Function + cron already exist.
 
-1. Apply missing migrations after review (`supabase db push` while temporarily linked).
-2. Deploy worker:
-   ```sh
-   supabase link --project-ref hrcwhswzscfbpbllqkri
-   supabase functions deploy dispatch-notifications
-   supabase secrets set \
-     APP_ENV="production" \
-     NOTIFICATION_DISPATCH_SECRET="…" \
-     FIREBASE_SERVICE_ACCOUNT_JSON='…koupa-prod service account…'
-   ```
-3. Store the same dispatch secret in Vault as `koupa_notification_dispatch_secret`.
-4. Schedule (mirror staging):
-   ```sql
-   select cron.schedule(
-     'koupa-notification-dispatch',
-     '* * * * *',
-     $$select net.http_post(
-       url := 'https://hrcwhswzscfbpbllqkri.supabase.co/functions/v1/dispatch-notifications',
-       headers := jsonb_build_object(
-         'Content-Type', 'application/json',
-         'x-notification-dispatch-secret',
-         (select decrypted_secret from vault.decrypted_secrets where name = 'koupa_notification_dispatch_secret' limit 1)
-       ),
-       body := '{}'::jsonb,
-       timeout_milliseconds := 10000
-     )$$
-   );
-   ```
-5. Re-link staging:
-   ```sh
-   supabase link --project-ref zhdwaizroczkqzwrvfxf
-   ```
+### Where to get `FIREBASE_SERVICE_ACCOUNT_JSON` (`koupa-prod`)
 
-Never commit service-account JSON or dispatch secrets. Use `koupa-prod` Firebase SA for production only.
+1. Open [Firebase Console](https://console.firebase.google.com/) → project **`koupa-prod`**.
+2. Gear icon → **Project settings** → **Service accounts**.
+3. Confirm **Firebase Admin SDK** is selected.
+4. Click **Generate new private key** → confirm → download the JSON file.
+5. That file is the value for `FIREBASE_SERVICE_ACCOUNT_JSON` (minify to one line when setting via CLI).
+
+Do **not** use `koupa-dev` or `koupa-staging` keys on production. Never commit the JSON.
+
+Set it:
+
+```sh
+supabase secrets set FIREBASE_SERVICE_ACCOUNT_JSON="$(cat /path/to/koupa-prod-sa.json)" \
+  --project-ref hrcwhswzscfbpbllqkri
+```
+
+Do **not** rotate `NOTIFICATION_DISPATCH_SECRET` unless you also update Vault to the same value (cron reads Vault).
+
+Smoke after setting:
+
+```sh
+curl -X POST "https://hrcwhswzscfbpbllqkri.supabase.co/functions/v1/dispatch-notifications" \
+  -H "x-notification-dispatch-secret: $NOTIFICATION_DISPATCH_SECRET"
+```
+
+Expect HTTP 200 with `processed` / `delivered` / `failed`, not `Notification worker is not configured`.
+
+Then re-link staging:
+
+```sh
+supabase link --project-ref zhdwaizroczkqzwrvfxf
+```
 
 ## Client registration
 
@@ -100,4 +107,4 @@ Never commit service-account JSON or dispatch secrets. Use `koupa-prod` Firebase
 
 ## Cleanup
 
-After production cron proof, undeploy retired `appointment-transitions` Edge Function on both projects. Transitions are DB-only per `BOOKING-OPERATIONS.md`.
+Retired `appointment-transitions` Edge Function was undeployed from staging and production on 2026-08-18 after cron run proof. Transitions remain DB-only per `BOOKING-OPERATIONS.md`.
