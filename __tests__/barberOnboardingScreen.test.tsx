@@ -9,6 +9,7 @@ jest.mock('expo-router', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 16, left: 0 }),
+  SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 
 const mockSession = {
@@ -25,6 +26,7 @@ const validDraft = {
   ...defaultBarberDraft,
   name: 'أمين',
   phone: '0555000000',
+  shopName: 'محل النور',
   city: 'الجزائر',
   neighborhood: 'باب الوادي',
   mapsUrl: 'https://maps.app.goo.gl/example',
@@ -74,7 +76,7 @@ describe('BarberOnboardingScreen', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'التالي' }));
 
-    expect(await screen.findByText('أدخل اسما ورقم هاتف جزائريا صالحا.')).toBeTruthy();
+    expect(await screen.findByText('أدخل اسما ورقم هاتف جزائريا صالحا، واسم المحل إذا كنت مالكه.')).toBeTruthy();
     expect(mockSaveDraft).not.toHaveBeenCalled();
   });
 
@@ -83,6 +85,19 @@ describe('BarberOnboardingScreen', () => {
 
     expect(screen.getByRole('radio', { name: 'أملك محلا' })).toBeSelected();
     expect(screen.getByRole('radio', { name: 'أعمل في محل' })).not.toBeSelected();
+    expect(screen.getByLabelText('اسم المحل')).toBeTruthy();
+    expect(screen.getByLabelText('نبذة عن المحل (اختياري)')).toBeTruthy();
+  });
+
+  it('does not render owned-shop fields for workers', async () => {
+    mockHookValue = {
+      ...mockHookValue,
+      draft: { ...validDraft, workplaceType: 'worker', shopName: '', shopBio: '' },
+    };
+    await render(<BarberOnboardingScreen />);
+
+    expect(screen.queryByLabelText('اسم المحل')).toBeNull();
+    expect(screen.queryByLabelText('نبذة عن المحل (اختياري)')).toBeNull();
   });
 
   it('skips location fields for workers', async () => {
@@ -93,14 +108,16 @@ describe('BarberOnboardingScreen', () => {
     };
     await render(<BarberOnboardingScreen />);
 
-    expect(screen.getByText('نكمل ملفك أولا')).toBeTruthy();
-    expect(screen.queryByLabelText('رابط Google Maps')).toBeNull();
+    expect(screen.getByText('الموقع لاحقا')).toBeTruthy();
+    expect(screen.queryByLabelText('المدينة')).toBeNull();
   });
 
   it('shows owner location fields', async () => {
     mockHookValue = { ...mockHookValue, draftStep: 1 };
     await render(<BarberOnboardingScreen />);
-    expect(screen.getByLabelText('رابط Google Maps')).toBeTruthy();
+    expect(screen.getByText('موقع عملك')).toBeTruthy();
+    expect(screen.getByLabelText('المدينة')).toBeTruthy();
+    expect(screen.getByLabelText('الحي')).toBeTruthy();
   });
 
   it('shows service add actions', async () => {
@@ -110,7 +127,7 @@ describe('BarberOnboardingScreen', () => {
       draft: { ...validDraft, services: [{ name: '', priceDzd: '', durationMinutes: '30' }] },
     };
     await render(<BarberOnboardingScreen />);
-    expect(screen.getByRole('button', { name: '+ إضافة خدمة' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'إضافة خدمة' })).toBeTruthy();
   });
 
   it('allows direct review edits', async () => {
@@ -137,5 +154,47 @@ describe('BarberOnboardingScreen', () => {
 
     expect(await screen.findByText('تحقق من الاتصال بالإنترنت')).toBeTruthy();
     expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it('moves back locally when a draft save is unavailable', async () => {
+    mockHookValue = { ...mockHookValue, draftStep: 1 };
+    mockSaveDraft.mockRejectedValueOnce(new Error('Network request failed'));
+    await render(<BarberOnboardingScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'رجوع' }));
+
+    expect(screen.getByText(/1\/5/)).toBeTruthy();
+    expect(mockSaveDraft).not.toHaveBeenCalled();
+  });
+
+  it('offers account exit on every onboarding step and reports sign-out failures', async () => {
+    mockHookValue = { ...mockHookValue, draftStep: 2 };
+    mockSession.signOut.mockRejectedValueOnce(new Error('Network request failed'));
+    await render(<BarberOnboardingScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'تغيير الحساب' }));
+
+    expect(await screen.findByText('تحقق من الاتصال بالإنترنت')).toBeTruthy();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it('publishes into the Today tab after a successful review', async () => {
+    mockHookValue = { ...mockHookValue, draft: validDraft, draftStep: 4 };
+    await render(<BarberOnboardingScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'نشر الملف' }));
+
+    await waitFor(() => {
+      expect(mockPublishBarber).toHaveBeenCalled();
+      expect(router.replace).toHaveBeenCalledWith('/(barber)/today');
+    });
+  });
+
+  it('exposes schedule presets on the hours step', async () => {
+    mockHookValue = { ...mockHookValue, draftStep: 3 };
+    await render(<BarberOnboardingScreen />);
+
+    expect(screen.getByRole('button', { name: 'الأحد-الخميس 9-18' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'إعادة الافتراضي' })).toBeTruthy();
   });
 });

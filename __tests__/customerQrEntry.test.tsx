@@ -19,6 +19,7 @@ jest.mock('expo-router', () => {
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 16, left: 0 }),
+  SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 
 jest.mock('../src/providers/SessionProvider', () => ({
@@ -35,13 +36,13 @@ jest.mock('../src/hooks/useBooking', () => ({
   }),
 }));
 
-function appointment(status: Appointment['status']): Appointment {
+function appointment(status: Appointment['status'], startsAt = new Date(Date.now() + 15 * 60_000).toISOString()): Appointment {
   return {
     id: 'appointment-id',
     barber_id: 'barber-id',
     service_id: 'service-id',
-    starts_at: '2026-07-29T13:00:00Z',
-    ends_at: '2026-07-29T13:30:00Z',
+    starts_at: startsAt,
+    ends_at: new Date(new Date(startsAt).getTime() + 30 * 60_000).toISOString(),
     price_dzd: 800,
     status,
     service_name: 'حلاقة شعر',
@@ -49,14 +50,16 @@ function appointment(status: Appointment['status']): Appointment {
   };
 }
 
-const expectedRoute = {
-  pathname: '/scan',
-  params: {
-    appointmentId: 'appointment-id',
-    barberName: 'أحمد',
-    startsAt: '2026-07-29T13:00:00Z',
-  },
-};
+function expectedScanRoute(startsAt: string) {
+  return {
+    pathname: '/scan',
+    params: {
+      appointmentId: 'appointment-id',
+      barberName: 'أحمد',
+      startsAt,
+    },
+  };
+}
 
 describe('customer QR entry points', () => {
   beforeEach(() => {
@@ -64,11 +67,12 @@ describe('customer QR entry points', () => {
   });
 
   it('opens the scanner with appointment context from Home', async () => {
-    mockLoadAppointments.mockResolvedValue([appointment('booked')]);
+    const item = appointment('booked');
+    mockLoadAppointments.mockResolvedValue([item]);
     await render(<CustomerHomeScreen />);
 
-    await fireEvent.press(await screen.findByText('مسح رمز الحضور'));
-    expect(mockPush).toHaveBeenCalledWith(expectedRoute);
+    await fireEvent.press(await screen.findByRole('button', { name: 'مسح رمز الحضور' }));
+    expect(mockPush).toHaveBeenCalledWith(expectedScanRoute(item.starts_at));
   });
 
   it('keeps the Home content scrollable when it exceeds the viewport', async () => {
@@ -92,11 +96,12 @@ describe('customer QR entry points', () => {
   });
 
   it('opens the scanner with appointment context from details', async () => {
-    mockLoadAppointments.mockResolvedValue([appointment('booked')]);
+    const item = appointment('booked');
+    mockLoadAppointments.mockResolvedValue([item]);
     await render(<AppointmentDetailScreen />);
 
     await fireEvent.press(await screen.findByRole('button', { name: 'مسح رمز الحضور' }));
-    expect(mockPush).toHaveBeenCalledWith(expectedRoute);
+    expect(mockPush).toHaveBeenCalledWith(expectedScanRoute(item.starts_at));
   });
 
   it('hides the details scanner action after attendance is confirmed', async () => {

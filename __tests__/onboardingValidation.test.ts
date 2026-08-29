@@ -14,6 +14,7 @@ function validDraft(): BarberDraft {
     name: 'أمين',
     phone: '0555000000',
     workplaceType: 'owner',
+    shopName: 'محل النور',
     city: 'الجزائر',
     neighborhood: 'باب الوادي',
     mapsUrl: 'https://maps.app.goo.gl/example',
@@ -38,17 +39,30 @@ describe('barber onboarding validation', () => {
     expect(validateBarberOnboardingStep(validDraft(), 0)).toBeNull();
   });
 
-  it('requires a Google Maps URL for owners', () => {
+  it('requires an owned shop name for owner onboarding', () => {
+    expect(validateBarberOnboardingStep({ ...validDraft(), shopName: '' }, 0)).toBe('basic');
+    expect(
+      validateBarberOnboardingStep({ ...validDraft(), workplaceType: 'worker', shopName: '' }, 0),
+    ).toBeNull();
+  });
+
+  it('requires a usable Maps URL or coordinates for owners', () => {
     expect(validateBarberOnboardingStep({ ...validDraft(), mapsUrl: 'https://example.com' }, 1)).toBe('location');
     expect(validateBarberOnboardingStep({ ...validDraft(), mapsUrl: 'https://evilgoogle.com/maps' }, 1)).toBe('location');
     expect(validateBarberOnboardingStep({ ...validDraft(), mapsUrl: 'https://google.evil.com/maps' }, 1)).toBe('location');
     expect(validateBarberOnboardingStep({ ...validDraft(), mapsUrl: 'https://goo.gl' }, 1)).toBe('location');
     expect(
       validateBarberOnboardingStep(
-        { ...validDraft(), mapsUrl: '', latitude: '36.75', longitude: '3.05' },
+        { ...validDraft(), mapsUrl: '', latitude: '', longitude: '' },
         1,
       ),
     ).toBe('location');
+    expect(
+      validateBarberOnboardingStep(
+        { ...validDraft(), mapsUrl: '', latitude: '36.75', longitude: '3.05' },
+        1,
+      ),
+    ).toBeNull();
   });
 
   it('allows workers to continue without location details', () => {

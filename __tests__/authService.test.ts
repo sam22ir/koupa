@@ -3,6 +3,8 @@ const mockGetUser = jest.fn();
 const mockLinkIdentity = jest.fn();
 const mockSignOut = jest.fn();
 const mockSignInWithPassword = jest.fn();
+const mockFunctionsInvoke = jest.fn();
+const mockSetSession = jest.fn();
 const mockSignUp = jest.fn();
 const mockUnlinkIdentity = jest.fn();
 const mockUpdateUser = jest.fn();
@@ -18,11 +20,15 @@ jest.mock('@/lib/supabase', () => ({
       getUser: (...args: unknown[]) => mockGetUser(...args),
       linkIdentity: (...args: unknown[]) => mockLinkIdentity(...args),
       signInWithPassword: (...args: unknown[]) => mockSignInWithPassword(...args),
+      setSession: (...args: unknown[]) => mockSetSession(...args),
       signUp: (...args: unknown[]) => mockSignUp(...args),
       signOut: (...args: unknown[]) => mockSignOut(...args),
       unlinkIdentity: (...args: unknown[]) => mockUnlinkIdentity(...args),
       updateUser: (...args: unknown[]) => mockUpdateUser(...args),
       verifyOtp: (...args: unknown[]) => mockVerifyOtp(...args),
+    },
+    functions: {
+      invoke: (...args: unknown[]) => mockFunctionsInvoke(...args),
     },
   },
 }));
@@ -35,9 +41,15 @@ jest.mock('@/lib/storage', () => ({
   },
 }));
 
-jest.mock('expo-auth-session', () => ({ makeRedirectUri: jest.fn(() => 'koupa://callback') }));
-jest.mock('expo-constants', () => ({ appOwnership: 'standalone' }));
-jest.mock('expo-linking', () => ({ addEventListener: jest.fn() }));
+jest.mock('expo-auth-session', () => ({ makeRedirectUri: jest.fn(() => 'https://localhost:8081/callback') }));
+jest.mock('expo-constants', () => ({
+  appOwnership: 'standalone',
+  executionEnvironment: 'standalone',
+}));
+jest.mock('expo-linking', () => ({
+  addEventListener: jest.fn(),
+  createURL: jest.fn(() => 'exp://127.0.0.1:8081/--/callback'),
+}));
 jest.mock('expo-web-browser', () => ({
   maybeCompleteAuthSession: jest.fn(),
 }));
@@ -51,9 +63,9 @@ jest.mock('react-native', () => ({
 
 import {
   completeAuthCallback,
-  authCallbackUrl,
   linkGoogleIdentity,
   signInWithPassword,
+  signInWithPhone,
   signUpWithPassword,
 } from '@/src/services/auth';
 
@@ -62,13 +74,6 @@ describe('auth callback service', () => {
     jest.clearAllMocks();
     delete process.env.TEST_PLATFORM_OS;
     delete process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL;
-  });
-
-  it('uses the configured public callback URL for production web auth', () => {
-    process.env.TEST_PLATFORM_OS = 'web';
-    process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL = 'https://app.example.com/callback';
-
-    expect(authCallbackUrl()).toBe('https://app.example.com/callback');
   });
 
   it('signs up with email/password and stores the required contact phone in metadata', async () => {
@@ -136,6 +141,29 @@ describe('auth callback service', () => {
       'koupa.pending-confirmation-type',
       'signup',
     );
+  });
+
+  it('resolves phone sign-in through the linked email session bridge', async () => {
+    const phoneSession = {
+      access_token: 'phone-token',
+      refresh_token: 'phone-refresh-token',
+      user: {
+        id: 'phone-user',
+        email: 'barber@example.com',
+        email_confirmed_at: '2026-08-18T00:00:00.000Z',
+      },
+    };
+    mockFunctionsInvoke.mockResolvedValue({ data: phoneSession, error: null });
+    mockSetSession.mockResolvedValue({ data: { session: phoneSession }, error: null });
+
+    await expect(signInWithPhone('0555 000 000', 'password123')).resolves.toEqual(phoneSession);
+    expect(mockFunctionsInvoke).toHaveBeenCalledWith('sign-in-with-phone', {
+      body: { phone: '+213555000000', password: 'password123' },
+    });
+    expect(mockSetSession).toHaveBeenCalledWith({
+      access_token: 'phone-token',
+      refresh_token: 'phone-refresh-token',
+    });
   });
 
   it('does not apply a pending signup role to a password-recovery callback', async () => {

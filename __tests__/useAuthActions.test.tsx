@@ -1,9 +1,11 @@
 import { act, renderHook } from '@testing-library/react-native';
 
 const mockSignInWithPassword = jest.fn();
+const mockSignInWithPhone = jest.fn();
 
 jest.mock('@/src/services/auth', () => ({
   signInWithPassword: (...args: unknown[]) => mockSignInWithPassword(...args),
+  signInWithPhone: (...args: unknown[]) => mockSignInWithPhone(...args),
   clearPendingRoleStorage: jest.fn(),
 }));
 
@@ -44,5 +46,26 @@ describe('useAuthActions email authentication', () => {
       'recovery@example.com',
       'signup',
     );
+  });
+
+  it('passes phone sign-in through the linked-account auth service', async () => {
+    mockSignInWithPhone.mockResolvedValue({
+      user: { email: 'barber@example.com', email_confirmed_at: '2026-08-18T00:00:00.000Z' },
+    });
+    const { result } = await renderHook(() =>
+      useAuthActions({
+        hasSession: false,
+        pendingConfirmationType: 'signup',
+        onPendingRole: jest.fn(),
+        onPendingConfirmation: jest.fn(),
+        onSignedOut: jest.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.signInWithPhone('+213555000000', 'password123');
+    });
+
+    expect(mockSignInWithPhone).toHaveBeenCalledWith('+213555000000', 'password123');
   });
 });

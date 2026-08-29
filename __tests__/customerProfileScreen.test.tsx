@@ -34,6 +34,7 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 16, left: 0 }),
+  SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 jest.mock('@/src/providers/SessionProvider', () => ({ useAppSession: () => mockSession }));
 jest.mock('@/src/hooks/useAccountLifecycle', () => ({

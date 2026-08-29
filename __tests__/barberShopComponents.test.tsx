@@ -44,6 +44,7 @@ describe('barber Shop shared components', () => {
     );
 
     expect(screen.getByText('ابدأ أو انضم إلى محل')).toBeTruthy();
+    expect(screen.queryByText('ك')).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: 'البحث عن محل' }));
     await fireEvent.press(screen.getByRole('button', { name: 'إنشاء محل' }));
     expect(primary).toHaveBeenCalledTimes(1);

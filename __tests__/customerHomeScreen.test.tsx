@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 
 import CustomerHomeScreen from '../app/(customer)/home';
@@ -7,12 +7,16 @@ import { RecentBarbers } from '@/src/features/customer-home/RecentBarbers';
 
 const mockLoadAppointments = jest.fn();
 const mockPush = jest.fn();
+let focusCallback: (() => void) | null = null;
 
 jest.mock('expo-router', () => {
   const ReactModule = jest.requireActual<typeof React>('react');
   return {
     router: { push: (...args: unknown[]) => mockPush(...args), back: jest.fn() },
-    useFocusEffect: (callback: () => void) => ReactModule.useEffect(callback, [callback]),
+    useFocusEffect: (callback: () => void) => {
+      focusCallback = callback;
+      return ReactModule.useEffect(callback, [callback]);
+    },
   };
 });
 
@@ -30,6 +34,7 @@ jest.mock('@/src/hooks/useBooking', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 16, left: 0 }),
+  SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 
 function appointment(overrides: Partial<Appointment>): Appointment {
@@ -43,12 +48,14 @@ function appointment(overrides: Partial<Appointment>): Appointment {
     status: overrides.status ?? 'booked',
     service_name: overrides.service_name ?? 'حلاقة شعر',
     barber_name: overrides.barber_name ?? 'أحمد',
+    shop_name: overrides.shop_name ?? 'صالون النور',
   };
 }
 
 describe('customer Home recent barbers', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    focusCallback = null;
   });
 
   it('opens the selected barber profile through the callback', async () => {
@@ -91,7 +98,10 @@ describe('customer Home recent barbers', () => {
     expect(view.queryByText('مواعيدي')).toBeNull();
     expect(view.queryByText('ابحث عن حلاق أو محل')).toBeNull();
     await fireEvent.press(view.getByRole('button', { name: /أحمد/ }));
-    expect(mockPush).toHaveBeenCalledWith('/barber/barber-1');
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/barber/[id]',
+      params: { id: 'barber-1', returnTo: '/home' },
+    });
   });
 
   it('keeps appointment actions contextual for booked and present appointments', async () => {
@@ -102,10 +112,19 @@ describe('customer Home recent barbers', () => {
       ends_at: new Date(new Date(bookedStart).getTime() + 30 * 60_000).toISOString(),
     })]);
     const bookedView = await render(<CustomerHomeScreen />);
-    expect(await bookedView.findByText('إدارة الموعد')).toBeTruthy();
-    expect(bookedView.getByText('مسح رمز الحضور')).toBeTruthy();
-    expect(bookedView.getByText('إعادة جدولة')).toBeTruthy();
-    expect(bookedView.getByText('إلغاء الموعد')).toBeTruthy();
+    expect(await bookedView.findByText('موعدك القادم')).toBeTruthy();
+    expect(bookedView.getByText('صالون النور')).toBeTruthy();
+    expect(bookedView.queryByText('أح')).toBeNull();
+    expect(bookedView.getByText('الوقت')).toBeTruthy();
+    expect(bookedView.getByText('السعر')).toBeTruthy();
+    expect(await bookedView.findByRole('button', { name: 'تفاصيل الموعد' })).toBeTruthy();
+    expect(bookedView.queryByText('مسح الحضور')).toBeNull();
+    expect(bookedView.queryByText('إعادة الجدولة')).toBeNull();
+    expect(bookedView.queryByText('إلغاء الموعد')).toBeNull();
+    expect(bookedView.getByRole('button', { name: 'المزيد' })).toBeTruthy();
+    await fireEvent.press(bookedView.getByRole('button', { name: 'المزيد' }));
+    expect(bookedView.getByRole('button', { name: 'إعادة الجدولة' })).toBeTruthy();
+    expect(bookedView.getByRole('button', { name: 'إلغاء الموعد' })).toBeTruthy();
 
     const futureStart = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
     mockLoadAppointments.mockResolvedValue([appointment({
@@ -114,9 +133,25 @@ describe('customer Home recent barbers', () => {
       ends_at: new Date(new Date(futureStart).getTime() + 30 * 60_000).toISOString(),
     })]);
     const presentView = await render(<CustomerHomeScreen />);
-    expect(await presentView.findByText('إدارة الموعد')).toBeTruthy();
-    expect(presentView.queryByText('مسح رمز الحضور')).toBeNull();
+    expect(await presentView.findByRole('button', { name: 'تفاصيل الموعد' })).toBeTruthy();
+    expect(presentView.queryByText('مسح الحضور')).toBeNull();
+    expect(presentView.queryByText('إعادة الجدولة')).toBeNull();
     expect(presentView.queryByText('إلغاء الموعد')).toBeNull();
+  });
+
+  it('keeps the previous appointment visible with a compact retry action after refresh fails', async () => {
+    const start = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+    mockLoadAppointments.mockResolvedValueOnce([appointment({ starts_at: start })]).mockRejectedValueOnce(new Error('network'));
+    const view = await render(<CustomerHomeScreen />);
+
+    expect(await view.findByText('صالون النور')).toBeTruthy();
+    await act(async () => {
+      focusCallback?.();
+      await Promise.resolve();
+    });
+
+    expect(view.getByText('صالون النور')).toBeTruthy();
+    await waitFor(() => expect(view.getByRole('button', { name: 'إعادة المحاولة' })).toBeTruthy());
   });
 
   it('does not show the empty CTA after an initial load error', async () => {

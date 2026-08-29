@@ -5,6 +5,7 @@ import { Linking } from 'react-native';
 import ScanScreen from '../app/scan';
 
 const mockReplace = jest.fn();
+const mockDismissTo = jest.fn();
 const mockBack = jest.fn();
 const mockCanGoBack = jest.fn(() => true);
 const mockRequestPermission = jest.fn();
@@ -19,6 +20,7 @@ let mockPermission: { granted: boolean; canAskAgain: boolean } | null = {
 jest.mock('expo-router', () => ({
   router: {
     replace: (...args: unknown[]) => mockReplace(...args),
+    dismissTo: (...args: unknown[]) => mockDismissTo(...args),
     back: () => mockBack(),
     canGoBack: () => mockCanGoBack(),
   },
@@ -41,6 +43,7 @@ jest.mock('expo-camera', () => {
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 16, left: 0 }),
+  SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 
 jest.mock('../src/hooks/useBooking', () => ({
@@ -106,7 +109,7 @@ describe('ScanScreen', () => {
     expect(screen.getByTestId('qr-camera')).toBeTruthy();
   });
 
-  it('shows a successful result and opens the refreshed appointment', async () => {
+  it('dismisses to the refreshed appointment without duplicating its detail route', async () => {
     mockCheckInWithQr.mockResolvedValue({
       code: 'CHECKED_IN',
       appointmentId: 'appointment-id',
@@ -123,7 +126,8 @@ describe('ScanScreen', () => {
 
     expect(await screen.findByText('تم تسجيل حضورك بنجاح.')).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'عرض الموعد' }));
-    expect(mockReplace).toHaveBeenCalledWith('/appointment/appointment-id');
+    expect(mockDismissTo).toHaveBeenCalledWith('/appointment/appointment-id');
+    expect(mockReplace).not.toHaveBeenCalledWith('/appointment/appointment-id');
   });
 
   it.each([

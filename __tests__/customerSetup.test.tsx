@@ -7,6 +7,7 @@ jest.mock('expo-router', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 16, left: 0 }),
+  SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 
 const mockSession = {
@@ -43,7 +44,13 @@ describe('CustomerSetupScreen', () => {
   it('prefills the signup contact phone and allows changing accounts', async () => {
     await render(<CustomerSetupScreen />);
 
+    expect(screen.getByText('4/4')).toBeTruthy();
+    expect(screen.getByText('مرحبا بك في كوپا')).toBeTruthy();
+    expect(screen.getByText('خطوة واحدة وابدأ الحجز.')).toBeTruthy();
+    expect(screen.queryByText('خطوة واحدةحدة وابدأ الحجز.')).toBeNull();
     expect(screen.getByLabelText('رقم الهاتف')).toHaveDisplayValue('+213555000000');
+    expect(screen.getByText('نستخدمه ليتواصل معك الحلاق بعد تأكيد الموعد.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'ابدأ استخدام كوپا' })).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'تغيير الحساب' }));
 
     await waitFor(() => {

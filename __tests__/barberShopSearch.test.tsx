@@ -6,10 +6,11 @@ import ShopSearchScreen from '@/app/(barber)/shop-search';
 import type { ShopSummary } from '@/src/shops';
 
 const mockRouterPush = jest.fn();
+const mockRouterReplace = jest.fn();
 
 jest.mock('expo-router', () => ({
-  router: { push: mockRouterPush, replace: jest.fn(), back: jest.fn() },
-  useRouter: () => ({ push: mockRouterPush, replace: jest.fn(), back: jest.fn() }),
+  router: { push: mockRouterPush, replace: mockRouterReplace, back: jest.fn(), dismissTo: jest.fn() },
+  useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace, back: jest.fn(), dismissTo: jest.fn() }),
   useLocalSearchParams: jest.fn(() => ({})),
 }));
 
@@ -42,6 +43,7 @@ jest.mock('@/src/providers/SessionProvider', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 16, left: 0 }),
+  SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 
 const shop: ShopSummary = {
@@ -91,8 +93,18 @@ describe('barber Shop discovery workflow', () => {
     await fireEvent.changeText(screen.getByLabelText('البحث عن حلاق'), 'عمر');
     await fireEvent.press(screen.getByRole('button', { name: 'بحث' }));
     expect(await screen.findByText('عمر')).toBeTruthy();
-    await fireEvent.press(screen.getByRole('button', { name: 'دعوة' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'دعوة حلاق' }));
     expect(mockInviteBarber).toHaveBeenCalledWith('barber-2');
+  });
+
+  it('returns to the shop workspace from invite search', async () => {
+    const expoRouter = jest.requireMock('expo-router') as { useLocalSearchParams: jest.Mock };
+    expoRouter.useLocalSearchParams.mockReturnValue({ mode: 'invite' });
+    const screen = await render(<ShopSearchScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'رجوع' }));
+
+    expect(mockRouterReplace).toHaveBeenCalledWith('/shop');
   });
 
   it('does not show an idle shop-load error before the invite search is submitted', async () => {
