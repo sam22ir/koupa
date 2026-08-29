@@ -1,4 +1,33 @@
 /**
+ * Expo's winter runtime installs `fetch` and friends as lazy getters that
+ * require expo-modules-core on first touch. That require runs
+ * setUpJsLogger.fx.ts, which warns because the ExpoModulesCoreJSLogger native
+ * module does not exist under Jest. If the first touch happens after a test
+ * file has finished, the warning lands on a console Jest already tore down and
+ * Jest exits 1 even though every suite passed (reproduces with --runInBand).
+ *
+ * Realising the getters here keeps that warning inside a live test context,
+ * where it is harmless noise, instead of turning it into a post-teardown error.
+ */
+for (const name of [
+  'fetch',
+  'Headers',
+  'Request',
+  'Response',
+  'FormData',
+  'Blob',
+  'File',
+  'atob',
+  'btoa',
+]) {
+  try {
+    void globalThis[name];
+  } catch {
+    // The lazy require may itself warn; either way it is no longer late.
+  }
+}
+
+/**
  * Jest setup: wrap @testing-library/react-native `render` with
  * HeroUINativeProvider so screen tests render HeroUI Native components
  * inside the provider they require at runtime (mirrors app/_layout.tsx).
