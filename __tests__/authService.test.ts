@@ -256,4 +256,29 @@ describe('auth callback service', () => {
     });
     expect(mockLinkIdentity).not.toHaveBeenCalled();
   });
+
+  it('exchanges the same PKCE code only once when two consumers race for it', async () => {
+    const user = {
+      id: 'race-user',
+      identities: [{ provider: 'email' }],
+      user_metadata: { koupa_role: 'customer', koupa_signup_consent: true },
+    };
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { session: { user }, user },
+      error: null,
+    });
+
+    // Call with the same code concurrently, as the sign-in screen's inline
+    // consumer and the deep-linked /callback route do in production.
+    const [first, second] = await Promise.all([
+      completeAuthCallback('koupa://callback?code=race-code'),
+      completeAuthCallback('koupa://callback?code=race-code'),
+    ]);
+
+    expect(first).toEqual({ kind: 'session' });
+    expect(second).toEqual({ kind: 'session' });
+    // exchangeCodeForSession is resolved once via the shared promise.
+    expect(mockExchangeCodeForSession).toHaveBeenCalledTimes(1);
+    expect(mockExchangeCodeForSession).toHaveBeenCalledWith('race-code');
+  });
 });
