@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Checkbox } from 'heroui-native/checkbox';
 import { ControlField } from 'heroui-native/control-field';
 import { FieldError } from 'heroui-native/field-error';
-import { Typography } from 'heroui-native/text';
 
 import { BackButton, BrandLogo, Button, Icon, type IconName } from '@/src/components/ui';
 import { PRIVACY_URL, TERMS_URL } from '@/src/config/legal';
