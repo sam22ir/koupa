@@ -114,3 +114,7 @@ export function useBooking() {
 export async function loadCustomerAppointments(): Promise<readonly Appointment[]> {
   return bookingService.loadCustomerAppointments();
 }
+
+export async function loadBarberAppointment(appointmentId: string): Promise<TodayAppointment | null> {
+  return bookingService.loadBarberAppointment(appointmentId);
+}

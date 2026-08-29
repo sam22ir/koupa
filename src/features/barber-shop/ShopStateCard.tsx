@@ -63,7 +63,7 @@ function defaultBody(kind: Props['kind']): string {
     case 'member':
       return t('shopWorkspace.memberBody');
     case 'owner':
-      return t('shopWorkspace.ownerBody');
+      return '';
     default:
       return '';
   }
@@ -95,7 +95,9 @@ export function ShopStateCard({
             </View>
           ) : null}
         </View>
-        <Avatar initials={initials(displayName ?? t('brand'))} size={52} />
+        {kind !== 'owner' && kind !== 'none' ? (
+          <Avatar initials={initials(displayName ?? t('brand'))} size={52} />
+        ) : null}
       </View>
 
       {membership ? (
@@ -111,9 +113,9 @@ export function ShopStateCard({
       {metrics?.length ? (
         <View style={styles.metrics} accessibilityRole="summary">
           {metrics.map((metric) => (
-            <View key={metric.label} style={styles.metric}>
-              <Text style={styles.metricValue} numberOfLines={1}>{metric.value}</Text>
+            <View key={metric.label} testID={`shop-metric-${metric.label}`} style={styles.metric}>
               <Text style={styles.metricLabel} numberOfLines={1}>{metric.label}</Text>
+              <Text style={styles.metricValue} numberOfLines={1}>{metric.value}</Text>
             </View>
           ))}
         </View>

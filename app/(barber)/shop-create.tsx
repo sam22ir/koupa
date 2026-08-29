@@ -2,6 +2,8 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { LocationPicker } from '@/src/components/location/LocationPicker';
+import { BackButton } from '@/src/components/ui/BackButton';
 import { Button } from '@/src/components/ui/Button';
 import { ErrorBanner } from '@/src/components/ui/ErrorBanner';
 import { Field } from '@/src/components/ui/Field';
@@ -13,8 +15,8 @@ import { emptyShopDraft, validateShopDraft, type ShopDraft } from '@/src/shops';
 import { space } from '@/src/theme';
 
 function validationMessage(error: string): string | null {
-  if (error === 'locationRequired') return 'الموقع مطلوب';
-  if (error === 'validation') return 'راجع اسم المحل وبيانات الموقع';
+  if (error === 'locationRequired') return t('errors.LOCATION_REQUIRED');
+  if (error === 'validation') return t('errors.VALIDATION');
   return null;
 }
 
@@ -36,19 +38,33 @@ export default function ShopCreateScreen() {
       setValidation(error);
       return;
     }
-    if (await shops.createShop(draft)) router.replace('/(barber)/shop' as never);
+    if (await shops.createShop(draft)) router.dismissTo('/(barber)/shop');
   };
 
   return (
     <Screen scroll>
-      <ScreenTitle title={t('shopWorkspace.create')} subtitle="أنشئ مساحة واضحة لإدارة حلاقينك" />
+      <BackButton fallback="/(barber)/shop" />
+      <ScreenTitle title={t('shopWorkspace.create')} subtitle={t('shopWorkspace.createSubtitle')} />
       <ErrorBanner error={validationMessage(validation ?? shops.error)} />
       <View style={styles.form}>
-        <Field label="اسم المحل" value={draft.name} onChangeText={(name) => update({ name })} />
-        <Field label="نبذة (اختياري)" value={draft.bio} onChangeText={(bio) => update({ bio })} multiline />
-        <Field label="رابط الخرائط" value={draft.mapsUrl} onChangeText={(mapsUrl) => update({ mapsUrl })} autoCapitalize="none" keyboardType="url" />
-        <Field label="خط العرض (اختياري)" value={draft.latitude} onChangeText={(latitude) => update({ latitude })} keyboardType="decimal-pad" />
-        <Field label="خط الطول (اختياري)" value={draft.longitude} onChangeText={(longitude) => update({ longitude })} keyboardType="decimal-pad" />
+        <Field label={t('shopWorkspace.shopNameField')} value={draft.name} onChangeText={(name) => update({ name })} />
+        <Field label={t('shopWorkspace.bioField')} value={draft.bio} onChangeText={(bio) => update({ bio })} multiline />
+        <Field
+          label={t('shopWorkspace.mapsUrlField')}
+          value={draft.mapsUrl}
+          onChangeText={(mapsUrl) => update({ mapsUrl })}
+          autoCapitalize="none"
+          keyboardType="url"
+        />
+        <LocationPicker
+          latitude={draft.latitude}
+          longitude={draft.longitude}
+          onChange={(next) => update({
+            latitude: next.latitude,
+            longitude: next.longitude,
+            mapsUrl: next.mapsUrl,
+          })}
+        />
         <Button label={t('shopWorkspace.create')} onPress={() => void create()} loading={shops.saving} />
       </View>
     </Screen>

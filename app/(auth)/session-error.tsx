@@ -37,7 +37,11 @@ export default function SessionErrorScreen() {
   };
 
   return (
-    <AuthShell title="تعذر تحميل الجلسة" subtitle="تحقق من الاتصال ثم حاول مرة أخرى.">
+    <AuthShell
+      title={t('auth.sessionErrorTitle')}
+      subtitle={t('auth.sessionErrorBody')}
+      showBack={false}
+    >
       <ErrorBanner error={error || bootstrapError} />
       <Button label={t('common.retry')} loading={busy} onPress={() => void retry()} />
       <Button

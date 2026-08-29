@@ -1,7 +1,7 @@
 const environment = process.env.EXPO_PUBLIC_APP_ENV || 'development';
 const firebaseConfig = {
-  staging: './google-services.staging.json',
-  production: './google-services.production.json',
+  staging: process.env.GOOGLE_SERVICES_STAGING || './google-services.staging.json',
+  production: process.env.GOOGLE_SERVICES_PRODUCTION || './google-services.production.json',
 }[environment];
 
 module.exports = ({ config: baseConfig }) => ({
@@ -15,6 +15,9 @@ module.exports = ({ config: baseConfig }) => ({
     'expo-font',
     'expo-splash-screen',
     ['expo-camera', { recordAudioAndroid: false }],
+    ['expo-location', {
+      locationWhenInUsePermission: 'اسمح لتطبيق كوپا باستخدام موقعك لعرض المحلات القريبة.',
+    }],
     'expo-sharing',
     '@react-native-community/datetimepicker',
   ])),
@@ -26,6 +29,17 @@ module.exports = ({ config: baseConfig }) => ({
   android: {
     ...baseConfig.android,
     ...(firebaseConfig ? { googleServicesFile: firebaseConfig } : {}),
+    intentFilters: [
+      ...((baseConfig.android && baseConfig.android.intentFilters) || []),
+      {
+        action: 'VIEW',
+        category: ['BROWSABLE', 'DEFAULT'],
+        data: [
+          { scheme: 'koupa', host: 'callback' },
+          { scheme: 'koupa', pathPrefix: '/callback' },
+        ],
+      },
+    ],
   },
   extra: {
     ...(baseConfig.extra || {}),

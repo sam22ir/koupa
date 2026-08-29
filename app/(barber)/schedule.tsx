@@ -1,8 +1,7 @@
-import { useNavigation } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { BrandLogo, ErrorBanner, Icon, Screen, Stage } from '@/src/components/ui';
+import { CustomerStageHeader, ErrorBanner, Icon, Screen } from '@/src/components/ui';
 import { BookingRulesEditor } from '@/src/features/barber-schedule/BookingRulesEditor';
 import { ExceptionEditor } from '@/src/features/barber-schedule/ExceptionEditor';
 import { ScheduleWorkspaceTabs, type WorkspaceTab } from '@/src/features/barber-schedule/ScheduleWorkspaceTabs';
@@ -12,6 +11,7 @@ import { validateWorkspace } from '@/src/features/barber-schedule/model';
 import { WeeklyScheduleEditor } from '@/src/features/barber-schedule/WeeklyScheduleEditor';
 import { WorkspaceSwitch } from '@/src/features/barber-schedule/WorkspaceSwitch';
 import { useBarberSettings } from '@/src/hooks/useBarberSettings';
+import { useUnsavedWorkspaceLeaveGuard } from '@/src/hooks/useUnsavedWorkspaceLeaveGuard';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors, layout, radii, space, typography } from '@/src/theme';
@@ -24,14 +24,13 @@ function firstInvalidTab(errors: ReturnType<typeof validateWorkspace>): Workspac
 }
 
 function errorMessage(code: string) {
-  if (code === 'invalidTime') return 'تحقق من ساعات العمل والاستراحات.';
-  if (code === 'validation') return 'راجع البيانات المطلوبة قبل الحفظ.';
-  if (code) return 'تعذر حفظ التغييرات. بقيت مسودتك كما هي.';
+  if (code === 'invalidTime') return t('scheduleWorkspace.invalidTime');
+  if (code === 'validation') return t('scheduleWorkspace.validation');
+  if (code) return t('scheduleWorkspace.saveFailed');
   return '';
 }
 
 export default function BarberScheduleScreen() {
-  const navigation = useNavigation();
   const { profile, session } = useAppSession();
   const settings = useBarberSettings({ userId: session?.user.id ?? profile?.id });
   const { dirty, draft, reset, save: persistSave } = settings;
@@ -44,36 +43,7 @@ export default function BarberScheduleScreen() {
     return persistSave();
   }, [draft, persistSave]);
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
-      if (!dirty) return;
-      event.preventDefault();
-      Alert.alert(
-        t('scheduleWorkspace.leaveTitle'),
-        t('scheduleWorkspace.leaveBody'),
-        [
-          { text: t('scheduleWorkspace.keepEditing'), style: 'cancel' },
-          {
-            text: t('scheduleWorkspace.discard'),
-            style: 'destructive',
-            onPress: () => {
-              reset();
-              navigation.dispatch(event.data.action);
-            },
-          },
-          {
-            text: t('common.save'),
-            onPress: () => {
-              void save().then((ok) => {
-                if (ok) navigation.dispatch(event.data.action);
-              });
-            },
-          },
-        ],
-      );
-    });
-    return unsubscribe;
-  }, [dirty, navigation, reset, save]);
+  useUnsavedWorkspaceLeaveGuard({ dirty, reset, save });
 
   const workspaceErrors = {
     schedule: Boolean(settings.errors.schedule || settings.errors.exceptions),
@@ -96,32 +66,27 @@ export default function BarberScheduleScreen() {
       t('scheduleWorkspace.pauseTitle'),
       t('scheduleWorkspace.pauseBody'),
       [
-        { text: 'إلغاء', style: 'cancel' },
-        { text: 'إيقاف', style: 'destructive', onPress: () => updateSettings({ isBookingPaused: true }) },
+        { text: t('scheduleWorkspace.pauseCancel'), style: 'cancel' },
+        { text: t('scheduleWorkspace.pauseConfirm'), style: 'destructive', onPress: () => updateSettings({ isBookingPaused: true }) },
       ],
     );
   };
 
   return (
     <Screen padded={false} loading={settings.loading} style={styles.screen}>
-      <Stage decoration="subtle">
-        <View style={styles.stageTopRow}>
-          <View style={styles.logoWrap}>
-            <BrandLogo variant="full" height={56} imageStyle={styles.logoImage} />
-            <View style={styles.logoAccent} />
-          </View>
-          {settings.dirty ? (
+      <CustomerStageHeader
+        tone="paper"
+        title={t('scheduleWorkspace.title')}
+        subtitle={t('scheduleWorkspace.subtitle')}
+        trailing={
+          settings.dirty ? (
             <View style={styles.dirtyBadge}>
               <View style={styles.dirtyDot} />
               <Text style={styles.dirtyBadgeText}>{t('scheduleWorkspace.dirty')}</Text>
             </View>
-          ) : null}
-        </View>
-        <View style={styles.stageTitleBlock}>
-          <Text style={styles.title}>{t('scheduleWorkspace.title')}</Text>
-          <Text style={styles.subtitle}>{t('scheduleWorkspace.subtitle')}</Text>
-        </View>
-      </Stage>
+          ) : null
+        }
+      />
 
       <View style={styles.workspace}>
         <ScrollView
@@ -200,26 +165,16 @@ export default function BarberScheduleScreen() {
 }
 
 const styles = StyleSheet.create({
-  stageTopRow: {
-    minHeight: 58,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'flex-end',
-    gap: space[3],
-  },
-  logoWrap: { position: 'absolute', left: 0, top: 0, alignItems: 'center', gap: space[2] },
-  logoImage: { tintColor: colors.onPrimary, opacity: 0.96 },
-  logoAccent: { width: space[6], height: 3, borderRadius: radii.pill, backgroundColor: colors.accent },
-  dirtyBadge: { maxWidth: 160, flexDirection: 'row-reverse', alignItems: 'center', gap: space[2], paddingTop: space[2] },
+  dirtyBadge: { maxWidth: 160, flexDirection: 'row-reverse', alignItems: 'center', gap: space[2] },
   dirtyDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent },
-  dirtyBadgeText: { ...typography.caption, color: colors.onPrimaryMuted, textAlign: 'right' },
-  stageTitleBlock: { gap: space[1], alignItems: 'flex-end' },
-  title: { ...typography.title, color: colors.onPrimary, textAlign: 'right' },
-  subtitle: { ...typography.body, color: colors.onPrimaryMuted, textAlign: 'right' },
+  dirtyBadgeText: { ...typography.caption, color: colors.accentText, textAlign: 'right' },
   screen: { backgroundColor: colors.workspace },
-  workspace: { flex: 1, marginTop: -space[5], backgroundColor: colors.workspace },
+  workspace: {
+    flex: 1,
+    backgroundColor: colors.workspace,
+  },
   scroll: { flex: 1, backgroundColor: colors.workspace },
-  scrollContent: { gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[8] },
+  scrollContent: { gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[16] + space[4] },
   success: { minHeight: 42, flexDirection: 'row-reverse', alignItems: 'center', gap: space[2], borderRadius: radii.md, backgroundColor: colors.successSoft, paddingHorizontal: space[3] },
   successText: { ...typography.caption, color: colors.primary, textAlign: 'right' },
   bookingControl: {

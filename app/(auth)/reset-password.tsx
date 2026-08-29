@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable } from 'react-native';
-import { StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { isValidPassword } from '@/src/auth';
-import { Button, ErrorBanner, Field, Icon, Screen, ScreenTitle } from '@/src/components/ui';
+import { AuthShell, Button, ErrorBanner, Field, Icon } from '@/src/components/ui';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors, typography } from '@/src/theme';
@@ -44,18 +43,29 @@ export default function ResetPasswordScreen() {
     }
   };
 
+  const switchToSignIn = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await signOut();
+      router.replace('/(auth)/sign-in');
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (done) {
     return (
-      <Screen>
-        <ScreenTitle title={t('auth.resetPasswordTitle')} subtitle={t('auth.resetPasswordDone')} />
+      <AuthShell title={t('auth.resetPasswordTitle')} subtitle={t('auth.resetPasswordDone')} showBack={false}>
         <Button label={t('auth.goHome')} onPress={() => router.replace('/')} />
-      </Screen>
+      </AuthShell>
     );
   }
 
   return (
-    <Screen scroll>
-      <ScreenTitle title={t('auth.resetPasswordTitle')} subtitle={t('auth.resetPasswordBody')} />
+    <AuthShell title={t('auth.resetPasswordTitle')} subtitle={t('auth.resetPasswordBody')} showBack={false}>
       <Field
         label={t('auth.password')}
         value={password}
@@ -99,11 +109,10 @@ export default function ResetPasswordScreen() {
       <Button
         label={t('auth.signIn')}
         variant="secondary"
-        onPress={() => {
-          void signOut().finally(() => router.replace('/(auth)/sign-in'));
-        }}
+        disabled={busy}
+        onPress={() => void switchToSignIn()}
       />
-    </Screen>
+    </AuthShell>
   );
 }
 

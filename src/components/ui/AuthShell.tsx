@@ -1,25 +1,32 @@
-import { router, type Href } from 'expo-router';
+import type { Href } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Typography } from 'heroui-native/text';
 
-import { colors, layout, radii, space, typography } from '@/src/theme';
+import { colors, layout, space, typography } from '@/src/theme';
 
 import { BrandLogo } from './BrandLogo';
-import { Card } from './Card';
-import { Icon } from './Icon';
+import { BackButton } from './BackButton';
 
 type Props = {
   readonly title: string;
   readonly subtitle?: string;
+  /** Plain-text line above the title. Carries the one fact that frames the form. */
+  readonly kicker?: string;
+  readonly progress?: string;
   readonly backHref?: Href;
+  readonly showBack?: boolean;
   readonly children: ReactNode;
 };
 
 export function AuthShell({
   title,
   subtitle,
+  kicker,
+  progress,
   backHref = '/(auth)/welcome',
+  showBack = true,
   children,
 }: Props) {
   const insets = useSafeAreaInsets();
@@ -31,31 +38,22 @@ export function AuthShell({
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
     >
-      <View style={[styles.stage, { paddingTop: Math.max(insets.top, space[5]) }]}>
-        <View style={styles.decor} />
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, space[5]) }]}>
         <View testID="auth-shell-top-row" style={styles.topRow}>
-          <BrandLogo
-            variant="full"
-            height={44}
-            imageStyle={styles.logoImage}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="رجوع"
-            onPress={() => router.replace(backHref)}
-            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-          >
-            <Icon name="arrow-forward" size={22} color={colors.onPrimary} />
-          </Pressable>
+          <BrandLogo height={44} />
+          {showBack ? <BackButton fallback={backHref} tone="primary" /> : null}
         </View>
-        <View style={styles.accent} />
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <View style={styles.intro}>
+          {progress ? <Typography type="body-xs" color="muted" align="end" style={styles.progress}>{progress}</Typography> : null}
+          {kicker ? <Typography type="body-xs" align="end" style={styles.kicker}>{kicker}</Typography> : null}
+          <Typography type="h3" align="end" style={styles.title}>{title}</Typography>
+          {subtitle ? <Typography type="body" align="end" style={styles.subtitle}>{subtitle}</Typography> : null}
+        </View>
       </View>
 
-      <Card elevated style={styles.card}>
-        {children}
-      </Card>
+      {/* Fields bring their own surfaces, so the form sits on paper rather than
+          inside a second container. */}
+      <View style={styles.body}>{children}</View>
     </ScrollView>
   );
 }
@@ -68,68 +66,37 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
   },
-  stage: {
-    minHeight: 190,
-    overflow: 'hidden',
-    backgroundColor: colors.stage,
+  header: {
     paddingHorizontal: layout.screenPaddingX,
-    paddingBottom: space[12],
-  },
-  decor: {
-    position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    top: -72,
-    left: -64,
-    backgroundColor: 'rgba(255,255,255,0.035)',
+    paddingBottom: space[4],
   },
   topRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  logoImage: {
-    tintColor: colors.onPrimary,
-    opacity: 0.96,
+  intro: {
+    marginTop: space[9],
+    gap: space[1],
   },
-  backButton: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.stageOverlay,
+  progress: {
+    marginBottom: space[1],
   },
-  pressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  accent: {
-    width: space[8],
-    height: 3,
-    marginTop: space[5],
-    marginBottom: space[3],
-    marginLeft: 'auto',
-    borderRadius: radii.pill,
-    backgroundColor: colors.accent,
+  kicker: {
+    fontFamily: typography.label.fontFamily,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.primary,
   },
   title: {
-    ...typography.display,
-    color: colors.onPrimary,
-    textAlign: 'right',
     lineHeight: 38,
   },
   subtitle: {
     ...typography.body,
-    color: colors.onPrimaryMuted,
-    textAlign: 'right',
     lineHeight: 24,
-    marginTop: space[1],
   },
-  card: {
-    marginTop: -space[7],
-    marginHorizontal: layout.screenPaddingX,
-    gap: space[4],
+  body: {
+    paddingHorizontal: layout.screenPaddingX,
+    gap: space[5],
   },
 });

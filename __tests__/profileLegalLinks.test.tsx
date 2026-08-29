@@ -7,6 +7,7 @@ import CustomerProfileScreen from '../app/(customer)/profile';
 jest.mock('expo-router', () => ({ router: { push: jest.fn(), replace: jest.fn() } }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 16, left: 0 }),
+  SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 
 const mockSession = {
@@ -22,6 +23,7 @@ jest.mock('../src/providers/SessionProvider', () => ({ useAppSession: () => mock
 jest.mock('../src/hooks/useAccountLifecycle', () => ({
   useAccountLifecycle: () => ({ loading: false, error: null, deleteAccount: jest.fn(async () => true) }),
 }));
+jest.mock('../src/hooks/useShops', () => ({ useShops: jest.fn() }));
 jest.mock('../src/services/profile', () => ({
   updateProfileName: jest.fn(async () => undefined),
 }));
@@ -32,6 +34,10 @@ describe.each([
 ] as const)('%s profile legal links', (_role, ProfileScreen) => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSession.legalDocuments = [
+      { key: 'terms', version: '2026-07-29', url: 'https://example.test/terms' },
+      { key: 'privacy', version: '2026-07-29', url: 'https://example.test/privacy' },
+    ];
     jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
   });
 
@@ -51,5 +57,18 @@ describe.each([
     expect(Linking.openURL).toHaveBeenNthCalledWith(2, 'https://koupa-website.pages.dev/privacy/');
     expect(Linking.openURL).toHaveBeenNthCalledWith(3, 'https://koupa-website.pages.dev/account-deletion/');
     expect(Linking.openURL).toHaveBeenNthCalledWith(4, 'mailto:saadisamir20200@gmail.com');
+  });
+
+  it('still opens the live legal pages when database documents have not loaded', async () => {
+    mockSession.legalDocuments = [];
+    await render(<ProfileScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'الشروط' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'سياسة الخصوصية' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'معلومات حذف الحساب' }));
+
+    expect(Linking.openURL).toHaveBeenCalledWith('https://koupa-website.pages.dev/terms/');
+    expect(Linking.openURL).toHaveBeenCalledWith('https://koupa-website.pages.dev/privacy/');
+    expect(Linking.openURL).toHaveBeenCalledWith('https://koupa-website.pages.dev/account-deletion/');
   });
 });

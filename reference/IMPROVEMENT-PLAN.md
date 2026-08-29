@@ -4,11 +4,12 @@ Living plan for every fix and enhancement identified in the domain/service layer
 Frontend rebuild is owned by another agent — this plan **does not** redesign UI, routes, or design tokens.
 It **does** harden the contract the new frontend will consume.
 
-Last verified against live CLIs: **2026-07-28** (CLI `2.110.0`, staging re-linked).
+Last successful live CLI verification: **2026-08-18** (CLI `2.110.0`, staging linked).
+Migrations, functions, secrets inventory, and cron job queries succeeded on staging and production.
 
 ---
 
-## 0. Live environment snapshot (CLI)
+## 0. Environment snapshot (last successful CLI audit)
 
 ### Supabase CLI
 
@@ -18,15 +19,16 @@ Last verified against live CLIs: **2026-07-28** (CLI `2.110.0`, staging re-linke
 | Linked project | **Koupa Staging** `zhdwaizroczkqzwrvfxf` (West EU) |
 | Production project | **Koupa Production** `hrcwhswzscfbpbllqkri` (West EU, not currently linked) |
 | Local Docker | **Not available** (`docker` missing / daemon inactive) — local `supabase start` blocked |
-| Staging migrations | **16/16 in sync** including `20260728000100` |
-| Production migrations | **9 remote** · missing `20260726000100`…`20260728000100` (7 lagging) |
-| Staging functions | `appointment-transitions` ACTIVE v4 · `dispatch-notifications` ACTIVE v5 |
-| Production functions | `appointment-transitions` ACTIVE v1 only · **no `dispatch-notifications`** |
+| Staging migrations | In sync through `20260818000100` (verified 2026-08-18) |
+| Production migrations | In sync through `20260818000100` (verified 2026-08-18) |
+| Staging functions | `dispatch-notifications` ACTIVE v6 · `sign-in-with-phone` ACTIVE v1 |
+| Production functions | `dispatch-notifications` ACTIVE v3 · `sign-in-with-phone` ACTIVE v1 |
 | Staging secrets | `APP_ENV`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `NOTIFICATION_DISPATCH_SECRET`, plus platform keys |
-| Production secrets | Platform keys only · **missing push secrets** |
-| Staging cron | `koupa-appointment-transitions` + `koupa-notification-dispatch` both active |
-| Production cron | `koupa-appointment-transitions` active · **no notification dispatch job** |
-| `config.toml` | Only configures `dispatch-notifications` with `verify_jwt = false` |
+| Production secrets | `APP_ENV`, `NOTIFICATION_DISPATCH_SECRET`, `FIREBASE_SERVICE_ACCOUNT_JSON`, plus platform keys (SA set 2026-08-18) |
+| Staging cron | `koupa-appointment-transitions` + `koupa-notification-dispatch` both active (runs succeeded 2026-08-18) |
+| Production cron | `koupa-appointment-transitions` + `koupa-notification-dispatch` both active (runs succeeded 2026-08-18) |
+| Current working-tree migrations | Through `20260818000100_phone_sign_in_alias.sql` |
+| `config.toml` | `dispatch-notifications` + `sign-in-with-phone` with `verify_jwt = false` |
 
 ### Firebase CLI
 
@@ -40,9 +42,9 @@ Last verified against live CLIs: **2026-07-28** (CLI `2.110.0`, staging re-linke
 
 ### Product implication of CLI state
 
-1. Staging push worker is **deployed and secreted** — roadmap item “configure Firebase service-account secret” is **partially done for staging**, still open for **scheduler** + **production**.
-2. Production is **behind** on push delivery (function + secrets).
-3. `appointment-transitions` Edge Function is still live, but `reference/BOOKING-OPERATIONS.md` says transitions are **DB cron only** and the Edge Function is retired — clean up after verifying `pg_cron` job on both projects.
+1. Staging push worker and both cron jobs are active; appointment-transition runs succeeded on 2026-08-18.
+2. Production schema, dispatch function, phone function, cron jobs, and `FIREBASE_SERVICE_ACCOUNT_JSON` are present (SA set 2026-08-18). Remaining gate is a real Android device delivery check.
+3. Retired `appointment-transitions` Edge Function was undeployed from staging and production on 2026-08-18 after cron proof; transitions remain DB-only.
 4. Without Docker, **local migration dry-runs and local typegen from a local DB are blocked**. Use linked staging for typegen and SQL smoke tests until Docker is restored.
 
 ---
@@ -596,11 +598,11 @@ Mock `supabase.from/rpc` and assert:
 
 ### W10 — Push delivery finish (Firebase + Supabase)
 
-**CLI truth today**
+**CLI truth from the last successful audit (2026-07-28)**
 
 | Env | Function deployed | SA secret | Dispatch secret | APP_ENV | Trusted scheduler |
 |---|---|---|---|---|---|
-| Staging | Yes v5 | Yes | Yes | Yes | **Unknown / likely missing** |
+| Staging | Yes v5 (verified 2026-08-04) | Yes (verified 2026-08-04) | Yes (verified 2026-08-04) | Yes (verified 2026-08-04) | Yes, `koupa-notification-dispatch` (historical; SQL recheck pending) |
 | Production | **No** | **No** | **No** | **No** | No |
 
 **Tasks — Staging**
@@ -611,7 +613,7 @@ Mock `supabase.from/rpc` and assert:
      "https://zhdwaizroczkqzwrvfxf.supabase.co/functions/v1/dispatch-notifications" \
      -H "x-notification-dispatch-secret: $NOTIFICATION_DISPATCH_SECRET"
    ```
-2. Install **trusted scheduler** (Supabase scheduled trigger, GitHub Action cron with secret, or Cloud Scheduler) **once per minute**.
+2. Re-verify the existing **trusted scheduler** (`koupa-notification-dispatch`, once per minute) after Supabase CLI access is restored; do not create a duplicate job.
 3. Confirm invalid tokens delete and `push_delivered_at` stamps.
 4. Confirm staging prefix `【اختبار】` appears on device builds (not Expo Go).
 
@@ -649,7 +651,9 @@ Mock `supabase.from/rpc` and assert:
 **Tasks**
 
 1. **Legal documents (staging + production)**  
-   Replace example URLs with approved Terms/Privacy versions:
+   Staging approved Terms/Privacy rows were verified on 2026-07-28. Re-query
+   staging after access is restored, then publish approved rows to production
+   (production was historically empty and remains unverified):
    ```sql
    -- pattern from reference/AUTH-SETUP.md; use real URLs/versions
    insert into public.legal_documents (key, version, url, is_active) values
@@ -844,7 +848,7 @@ supabase link --project-ref zhdwaizroczkqzwrvfxf
 1. **W0:** Upgrade Supabase CLI; verify staging cron SQL; document Docker gap.
 2. **W1:** `supabase gen types typescript --linked --schema public > src/types/database.ts` and type the client.
 3. **W10:** Confirm staging scheduler for `dispatch-notifications` (secret already present).
-4. **W11:** Replace staging legal example URLs; audit production migrations via temporary link.
+4. **W11:** Re-verify approved staging legal URLs; audit production migrations via temporary link.
 5. **W2:** Design/implement `publish_barber_profile` + `replace_barber_settings` migrations.
 
 ---
@@ -854,8 +858,9 @@ supabase link --project-ref zhdwaizroczkqzwrvfxf
 ### W0 Tooling
 - [x] Supabase CLI upgraded (`2.110.0` via `~/.local/bin`)
 - [x] Local Docker strategy decided/documented (fallback: linked staging typegen; no destructive prod tests)
-- [x] Staging cron verified (appointment + notification dispatch)
-- [x] Production migration list captured (7 behind; see BOOKING-OPERATIONS)
+- [x] Staging cron verified (appointment + notification dispatch) on 2026-07-28
+- [x] Production migration parity verified (`23/23`, 2026-08-04)
+- [ ] Verify staging legal rows and cron runtime after the database SQL tunnel responds
 
 ### W1 Types
 - [x] `src/types/database.ts` generated
@@ -867,7 +872,8 @@ supabase link --project-ref zhdwaizroczkqzwrvfxf
 - [x] `publish_barber_profile` migration
 - [x] `replace_barber_settings` migration (+ shared owner helper)
 - [x] Client switched
-- [x] Staging applied (`20260728000100`)
+- [x] Staging applied through `20260803000100` (2026-08-04)
+- [ ] Owner-shop onboarding runtime smoke publish verified on staging
 
 ### W3 Services
 - [x] `src/services/*` skeleton
@@ -913,7 +919,7 @@ supabase link --project-ref zhdwaizroczkqzwrvfxf
 - [x] package scripts
 
 ### W10 Push
-- [x] Staging scheduler live (`koupa-notification-dispatch`)
+- [x] Staging scheduler live (`koupa-notification-dispatch`) as verified 2026-07-28
 - [ ] Staging device E2E
 - [ ] Prod function deployed
 - [ ] Prod secrets set
@@ -921,15 +927,16 @@ supabase link --project-ref zhdwaizroczkqzwrvfxf
 - [ ] Retire `appointment-transitions` Edge Function after cron proof
 
 ### W11 Release hygiene
-- [ ] Legal URLs staging (still `example.com` — needs approved docs)
+- [ ] Legal URLs staging re-queried after migration apply (SQL tunnel pending)
 - [ ] Legal URLs production
-- [x] Prod migrations audited (not yet applied; 7 lagging)
+- [x] Prod migrations applied and matched against the current repository set (2026-08-04)
 - [ ] Google OAuth Android verified
 
 ### W12 Docs
 - [x] FRONTEND-CONTRACT.md
 - [x] ROADMAP updated
-- [x] PUSH/BOOKING/AUTH docs match CLI
+- [x] PUSH/BOOKING/AUTH docs record the last successful CLI audit
+- [ ] Re-verify PUSH/BOOKING/AUTH docs against current CLI state after access is restored
 - [x] AGENTS.md scripts updated
 
 ---

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
 import { isValidEmail } from '@/src/auth';
-import { Button, ErrorBanner, Field, Screen, ScreenTitle } from '@/src/components/ui';
+import { AuthShell, Button, ErrorBanner, Field } from '@/src/components/ui';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors, typography } from '@/src/theme';
@@ -34,8 +34,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <Screen scroll>
-      <ScreenTitle title={t('auth.forgotPassword')} />
+    <AuthShell title={t('auth.forgotPassword')} backHref="/(auth)/sign-in">
       <Field
         label={t('auth.email')}
         value={email}
@@ -47,16 +46,11 @@ export default function ForgotPasswordScreen() {
       {message ? <Text style={styles.message}>{message}</Text> : null}
       <Button label={t('auth.sendReset')} onPress={() => void submit()} loading={busy} />
       <Button
-        label={t('common.back')}
-        variant="ghost"
-        onPress={() => router.replace('/(auth)/sign-in')}
-      />
-      <Button
         label={t('auth.signIn')}
         variant="secondary"
         onPress={() => router.replace('/(auth)/sign-in')}
       />
-    </Screen>
+    </AuthShell>
   );
 }
 

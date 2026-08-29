@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
-import { Button, ErrorBanner, Field, Screen, ScreenTitle } from '@/src/components/ui';
+import { AuthShell, Button, ErrorBanner, Field } from '@/src/components/ui';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors, typography } from '@/src/theme';
@@ -46,9 +46,26 @@ export default function ConfirmScreen() {
     }
   };
 
+  const switchAccount = async (destination: '/(auth)/sign-in' | '/(auth)/welcome') => {
+    setBusy(true);
+    setError(null);
+    try {
+      await signOut();
+      router.replace(destination);
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <Screen scroll>
-      <ScreenTitle title={t('auth.confirmTitle')} subtitle={t('auth.confirmBody')} />
+    <AuthShell
+      title={t('auth.confirmTitle')}
+      subtitle={t('auth.confirmBody')}
+      progress={t('auth.journeyConfirm')}
+      showBack={false}
+    >
       <Text style={styles.email}>{displayedEmail}</Text>
       <Text style={styles.hint}>{t('auth.confirmHint')}</Text>
       <Field
@@ -65,16 +82,16 @@ export default function ConfirmScreen() {
       <Button
         label={t('auth.signIn')}
         variant="secondary"
-        onPress={() => router.replace('/(auth)/sign-in')}
+        disabled={busy}
+        onPress={() => void switchAccount('/(auth)/sign-in')}
       />
       <Button
         label={t('common.logout')}
         variant="ghost"
-        onPress={() => {
-          void signOut().then(() => router.replace('/(auth)/welcome'));
-        }}
+        disabled={busy}
+        onPress={() => void switchAccount('/(auth)/welcome')}
       />
-    </Screen>
+    </AuthShell>
   );
 }
 

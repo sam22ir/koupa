@@ -25,6 +25,7 @@ jest.mock('@/src/hooks/useBooking', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 16, left: 0 }),
+  SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 
 function appointment(overrides: Partial<Appointment>): Appointment {
@@ -38,6 +39,7 @@ function appointment(overrides: Partial<Appointment>): Appointment {
     status: overrides.status ?? 'booked',
     service_name: overrides.service_name ?? 'حلاقة شعر',
     barber_name: overrides.barber_name ?? 'أحمد',
+    shop_name: overrides.shop_name ?? 'صالون النور',
   };
 }
 
@@ -47,8 +49,15 @@ describe('customer Appointments screen', () => {
   });
 
   it('defaults to upcoming and keeps past appointments out of the first view', async () => {
+    const upcomingStart = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
     mockLoadAppointments.mockResolvedValue([
-      appointment({ id: 'upcoming', status: 'booked', service_name: 'حلاقة ولحية بخدمة طويلة', barber_name: 'حلاق باسم طويل جدا لا يجب أن يدفع الإجراءات خارج البطاقة' }),
+      appointment({
+        id: 'upcoming',
+        status: 'booked',
+        service_name: 'حلاقة ولحية بخدمة طويلة',
+        barber_name: 'حلاق باسم طويل جدا لا يجب أن يدفع الإجراءات خارج البطاقة',
+        starts_at: upcomingStart,
+      }),
       appointment({ id: 'past', status: 'completed', service_name: 'قصّة شعر', starts_at: '2026-07-30T10:00:00.000Z' }),
       appointment({ id: 'cancelled', status: 'cancelled', service_name: 'تدريج احترافي', starts_at: '2026-07-29T10:00:00.000Z' }),
     ]);
@@ -58,6 +67,9 @@ describe('customer Appointments screen', () => {
     expect(view.getByRole('tab', { name: 'القادمة' })).toBeSelected();
     expect(view.getByText('حلاقة ولحية بخدمة طويلة')).toBeTruthy();
     expect(view.getByText('حلاق باسم طويل جدا لا يجب أن يدفع الإجراءات خارج البطاقة')).toBeTruthy();
+    expect(view.getByText('صالون النور')).toBeTruthy();
+    expect(view.getByRole('button', { name: 'تفاصيل الموعد' })).toBeTruthy();
+    expect(view.queryByText('مسح الحضور')).toBeNull();
     expect(view.queryByText('قصّة شعر')).toBeNull();
 
     await fireEvent.press(view.getByRole('tab', { name: 'السابقة' }));

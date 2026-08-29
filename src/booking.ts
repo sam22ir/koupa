@@ -12,6 +12,15 @@ export interface BarberSummary {
   readonly service_count: number;
 }
 export interface BarberService { readonly id: string; readonly name: string; readonly price_dzd: number; readonly duration_minutes: number; }
+export interface BarberShopProfile {
+  readonly id: string;
+  readonly name: string;
+  readonly city: string | null;
+  readonly neighborhood: string | null;
+  readonly maps_url: string | null;
+  readonly average_rating: number;
+  readonly rating_count: number;
+}
 export interface BarberProfile extends Omit<BarberSummary, 'phone'> {
   readonly phone: string;
   readonly booking_window_days: number;
@@ -19,6 +28,7 @@ export interface BarberProfile extends Omit<BarberSummary, 'phone'> {
   readonly rating_count: number;
   readonly services: readonly BarberService[];
   readonly weekly_hours: readonly { readonly day_of_week: number; readonly starts_at: string; readonly ends_at: string; }[];
+  readonly shop?: BarberShopProfile | null;
 }
 export interface BookingSlot { readonly starts_at: string; readonly ends_at: string; }
 export type AppointmentStatus = 'booked' | 'present' | 'completed' | 'absent' | 'cancelled';
@@ -32,6 +42,7 @@ export interface Appointment {
   readonly status: AppointmentStatus;
   readonly service_name: string;
   readonly barber_name?: string;
+  readonly shop_name?: string;
   readonly location_maps_url?: string | null;
   readonly rating?: import('@/src/ratings').AppointmentRating | null;
 }
@@ -46,6 +57,7 @@ export interface TodayAppointment {
   readonly customer_phone: string;
   readonly qr_check_in_reversible?: boolean;
 }
+export interface BarberAppointmentEvent extends TodayAppointment {}
 
 export function algeriaDate(date = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Algiers', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
@@ -68,8 +80,22 @@ export function formatBookingDate(value: string): string {
   return new Intl.DateTimeFormat('ar-DZ', { timeZone: 'Africa/Algiers', weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(`${value}T12:00:00Z`));
 }
 
+const CHECK_IN_OPENS_BEFORE_MS = 30 * 60 * 1000;
+
 export function canCancelCustomerAppointment(startsAt: string, now = Date.now()): boolean {
   return new Date(startsAt).getTime() - now >= 2 * 60 * 60 * 1000;
+}
+
+/** Customer QR check-in opens 30 minutes before start and closes at the scheduled end. */
+export function isCustomerCheckInOpen(
+  appointment: Pick<Appointment, 'status' | 'starts_at' | 'ends_at'>,
+  now = Date.now(),
+): boolean {
+  if (appointment.status !== 'booked') return false;
+  const startsAt = new Date(appointment.starts_at).getTime();
+  const endsAt = new Date(appointment.ends_at).getTime();
+  if (!Number.isFinite(startsAt) || !Number.isFinite(endsAt)) return false;
+  return now >= startsAt - CHECK_IN_OPENS_BEFORE_MS && now <= endsAt;
 }
 
 export function canRescheduleCustomerAppointment(status: AppointmentStatus): boolean {

@@ -1,8 +1,9 @@
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { destinationHref } from '@/src/navigation/paths';
+import { consumePendingIntent } from '@/src/navigation/pendingIntent';
 import { resolveAppDestination, type AppDestination } from '@/src/navigation/resolveRoute';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors } from '@/src/theme';
@@ -12,7 +13,7 @@ import { colors } from '@/src/theme';
  */
 export default function Index() {
   const session = useAppSession();
-  const lastHref = useRef<string | null>(null);
+  const lastHref = useRef<Href | null>(null);
 
   const destination: AppDestination = resolveAppDestination({
     loading: session.loading,
@@ -30,10 +31,10 @@ export default function Index() {
 
   useEffect(() => {
     if (destination === 'loading') return;
-    const href = destinationHref(destination);
+    const href = consumePendingIntent(destination) ?? destinationHref(destination);
     if (lastHref.current === href) return;
     lastHref.current = href;
-    router.replace(href as never);
+    router.replace(href);
   }, [destination]);
 
   return (

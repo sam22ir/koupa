@@ -1,7 +1,9 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { LocationPicker } from '@/src/components/location/LocationPicker';
 import { Card, Field } from '@/src/components/ui';
 import type { BarberDraft } from '@/src/data/onboarding';
+import { t } from '@/src/i18n';
 import { colors, space, typography } from '@/src/theme';
 
 export function OnboardingLocationStep({
@@ -14,10 +16,8 @@ export function OnboardingLocationStep({
   if (draft.workplaceType === 'worker') {
     return (
       <Card style={styles.workerCard}>
-        <Text style={styles.workerTitle}>نكمل ملفك أولا</Text>
-        <Text style={styles.workerBody}>
-          لا تحتاج لإضافة موقع الآن. بعد نشر ملفك، ابحث عن محلك واطلب الانضمام إليه من قسم المحل.
-        </Text>
+        <Text style={styles.workerTitle}>{t('onboarding.workerLocationTitle')}</Text>
+        <Text style={styles.workerBody}>{t('onboarding.workerLocationBody')}</Text>
       </Card>
     );
   }
@@ -25,18 +25,25 @@ export function OnboardingLocationStep({
   return (
     <View style={styles.wrap}>
       <View style={styles.helperBlock}>
-        <Text style={styles.helperTitle}>موقع محلك</Text>
-        <Text style={styles.helperBody}>ألصق رابط Google Maps لموقع محلك حتى يصل الزبائن إليك بسهولة.</Text>
+        <Text style={styles.helperTitle}>{t('onboarding.locationTitle')}</Text>
+        <Text style={styles.helperBody}>{t('onboarding.locationBody')}</Text>
       </View>
-      <Field label="المدينة" value={draft.city} onChangeText={(city) => onChange({ city })} />
-      <Field label="الحي" value={draft.neighborhood} onChangeText={(neighborhood) => onChange({ neighborhood })} />
+      <LocationPicker
+        latitude={draft.latitude}
+        longitude={draft.longitude}
+        onChange={(next) => onChange({
+          latitude: next.latitude,
+          longitude: next.longitude,
+          mapsUrl: next.mapsUrl,
+          city: next.city ?? draft.city,
+          neighborhood: next.neighborhood ?? draft.neighborhood,
+        })}
+      />
+      <Field label={t('onboarding.city')} value={draft.city} onChangeText={(city) => onChange({ city })} />
       <Field
-        label="رابط Google Maps"
-        value={draft.mapsUrl}
-        onChangeText={(mapsUrl) => onChange({ mapsUrl })}
-        autoCapitalize="none"
-        keyboardType="url"
-        placeholder="https://maps.app.goo.gl/..."
+        label={t('onboarding.neighborhood')}
+        value={draft.neighborhood}
+        onChangeText={(neighborhood) => onChange({ neighborhood })}
       />
     </View>
   );

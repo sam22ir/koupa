@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card, Field, Icon } from '@/src/components/ui';
 import type { ServiceDraft } from '@/src/data/onboarding';
+import { t } from '@/src/i18n';
 import { colors, space, typography } from '@/src/theme';
 
 export function OnboardingServiceCard({
@@ -18,11 +19,11 @@ export function OnboardingServiceCard({
   return (
     <Card style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{service.name || 'خدمة جديدة'}</Text>
+        <Text style={styles.cardTitle}>{service.name || t('onboarding.newService')}</Text>
         {canRemove ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="حذف الخدمة"
+            accessibilityLabel={t('onboarding.removeService')}
             onPress={onRemove}
             style={styles.removeButton}
           >
@@ -30,17 +31,21 @@ export function OnboardingServiceCard({
           </Pressable>
         ) : null}
       </View>
-      <Field label="اسم الخدمة" value={service.name} onChangeText={(name) => onChange({ ...service, name })} />
+      <Field
+        label={t('onboarding.serviceName')}
+        value={service.name}
+        onChangeText={(name) => onChange({ ...service, name })}
+      />
       <View style={styles.row}>
         <Field
-          label="السعر (دج)"
+          label={t('onboarding.servicePrice')}
           value={service.priceDzd}
           keyboardType="number-pad"
           onChangeText={(priceDzd) => onChange({ ...service, priceDzd })}
           style={styles.compactInput}
         />
         <Field
-          label="المدة (دقيقة)"
+          label={t('onboarding.serviceDuration')}
           value={service.durationMinutes}
           keyboardType="number-pad"
           onChangeText={(durationMinutes) => onChange({ ...service, durationMinutes })}

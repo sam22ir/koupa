@@ -18,6 +18,7 @@ jest.mock('expo-router', () => {
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 16, left: 0 }),
+  SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 
 const mockToday = jest.fn();
@@ -96,18 +97,20 @@ describe('BarberTodayScreen', () => {
     expect(screen.getByLabelText('القادمة، 0')).toBeTruthy();
     expect(screen.getByLabelText('حاضر، 0')).toBeTruthy();
     expect(screen.getByLabelText('مكتملة، 0')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'عرض رمز الحضور' })).toBeTruthy();
 
     await fireEvent.press(screen.getByRole('button', { name: 'فتح الجدول' }));
     expect(mockRouter.push).toHaveBeenCalledWith('/(barber)/schedule');
   });
 
-  it('uses the Welcome-style logo treatment in the Today header', async () => {
+  it('uses a teal moment header without a decorative logo lockup', async () => {
     await render(<BarberTodayScreen />);
 
     await screen.findByText('لا مواعيد اليوم');
-    expect(screen.getByLabelText('كوپا')).toHaveStyle({ height: 56 });
-    expect(screen.getByTestId('today-logo-accent')).toBeTruthy();
-    expect(screen.getByTestId('today-logo-wrap')).toHaveStyle({ left: 0 });
+    expect(screen.getByTestId('page-header-stage')).toBeTruthy();
+    expect(screen.getByTestId('teal-stage')).toBeTruthy();
+    expect(screen.queryByTestId('today-logo-accent')).toBeNull();
+    expect(screen.queryByTestId('today-logo-wrap')).toBeNull();
   });
 
   it('keeps the dashboard summary outside the clipped appointment scroller', async () => {
@@ -116,6 +119,7 @@ describe('BarberTodayScreen', () => {
     await screen.findByText('لا مواعيد اليوم');
     const appointmentList = screen.getByTestId('today-appointment-list');
     expect(within(appointmentList).queryByLabelText('القادمة، 0')).toBeNull();
+    expect(within(appointmentList).queryByRole('button', { name: 'عرض رمز الحضور' })).toBeNull();
   });
 
   it('renders appointments chronologically and marks booked customers present', async () => {
@@ -131,6 +135,7 @@ describe('BarberTodayScreen', () => {
     expect(within(rows[0]).getByText('زبون مبكر')).toBeTruthy();
     expect(screen.getByLabelText('القادمة، 1')).toBeTruthy();
     expect(screen.getByLabelText('مكتملة، 1')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'عرض رمز الحضور' })).toHaveLength(1);
 
     await fireEvent.press(within(rows[0]).getByRole('button', { name: 'تأكيد الحضور' }));
     await waitFor(() => expect(mockMarkPresent).toHaveBeenCalledWith('early'));

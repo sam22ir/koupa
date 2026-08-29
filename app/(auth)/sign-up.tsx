@@ -36,9 +36,14 @@ export default function SignUpScreen() {
   const [passwordError, setPasswordError] = useState<string | undefined>();
   const [error, setError] = useState<unknown>(null);
 
+  // Barber-only: shop details
+  const isBarber = role === 'barber';
+  const [shopName, setShopName] = useState('');
+  const [shopSkipped, setShopSkipped] = useState(false);
+
   useEffect(() => {
     if (!loading && (!role || pendingRole !== role)) {
-      router.replace('/(auth)/role');
+      router.replace('/(auth)/welcome');
     }
   }, [loading, pendingRole, role]);
 
@@ -81,8 +86,6 @@ export default function SignUpScreen() {
     try {
       const result = await signInWithGoogle(role);
       if (result.kind === 'empty') {
-        // Most common Expo Go failure: redirect URL not allow-listed in Supabase,
-        // so the browser never returns a callback URL to the app.
         setError(new Error(t('auth.googleCancelled')));
         return;
       }
@@ -90,6 +93,8 @@ export default function SignUpScreen() {
         router.replace('/(auth)/reset-password');
         return;
       }
+      // Google creates the session; the root gate routes a profileless user to
+      // customer-setup (customer) or onboarding (barber) to finish their profile.
       router.replace('/');
     } catch (caught) {
       setError(caught);
@@ -101,11 +106,15 @@ export default function SignUpScreen() {
     ? t('auth.signUpBarberSubtitle')
     : t('auth.signUpCustomerSubtitle');
 
+  const shopNote = t('shopWorkspace.shopVisibilityNote');
+
   return (
-    <AuthShell title={t('auth.signUp')} subtitle={subtitle} backHref="/(auth)/role">
-      <View testID="sign-up-role-badge" style={styles.roleBadge}>
-        <Text style={styles.roleBadgeText}>{roleLabel}</Text>
-      </View>
+    <AuthShell
+      title={t('auth.signUp')}
+      subtitle={subtitle}
+      kicker={roleLabel}
+      backHref="/(auth)/role-intro"
+    >
 
       <Field
         label={t('auth.email')}
@@ -120,6 +129,7 @@ export default function SignUpScreen() {
         value={phone}
         onChangeText={setPhone}
         error={phoneError}
+        hint={t('auth.phoneHint')}
         keyboardType="phone-pad"
       />
       <Field
@@ -143,6 +153,45 @@ export default function SignUpScreen() {
           </Pressable>
         }
       />
+
+      {/* ── Barber: shop details ── */}
+      {isBarber ? (
+        <View style={styles.shopSection}>
+          <Text style={styles.shopSectionTitle}>{t('shopWorkspace.shopInfo')}</Text>
+
+          {shopSkipped ? (
+            <View style={styles.shopSkippedNote}>
+              <Icon name="information-circle-outline" size={18} color={colors.accent} />
+              <Text style={styles.shopSkippedText}>{shopNote}</Text>
+              <Button
+                label={t('common.edit')}
+                variant="ghost"
+                onPress={() => setShopSkipped(false)}
+              />
+            </View>
+          ) : (
+            <>
+              <Field
+                label={t('shopWorkspace.shopNameField')}
+                value={shopName}
+                onChangeText={setShopName}
+                placeholder={t('shopWorkspace.shopNamePlaceholder')}
+              />
+
+              {/* Join shop hint */}
+              <Text style={styles.joinHint}>
+                {t('shopWorkspace.joinShopHint')}
+              </Text>
+
+              <Button
+                label={t('shopWorkspace.skipShop')}
+                variant="ghost"
+                onPress={() => setShopSkipped(true)}
+              />
+            </>
+          )}
+        </View>
+      ) : null}
 
       <ErrorBanner error={error} />
       <Button label={t('auth.signUp')} onPress={() => void submit()} loading={busy} />
@@ -171,17 +220,6 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
-  roleBadge: {
-    alignSelf: 'flex-start',
-    borderRadius: radii.pill,
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: space[3],
-    paddingVertical: space[2],
-  },
-  roleBadgeText: {
-    ...typography.label,
-    color: colors.primary,
-  },
   passwordToggle: {
     width: 48,
     height: 48,
@@ -218,5 +256,41 @@ const styles = StyleSheet.create({
   accountLink: {
     ...typography.label,
     color: colors.primary,
+  },
+  // ── Shop section (barber only) ──
+  shopSection: {
+    gap: space[3],
+    paddingTop: space[4],
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  shopSectionTitle: {
+    ...typography.titleSm,
+    fontSize: 18,
+    textAlign: 'right',
+    color: colors.text,
+  },
+  joinHint: {
+    ...typography.caption,
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'right',
+    lineHeight: 18,
+  },
+  shopSkippedNote: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: space[2],
+    backgroundColor: colors.accentSoft,
+    borderRadius: radii.lg,
+    padding: space[3],
+  },
+  shopSkippedText: {
+    ...typography.caption,
+    fontSize: 12,
+    color: colors.accentText,
+    flex: 1,
+    lineHeight: 18,
+    textAlign: 'right',
   },
 });

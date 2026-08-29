@@ -34,8 +34,25 @@ export default function LegalConsentScreen() {
     }
   };
 
+  const changeAccount = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await signOut();
+      router.replace('/(auth)/welcome');
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <AuthShell title={t('auth.legalConsentTitle')} subtitle={t('auth.legalConsentBody')}>
+    <AuthShell
+      title={t('auth.legalConsentTitle')}
+      subtitle={t('auth.legalConsentBody')}
+      showBack={false}
+    >
       <View style={styles.links}>
         <Text accessibilityRole="link" style={styles.link} onPress={() => openExternalUrl(TERMS_URL)}>
           {t('auth.openTerms')}
@@ -69,7 +86,7 @@ export default function LegalConsentScreen() {
         label={t('auth.changeAccount')}
         variant="secondary"
         disabled={busy}
-        onPress={() => void signOut().then(() => router.replace('/(auth)/welcome'))}
+        onPress={() => void changeAccount()}
       />
     </AuthShell>
   );

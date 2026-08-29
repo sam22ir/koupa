@@ -1,10 +1,12 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 
+import { BackButton } from '@/src/components/ui/BackButton';
 import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
 import { ErrorBanner } from '@/src/components/ui/ErrorBanner';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { Screen, ScreenTitle } from '@/src/components/ui/Screen';
 import { ShopMemberList } from '@/src/features/barber-shop/ShopMemberList';
 import { useShops } from '@/src/hooks/useShops';
@@ -22,22 +24,39 @@ export default function ShopDetailsScreen() {
   const getShop = shops.getShop;
   const [loading, setLoading] = useState(() => Boolean(shopId));
   const [shop, setShop] = useState<Awaited<ReturnType<typeof shops.getShop>>>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  useEffect(() => {
-    let active = true;
+  const load = useCallback(async () => {
     if (!shopId) {
-      return () => { active = false; };
+      setLoading(false);
+      return;
     }
-    void getShop(shopId).then((result) => {
-      if (active) {
-        setShop(result);
-        setLoading(false);
-      }
-    });
-    return () => { active = false; };
+    setLoading(true);
+    setShop(await getShop(shopId));
+    setLoading(false);
   }, [getShop, shopId]);
 
-  if (loading) return <Screen loading />;
+  const confirmDelete = async () => {
+    const deleted = await shops.removeShop();
+    if (!deleted) return;
+    setConfirmingDelete(false);
+    router.replace('/shop');
+  };
+
+  useEffect(() => {
+    const timeout = setTimeout(() => void load(), 0);
+    return () => clearTimeout(timeout);
+  }, [load]);
+
+  if (loading) {
+    return (
+      <Screen scroll>
+        <BackButton fallback="/(barber)/shop" />
+        <ScreenTitle title={t('shopWorkspace.details')} />
+        <Text>{t('common.loading')}</Text>
+      </Screen>
+    );
+  }
 
   const relationship = shops.relationship;
   const sameShop = shops.membership?.shop_id === shopId;
@@ -45,6 +64,7 @@ export default function ShopDetailsScreen() {
 
   return (
     <Screen scroll>
+      <BackButton fallback="/(barber)/shop" />
       <ScreenTitle title={shop?.name ?? t('shopWorkspace.details')} subtitle={location || undefined} />
       <ErrorBanner error={shops.error || null} />
       {shop ? (
@@ -55,7 +75,7 @@ export default function ShopDetailsScreen() {
               <Text style={styles.meta}>{shop.owner_name}</Text>
               <Text style={styles.meta}>{shop.average_rating.toFixed(1)} · {shop.rating_count} تقييم</Text>
             </View>
-            {shop.maps_url ? <Text style={styles.link}>{shop.maps_url}</Text> : null}
+            {shop.maps_url ? <Button label={t('find.openLocation')} variant="ghost" onPress={() => void Linking.openURL(shop.maps_url!).catch(() => undefined)} /> : null}
           </Card>
           <ShopMemberList members={shop.barbers.map((barber) => ({
             id: barber.id,
@@ -71,16 +91,56 @@ export default function ShopDetailsScreen() {
             <Button
               label={t('shop.join')}
               onPress={async () => {
-                if (await shops.requestJoin(shop.id)) router.replace('/shop' as never);
+                if (await shops.requestJoin(shop.id)) router.dismissTo('/(barber)/shop');
               }}
               loading={shops.saving}
             />
           ) : (
             <Text style={styles.status}>{relationship.kind === 'request' ? t('shopWorkspace.pending') : t('shopWorkspace.invitation')}</Text>
           )}
+          {shops.ownedShop?.id === shop.id ? (
+            <View style={styles.dangerSection}>
+              <Text style={styles.dangerTitle}>{t('shopWorkspace.deleteShop')}</Text>
+              <Text style={styles.dangerBody}>{t('shopWorkspace.deleteConfirmBody')}</Text>
+              {confirmingDelete ? (
+                <View testID="delete-shop-confirmation" style={styles.deleteConfirmation}>
+                  <Text style={styles.deleteConfirmationTitle}>{t('shopWorkspace.deleteConfirmTitle')}</Text>
+                  <Text style={styles.deleteConfirmationBody}>{t('shopWorkspace.deleteConfirmBody')}</Text>
+                  <View style={styles.deleteActions}>
+                    <Button
+                      label={t('common.cancel')}
+                      variant="secondary"
+                      disabled={shops.saving}
+                      onPress={() => setConfirmingDelete(false)}
+                      style={styles.deleteAction}
+                    />
+                    <Button
+                      label={t('shopWorkspace.deleteShop')}
+                      variant="danger"
+                      accessibilityLabel={t('shopWorkspace.deleteConfirmTitle')}
+                      loading={shops.saving}
+                      onPress={() => void confirmDelete()}
+                      style={styles.deleteAction}
+                      testID="delete-shop-confirm"
+                    />
+                  </View>
+                </View>
+              ) : (
+                <Button
+                  label={t('shopWorkspace.deleteShop')}
+                  variant="danger"
+                  onPress={() => setConfirmingDelete(true)}
+                />
+              )}
+            </View>
+          ) : null}
         </>
       ) : (
-        <Text style={styles.body}>{t('shopWorkspace.noSearchResults')}</Text>
+        <EmptyState
+          title={t('shopWorkspace.noSearchResults')}
+          actionLabel={t('common.retry')}
+          onAction={() => void load()}
+        />
       )}
     </Screen>
   );
@@ -93,4 +153,12 @@ const styles = StyleSheet.create({
   meta: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
   link: { ...typography.caption, color: colors.primary, textAlign: 'right' },
   status: { ...typography.bodyStrong, color: colors.primary, textAlign: 'right' },
+  dangerSection: { gap: space[2], paddingTop: space[4] },
+  dangerTitle: { ...typography.label, color: colors.danger, textAlign: 'right' },
+  dangerBody: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
+  deleteConfirmation: { gap: space[2], padding: space[3], borderWidth: 1, borderColor: colors.danger, borderRadius: 12, backgroundColor: colors.dangerSoft },
+  deleteConfirmationTitle: { ...typography.bodyStrong, color: colors.danger, textAlign: 'right' },
+  deleteConfirmationBody: { ...typography.caption, color: colors.text, textAlign: 'right', lineHeight: 21 },
+  deleteActions: { flexDirection: 'row-reverse', gap: space[2] },
+  deleteAction: { flex: 1 },
 });

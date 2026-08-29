@@ -6,9 +6,9 @@ Koupa is an Android-only Expo + React Native app for booking barber appointments
 
 ## Authentication and Services
 
-- Supabase Auth handles Google OAuth, email/password, sessions, and password recovery. A required Algerian phone number is profile contact data only, used for barber/customer calls; it is never an Auth credential and never triggers SMS or OTP. Firebase handles Cloud Messaging push notifications. Supabase also handles profiles, shops, services, schedules, appointments, ratings, storage, and server-side booking logic.
-- New users begin at `إنشاء حساب`, select their permanent Customer or Barber role, and accept the current Terms and Privacy Policy. Email/password signup requires an email, password, and contact phone; Google users provide the contact phone during onboarding. Existing users begin at `لدي حساب بالفعل` and sign in with email/password or Google.
-- Email/password accounts confirm their email before onboarding. Password recovery is always sent to the account email. The contact phone is saved to the profile and is not used for authentication.
+- Supabase Auth handles Google OAuth, email/password, sessions, and password recovery. A required Algerian phone number is stored on the profile for barber/customer calls and can also be entered as a sign-in alias; a server-side function resolves it to the linked Auth email and runs the same email/password check. Supabase phone Auth, SMS, and OTP remain disabled. Firebase handles Cloud Messaging push notifications. Supabase also handles profiles, shops, services, schedules, appointments, ratings, storage, and server-side booking logic.
+- New users begin at `إنشاء حساب`, select their permanent Customer or Barber role, and accept the current Terms and Privacy Policy. Email/password signup requires an email, password, and contact phone; Google users provide the contact phone during onboarding. Existing users begin at `لدي حساب بالفعل` and sign in with email/password, the linked phone alias, or Google.
+- Email/password accounts confirm their email before onboarding. Password recovery is always sent to the linked account email. Phone sign-in never creates a separate Auth phone identity and never exposes the linked email in the UI.
 - Auth callbacks use PKCE and the `koupa://callback` deep link. Confirmation, recovery, expired-link, and provider-error outcomes are handled by the callback route instead of URL-fragment parsing in product screens.
 - The selected role and consent are provisional Auth metadata until profile creation. The database requires a confirmed email, current immutable legal acceptances, and a matching provisional role before it allows a profile insert; once created, the profile role cannot change.
 - Legal documents and acceptances are append-only by version. Existing users must explicitly accept a newly active Terms or Privacy version before continuing; the app never infers or records that consent automatically.
@@ -51,9 +51,13 @@ Rejected alternatives kept only as archive under `src/design-proposals/` (`CalmC
 
 Customer tabs are `Home`, `Find`, `Appointments`, and `Profile`.
 
+App-owned Back and Return controls always go to their declared logical destination; Android system Back continues to follow actual navigation history.
+
+Published Barber and Shop profiles may be opened from a shared link before sign-in. Only Customer accounts can enter booking; an anonymous Book action signs in first and restores the selected booking flow, while Barber accounts remain in their own workspace. New bookings and reschedules end in Customer Appointments and do not retain obsolete profile, detail, or booking screens. Notification inbox Back returns to the current role's Profile tab, and a password-recovery link takes precedence over every ordinary account gate until the password is changed or the user signs out.
+
 - Home shows `Find a Barber` without an upcoming appointment; otherwise it shows the next appointment with details, cancel, reschedule, and QR scan actions.
 - Find uses separate `Barbers` and `Shops` tabs with partial Arabic/English name matching and basic normalization.
-- Barber profiles show services, prices, durations, bio, phone, rating, hours, location, and availability.
+- Barber profiles show services, prices, durations, bio, phone, rating, hours, location, availability, and optional affiliated-shop context. Customers select one active service before the `احجز` action becomes available; public profiles without active services show an explicit empty state.
 - Shop profiles show name, bio, location, rating, affiliated barbers, and a `Book` action. Booking from a shop requires choosing a barber.
 - Customers pay at the shop. A confirmed booking reveals the customer phone number to the barber.
 - Rescheduling keeps the same barber but allows changing the service and time.
@@ -85,6 +89,8 @@ Barber tabs are `Today`, `Schedule`, `Shop`, and `Profile`.
 The lifecycle is `Booked` -> `Present` -> `Completed`. The barber can cancel but cannot reschedule a customer appointment. If the barber never marks the customer `Present`, the appointment automatically becomes `Absent` when its scheduled end passes. After the service duration, a `Present` appointment automatically becomes `Completed`.
 
 Firebase push notifications are sent for booking updates and every `Present`, `Completed`, and `Absent` status. MVP notification content is Arabic-only. Staging notifications are real but clearly labeled as test notifications.
+
+Every in-app and push notification opens its associated event. Notification rows store a typed event destination, never an arbitrary URL: appointment events open a participant-specific appointment view; shop invitations, join requests, and membership decisions open the Shop hub or member workspace; workspace updates open the affected schedule or owner member workspace; and retained shop activity opens its activity view. If an event's underlying record has been removed or is no longer available, the recipient can still open the stored notification event record.
 
 ## Ratings and Support
 

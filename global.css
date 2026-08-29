@@ -1,0 +1,196 @@
+@import 'tailwindcss';
+@import 'uniwind';
+@import 'heroui-native/styles';
+
+/* Path is relative to THIS file. global.css is at the project root here, so
+   ./node_modules is correct. If you move global.css into app/ or src/styles/,
+   adjust the depth (../ or ../../) or HeroUI's classes won't be generated. */
+@source './node_modules/heroui-native/lib';
+
+/* Koupa typeface — IBM Plex Sans Arabic (PostScript names loaded via expo-font).
+   Font changes need a full rebuild, not just a Metro refresh. */
+@theme {
+  --font-normal: 'IBMPlexSansArabic-Regular';
+  --font-medium: 'IBMPlexSansArabic-Medium';
+  --font-semibold: 'IBMPlexSansArabic-SemiBold';
+}
+
+/* ── Koupa brand palette (DESIGN.md) ────────────────────────────────────
+   Paper   #F3F5F7 → background
+   Charcoal #323E4B → foreground
+   Teal    #1A7A78 → accent
+   Gold    #E1A553 → warning
+   ──────────────────────────────────────────────────────────────────────── */
+@layer theme {
+  @variant light {
+    --background: oklch(0.9692 0.0034 247.9);
+    --foreground: oklch(0.3585 0.0276 250.7);
+
+    --surface: oklch(1 0 0);
+    --surface-foreground: oklch(0.3585 0.0276 250.7);
+    --surface-secondary: oklch(0.94 0.003 247.9);
+    --surface-secondary-foreground: oklch(0.45 0.02 250.7);
+    --surface-tertiary: oklch(0.9 0.005 247.9);
+    --surface-tertiary-foreground: oklch(0.55 0.015 250.7);
+
+    --overlay: oklch(1 0 0);
+    --overlay-foreground: oklch(0.3585 0.0276 250.7);
+    --backdrop: oklch(0% 0 0 / 20%);
+
+    --muted: oklch(0.55 0.015 250.7);
+
+    --default: oklch(0.92 0.003 247.9);
+    --default-foreground: oklch(0.4 0.02 250.7);
+
+    --accent: oklch(0.5272 0.0836 192.8);
+    --accent-foreground: oklch(1 0 0);
+
+    --field-background: oklch(1 0 0);
+    --field-foreground: oklch(0.3585 0.0276 250.7);
+    --field-placeholder: oklch(0.55 0.015 250.7);
+    --field-border: transparent;
+
+    --success: oklch(0.55 0.08 192);
+    --success-foreground: oklch(1 0 0);
+
+    --warning: oklch(0.763 0.1215 72.7);
+    --warning-foreground: oklch(1 0 0);
+
+    --danger: oklch(0.6532 0.2328 25.74);
+    --danger-foreground: oklch(1 0 0);
+
+    --segment: oklch(1 0 0);
+    --segment-foreground: oklch(0.3585 0.0276 250.7);
+
+    --border: oklch(0.88 0.005 248);
+    --separator: oklch(0.9 0.003 248);
+    --focus: var(--accent);
+    --link: var(--accent);
+
+    /* Calculated hover/soft/field vars (overriden from color-mix → concrete hsl/alpha
+       so HeroUI's internal color-kit can parse them without falling back to black). */
+    --color-surface-hover: hsl(211, 10%, 94%);
+    --color-background-secondary: hsl(210, 12%, 93%);
+    --color-background-tertiary: hsl(210, 10%, 90%);
+    --color-default-hover: hsl(208, 5%, 90%);
+    --color-accent-hover: hsl(179, 55%, 37%);
+    --color-success-hover: hsl(179, 55%, 42%);
+    --color-warning-hover: hsl(35, 62%, 64%);
+    --color-danger-hover: hsl(7, 58%, 52%);
+    --color-field-hover: hsl(0, 0%, 98%);
+    --color-field-border-hover: hsl(210, 8%, 82%);
+    --color-field-border-focus: hsl(210, 10%, 74%);
+    --color-default-soft: hsla(208, 5%, 93%, 0.5);
+    --color-default-soft-hover: hsla(208, 5%, 93%, 0.6);
+    --color-accent-soft: hsla(179, 65%, 29%, 0.15);
+    --color-accent-soft-hover: hsla(179, 65%, 29%, 0.22);
+    --color-accent-soft-foreground: hsl(179, 50%, 26%);
+    --color-danger-soft: hsla(7, 64%, 46%, 0.15);
+    --color-danger-soft-hover: hsla(7, 64%, 46%, 0.22);
+    --color-danger-soft-foreground: hsl(7, 55%, 40%);
+    --color-warning-soft: hsla(35, 70%, 60%, 0.15);
+    --color-warning-soft-hover: hsla(35, 70%, 60%, 0.22);
+    --color-warning-soft-foreground: hsl(35, 55%, 49%);
+    --color-success-soft: hsla(179, 65%, 35%, 0.15);
+    --color-success-soft-hover: hsla(179, 65%, 35%, 0.22);
+    --color-success-soft-foreground: hsl(179, 50%, 30%);
+    --color-separator-secondary: hsl(210, 8%, 89%);
+    --color-separator-tertiary: hsl(210, 8%, 86%);
+    --color-border-secondary: hsl(210, 8%, 84%);
+    --color-border-tertiary: hsl(210, 8%, 76%);
+
+    --surface-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      0 0 1px 0 rgba(0, 0, 0, 0.06);
+    --overlay-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.02), 0 -6px 12px 0 rgba(0, 0, 0, 0.01),
+      0 14px 28px 0 rgba(0, 0, 0, 0.03);
+    --field-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      0 0 1px 0 rgba(0, 0, 0, 0.06);
+  }
+
+  @variant dark {
+    --background: oklch(0.28 0.02 250.7);
+    --foreground: oklch(0.93 0.01 250.7);
+    --surface: oklch(0.33 0.02 250.7);
+    --surface-foreground: oklch(0.93 0.01 250.7);
+    --surface-secondary: oklch(0.37 0.02 250.7);
+    --surface-secondary-foreground: oklch(0.90 0.01 250.7);
+    --surface-tertiary: oklch(0.41 0.02 250.7);
+    --surface-tertiary-foreground: oklch(0.88 0.01 250.7);
+    --overlay: oklch(0.36 0.02 250.7);
+    --overlay-foreground: oklch(0.93 0.01 250.7);
+    --backdrop: oklch(0% 0 0 / 40%);
+    --muted: oklch(0.65 0.02 250.7);
+    --default: oklch(0.35 0.02 250.7);
+    --default-foreground: oklch(0.90 0.01 250.7);
+    --accent: oklch(0.7 0.1 192.8);
+    --accent-foreground: oklch(0.15 0.01 250.7);
+    --field-background: var(--default);
+    --field-foreground: var(--foreground);
+    --field-placeholder: var(--muted);
+    --field-border: transparent;
+    --success: oklch(0.7 0.1 192);
+    --success-foreground: oklch(0.15 0.01 250.7);
+    --warning: oklch(0.8 0.12 72.7);
+    --warning-foreground: oklch(0.15 0.01 250.7);
+    --danger: oklch(0.65 0.23 25.74);
+    --danger-foreground: oklch(0.95 0.005 250.7);
+    --segment: oklch(0.38 0.02 250.7);
+    --segment-foreground: oklch(0.90 0.01 250.7);
+    --border: oklch(0.42 0.02 250.7);
+    --separator: oklch(0.38 0.02 250.7);
+    --focus: var(--accent);
+    --link: var(--accent);
+
+    /* Calculated hover/soft/field vars — same keys as light (concrete hsl/alpha
+       so color-kit parses them; no color-mix()). */
+    --color-surface-hover: hsl(211, 8%, 22%);
+    --color-background-secondary: hsl(211, 8%, 18%);
+    --color-background-tertiary: hsl(211, 8%, 21%);
+    --color-default-hover: hsl(211, 8%, 24%);
+    --color-accent-hover: hsl(179, 50%, 46%);
+    --color-success-hover: hsl(179, 50%, 46%);
+    --color-warning-hover: hsl(35, 60%, 64%);
+    --color-danger-hover: hsl(7, 58%, 52%);
+    --color-field-hover: hsl(211, 8%, 22%);
+    --color-field-border-hover: hsl(211, 8%, 30%);
+    --color-field-border-focus: hsl(179, 55%, 46%);
+    --color-default-soft: hsla(211, 8%, 20%, 0.5);
+    --color-default-soft-hover: hsla(211, 8%, 20%, 0.6);
+    --color-accent-soft: hsla(179, 55%, 40%, 0.22);
+    --color-accent-soft-hover: hsla(179, 55%, 40%, 0.3);
+    --color-accent-soft-foreground: hsl(179, 45%, 60%);
+    --color-danger-soft: hsla(7, 64%, 46%, 0.22);
+    --color-danger-soft-hover: hsla(7, 64%, 46%, 0.3);
+    --color-danger-soft-foreground: hsl(7, 55%, 70%);
+    --color-warning-soft: hsla(35, 70%, 60%, 0.2);
+    --color-warning-soft-hover: hsla(35, 70%, 60%, 0.28);
+    --color-warning-soft-foreground: hsl(35, 55%, 70%);
+    --color-success-soft: hsla(179, 55%, 40%, 0.22);
+    --color-success-soft-hover: hsla(179, 55%, 40%, 0.3);
+    --color-success-soft-foreground: hsl(179, 45%, 60%);
+    --color-separator-secondary: hsl(211, 8%, 26%);
+    --color-separator-tertiary: hsl(211, 8%, 29%);
+    --color-border-secondary: hsl(211, 8%, 28%);
+    --color-border-tertiary: hsl(211, 8%, 34%);
+
+    --surface-shadow: 0 0 0 0 transparent inset;
+    --overlay-shadow: 0 0 1px 0 rgba(255, 255, 255, 0.2) inset;
+    --field-shadow: 0 0 0 0 transparent inset;
+  }
+}
+
+/* ── Arabic-first correction ────────────────────────────────────────────
+   HeroUI pins these three to `text-align: left` in unlayered component CSS,
+   with a comment saying the layout engine resolves left/right against the
+   node's direction, so "left" means "start". That is only true under
+   I18nManager.forceRTL(true). Koupa deliberately hand-rolls RTL instead
+   (row-reverse / flex-end / text-right, see src/i18n/rtl.ts), so "left" stays
+   physically left and every Arabic field label, hint and error lands on the
+   trailing edge. Unlayered and last, so it outranks the library rule on both
+   platforms without a prop at every call site.
+   ───────────────────────────────────────────────────────────────────────── */
+.label__text,
+.description__root,
+.field-error__text {
+  text-align: right;
+}

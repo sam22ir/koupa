@@ -16,6 +16,16 @@ const pages = [
   { file: 'en/account-deletion/index.html', route: '/en/account-deletion/', lang: 'en', dir: 'ltr', alternate: '/account-deletion/' },
 ];
 
+const landingScreens = [
+  'assets/screens/role-selection.jpg',
+  'assets/screens/customer-home.jpg',
+  'assets/screens/customer-appointments.jpg',
+  'assets/screens/customer-find.jpg',
+  'assets/screens/barber-today.jpg',
+  'assets/screens/barber-shop.jpg',
+  'assets/screens/barber-schedule.jpg',
+];
+
 function load(file) {
   const absolute = path.join(root, file);
   assert.ok(fs.existsSync(absolute), `Missing ${file}`);
@@ -45,6 +55,17 @@ for (const page of pages) {
   assert.ok(links.includes(page.alternate), `${page.file} visible language link`);
   for (const href of expectedLinks) assert.ok(links.includes(href), `${page.file} missing ${href}`);
   assert.doesNotMatch(source, /كوبا|example\.com|TODO|TBD/);
+
+  if (page.file === 'index.html' || page.file === 'en/index.html') {
+    const figures = document.querySelectorAll('.landing-shot');
+    assert.equal(figures.length, 7, `${page.file} product gallery count`);
+    assert.equal(document.querySelectorAll('.landing-phone img').length, 8, `${page.file} phone image count`);
+    for (const image of document.querySelectorAll('.landing-shot img')) {
+      const src = image.getAttribute('src') ?? '';
+      assert.ok(src.startsWith('/assets/screens/'), `${page.file} screenshot path`);
+      assert.ok(image.getAttribute('alt')?.trim(), `${page.file} screenshot alt text`);
+    }
+  }
 }
 
 const notFound = load('404.html');
@@ -67,9 +88,12 @@ assert.ok(englishDeletion.querySelector('a[href="mailto:saadisamir20200@gmail.co
 for (const asset of [
   'assets/styles.css',
   'assets/logo-mark.png',
+  'assets/logo-full.png',
+  'assets/app-icon.png',
   'assets/IBMPlexSansArabic-Regular.ttf',
   'assets/IBMPlexSansArabic-SemiBold.ttf',
   '_headers',
+  ...landingScreens,
 ]) {
   assert.ok(fs.existsSync(path.join(root, asset)), `Missing ${asset}`);
 }

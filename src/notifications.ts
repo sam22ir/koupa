@@ -3,6 +3,7 @@ export interface AppNotification {
   readonly title: string;
   readonly body: string;
   readonly appointment_id: string | null;
+  readonly destination: unknown;
   readonly read_at: string | null;
   readonly created_at: string;
 }

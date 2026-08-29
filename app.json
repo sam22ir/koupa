@@ -3,13 +3,14 @@
     "name": "Koupa",
     "slug": "koupa",
     "version": "1.0.0",
+    "icon": "./assets/brand/app-icon.png",
     "orientation": "portrait",
     "platforms": [
       "android",
       "web"
     ],
     "scheme": "koupa",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "android": {
       "package": "com.koupa.app",
       "predictiveBackGestureEnabled": false

@@ -23,7 +23,7 @@ export function useAsyncRunner() {
     setError('');
     try {
       const data = await action();
-      if (currentRequest !== requestId.current) return data;
+      if (currentRequest !== requestId.current) return null;
       setLoading(false);
       return data;
     } catch (caught) {

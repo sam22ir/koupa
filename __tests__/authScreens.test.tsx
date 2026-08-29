@@ -2,10 +2,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { router, useLocalSearchParams } from 'expo-router';
 import { Linking, Text } from 'react-native';
 
-import RoleScreen from '../app/(auth)/role';
 import ConfirmScreen from '../app/(auth)/confirm';
 import LegalErrorScreen from '../app/(auth)/legal-error';
 import LegalConsentScreen from '../app/(auth)/legal-consent';
+import ResetPasswordScreen from '../app/(auth)/reset-password';
+import SessionErrorScreen from '../app/(auth)/session-error';
 import SignInScreen from '../app/(auth)/sign-in';
 import SignUpScreen from '../app/(auth)/sign-up';
 import { AuthShell } from '../src/components/ui/AuthShell';
@@ -14,17 +15,19 @@ import { Field } from '../src/components/ui/Field';
 import { AppError } from '../src/services/errors';
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: jest.fn() },
+  router: { push: jest.fn(), replace: jest.fn(), dismissTo: jest.fn() },
   useLocalSearchParams: jest.fn(() => ({})),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 16, left: 0 }),
+  SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 
 const mockRouter = router as unknown as {
   push: jest.Mock;
   replace: jest.Mock;
+  dismissTo: jest.Mock;
 };
 const mockSearchParams = useLocalSearchParams as jest.Mock;
 
@@ -36,6 +39,7 @@ const mockSession = {
   signInWithGoogle: jest.fn(),
   linkGoogleIdentity: jest.fn(),
   signInWithPassword: jest.fn(),
+  signInWithPhone: jest.fn(),
   signUpWithPassword: jest.fn(),
   resendEmailConfirmation: jest.fn(),
   signOut: jest.fn(),
@@ -47,6 +51,9 @@ const mockSession = {
   legalError: null as string | null,
   acceptCurrentLegalDocuments: jest.fn(),
   retryLegalAcceptance: jest.fn(),
+  retrySession: jest.fn(),
+  bootstrapError: null as unknown,
+  updatePassword: jest.fn(),
 };
 
 jest.mock('../src/providers/SessionProvider', () => ({
@@ -64,7 +71,7 @@ describe('AuthShell', () => {
     jest.clearAllMocks();
   });
 
-  it('renders the auth stage and returns to welcome', async () => {
+  it('renders the auth stage and dismisses to welcome', async () => {
     await render(
       <AuthShell title="تسجيل الدخول" subtitle="ادخل إلى حسابك لإدارة مواعيدك.">
         <Text>form content</Text>
@@ -79,7 +86,7 @@ describe('AuthShell', () => {
     });
 
     await fireEvent.press(screen.getByRole('button', { name: 'رجوع' }));
-    expect(mockRouter.replace).toHaveBeenCalledWith('/(auth)/welcome');
+    expect(mockRouter.dismissTo).toHaveBeenCalledWith('/(auth)/welcome');
   });
 
   it('exposes field accessories and disabled button state', async () => {
@@ -101,12 +108,29 @@ describe('SignInScreen', () => {
     jest.clearAllMocks();
   });
 
-  it('uses email credentials as the only sign-in method', async () => {
+  it('offers email and phone sign-in methods', async () => {
     await render(<SignInScreen />);
 
     expect(screen.getByText('ادخل إلى حسابك لإدارة مواعيدك.')).toBeTruthy();
     expect(screen.getByLabelText('البريد الإلكتروني')).toBeTruthy();
-    expect(screen.queryByRole('tab', { name: 'هاتف' })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'هاتف' })).toBeTruthy();
+  });
+
+  it('signs in through the linked account when a phone number is selected', async () => {
+    mockSession.signInWithPhone.mockResolvedValueOnce({
+      user: { email: 'barber@example.com', email_confirmed_at: '2026-08-18T00:00:00.000Z' },
+    });
+    await render(<SignInScreen />);
+
+    await fireEvent.press(screen.getByRole('tab', { name: 'هاتف' }));
+    await fireEvent.changeText(screen.getByLabelText('رقم الهاتف'), '0555 000 000');
+    await fireEvent.changeText(screen.getByLabelText('كلمة المرور'), 'secret123');
+    await fireEvent.press(screen.getByRole('button', { name: 'تسجيل الدخول' }));
+
+    await waitFor(() => {
+      expect(mockSession.signInWithPhone).toHaveBeenCalledWith('+213555000000', 'secret123');
+      expect(mockRouter.replace).toHaveBeenCalledWith('/');
+    });
   });
 
   it('reveals the password without changing its value', async () => {
@@ -124,7 +148,7 @@ describe('SignInScreen', () => {
     await render(<SignInScreen />);
 
     await fireEvent.press(screen.getByText('إنشاء حساب'));
-    expect(mockRouter.push).toHaveBeenCalledWith('/(auth)/role');
+    expect(mockRouter.push).toHaveBeenCalledWith('/(auth)/welcome');
   });
 
   it('links Google only after an existing user proves ownership with a password', async () => {
@@ -172,53 +196,6 @@ describe('SignInScreen', () => {
   });
 });
 
-describe('RoleScreen', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockLoadLegalDocuments.mockResolvedValue([
-      { key: 'terms', version: '1', url: 'https://example.test/terms' },
-      { key: 'privacy', version: '1', url: 'https://example.test/privacy' },
-    ]);
-    jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
-  it('gates continuation on role selection and legal consent', async () => {
-    await render(<RoleScreen />);
-    await screen.findByRole('radio', { name: 'زبون' });
-
-    expect(screen.getByText('اختيارك دائم ولا يمكن تغييره لاحقاً.')).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'زبون' })).toBeSelected();
-    expect(screen.getByRole('button', { name: 'متابعة' })).toBeDisabled();
-
-    await fireEvent.press(screen.getByRole('radio', { name: 'حلاق' }));
-    expect(screen.getByRole('radio', { name: 'حلاق' })).toBeSelected();
-
-    await fireEvent.press(
-      screen.getByRole('checkbox', { name: 'أوافق على الشروط وسياسة الخصوصية' }),
-    );
-    expect(screen.getByRole('button', { name: 'متابعة' })).toBeEnabled();
-  });
-
-  it('opens legal links without toggling consent', async () => {
-    await render(<RoleScreen />);
-    await screen.findByRole('radio', { name: 'زبون' });
-
-    const consent = screen.getByRole('checkbox', {
-      name: 'أوافق على الشروط وسياسة الخصوصية',
-    });
-    expect(consent).not.toBeChecked();
-
-    await fireEvent.press(screen.getByRole('link', { name: 'الشروط' }));
-
-    expect(Linking.openURL).toHaveBeenCalledWith('https://koupa-website.pages.dev/terms/');
-    expect(consent).not.toBeChecked();
-  });
-});
-
 describe('SignUpScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -230,10 +207,8 @@ describe('SignUpScreen', () => {
     await render(<SignUpScreen />);
 
     expect(screen.getByText('أنشئ حسابك ببريدك وأضف رقم هاتف للتواصل وابدأ حجز مواعيدك.')).toBeTruthy();
+    // The role is confirmed in the header kicker, not as a decorative pill.
     expect(screen.getByText('زبون')).toBeTruthy();
-    expect(screen.getByTestId('sign-up-role-badge')).toHaveStyle({
-      alignSelf: 'flex-start',
-    });
   });
 
   it('confirms the barber role in the shared sign-up form', async () => {
@@ -245,13 +220,13 @@ describe('SignUpScreen', () => {
     expect(screen.getByText('حلاق')).toBeTruthy();
   });
 
-  it('returns a direct signup URL to role selection when no signup intent exists', async () => {
+  it('returns a direct signup URL to welcome when no signup intent exists', async () => {
     mockSearchParams.mockReturnValue({});
     mockSession.pendingRole = null;
     await render(<SignUpScreen />);
 
     await waitFor(() => {
-      expect(mockRouter.replace).toHaveBeenCalledWith('/(auth)/role');
+      expect(mockRouter.replace).toHaveBeenCalledWith('/(auth)/welcome');
     });
   });
 
@@ -297,11 +272,11 @@ describe('SignUpScreen', () => {
     expect(mockRouter.push).toHaveBeenCalledWith('/(auth)/sign-in');
   });
 
-  it('returns to role selection from role-specific sign up', async () => {
+  it('returns to role intro from role-specific sign up', async () => {
     await render(<SignUpScreen />);
 
     await fireEvent.press(screen.getByRole('button', { name: 'رجوع' }));
-    expect(mockRouter.replace).toHaveBeenCalledWith('/(auth)/role');
+    expect(mockRouter.dismissTo).toHaveBeenCalledWith('/(auth)/role-intro');
   });
 });
 
@@ -324,6 +299,60 @@ describe('ConfirmScreen', () => {
     await waitFor(() => {
       expect(mockSession.resendEmailConfirmation).toHaveBeenCalledWith('account@example.com');
     });
+  });
+
+  it('signs out before switching to sign in', async () => {
+    mockSession.signOut.mockResolvedValueOnce(undefined);
+    await render(<ConfirmScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'تسجيل الدخول' }));
+
+    await waitFor(() => expect(mockSession.signOut).toHaveBeenCalledTimes(1));
+    expect(mockRouter.replace).toHaveBeenCalledWith('/(auth)/sign-in');
+  });
+
+  it('keeps confirmation visible when account switching fails', async () => {
+    mockSession.signOut.mockRejectedValueOnce(new Error('Network request failed'));
+    await render(<ConfirmScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'تسجيل الدخول' }));
+
+    expect(await screen.findByText('تحقق من الاتصال بالإنترنت')).toBeTruthy();
+    expect(mockRouter.replace).not.toHaveBeenCalledWith('/(auth)/sign-in');
+  });
+});
+
+describe('SessionErrorScreen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSession.bootstrapError = new Error('Network request failed');
+  });
+
+  afterEach(() => {
+    mockSession.bootstrapError = null;
+  });
+
+  it('does not show an impossible Back control', async () => {
+    await render(<SessionErrorScreen />);
+
+    expect(screen.queryByRole('button', { name: 'رجوع' })).toBeNull();
+  });
+});
+
+describe('ResetPasswordScreen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSession.session = { user: { email: 'account@example.com' } };
+  });
+
+  it('keeps recovery visible when switching to sign in fails', async () => {
+    mockSession.signOut.mockRejectedValueOnce(new Error('Network request failed'));
+    await render(<ResetPasswordScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'تسجيل الدخول' }));
+
+    expect(await screen.findByText('تحقق من الاتصال بالإنترنت')).toBeTruthy();
+    expect(mockRouter.replace).not.toHaveBeenCalledWith('/(auth)/sign-in');
   });
 });
 
@@ -390,5 +419,15 @@ describe('LegalConsentScreen', () => {
 
     await waitFor(() => expect(mockSession.acceptCurrentLegalDocuments).toHaveBeenCalledTimes(1));
     expect(mockRouter.replace).toHaveBeenCalledWith('/');
+  });
+
+  it('keeps legal consent visible when account switching fails', async () => {
+    mockSession.signOut.mockRejectedValueOnce(new Error('Network request failed'));
+    await render(<LegalConsentScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'تغيير الحساب' }));
+
+    expect(await screen.findByText('تحقق من الاتصال بالإنترنت')).toBeTruthy();
+    expect(mockRouter.replace).not.toHaveBeenCalledWith('/(auth)/welcome');
   });
 });

@@ -34,12 +34,19 @@ export async function saveOnboardingDraft(userId: string, step: number, draft: B
   if (error) throw toAppError(error);
 }
 
-export async function createCustomerProfile(userId: string, name: string, phone: string): Promise<void> {
+export async function createCustomerProfile(
+  userId: string,
+  name: string,
+  phone: string,
+  city?: string,
+): Promise<void> {
+  const trimmedCity = city?.trim();
   const { error } = await supabase.from('profiles').insert({
     id: userId,
     role: 'customer' satisfies UserRole,
     name,
     phone,
+    ...(trimmedCity ? { city: trimmedCity } : {}),
   });
   if (!error) return;
   // The insert may have committed even if the following profile refresh
@@ -58,6 +65,8 @@ export async function publishBarberProfile(draft: BarberDraft): Promise<void> {
     phone: draft.phone,
     bio: draft.bio,
     workplace_type: draft.workplaceType,
+    shop_name: draft.workplaceType === 'owner' ? draft.shopName : null,
+    shop_bio: draft.workplaceType === 'owner' ? draft.shopBio : null,
     city: draft.city,
     neighborhood: draft.neighborhood,
     maps_url: draft.mapsUrl,

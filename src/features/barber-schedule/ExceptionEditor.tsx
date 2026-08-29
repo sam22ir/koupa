@@ -12,6 +12,7 @@ import { emptyScheduleException, scheduleExceptionSummary } from '@/src/schedule
 import { colors, radii, space, typography } from '@/src/theme';
 
 import { TimeField } from './TimeField';
+import { calendarToday, InlineDateCalendar } from './InlineDateCalendar';
 
 const dateFormatter = new Intl.DateTimeFormat('ar-DZ', {
   timeZone: 'Africa/Algiers',
@@ -43,6 +44,7 @@ export function ExceptionEditor({
 }) {
   const [editing, setEditing] = useState<ManagedScheduleExceptionDraft | null>(null);
   const [localError, setLocalError] = useState('');
+  const minimumDate = calendarToday();
   const sorted = useMemo(
     () => [...exceptions].sort((left, right) => left.exceptionDate.localeCompare(right.exceptionDate)),
     [exceptions],
@@ -105,7 +107,7 @@ export function ExceptionEditor({
       <Button
         label="إضافة استثناء"
         variant="secondary"
-        onPress={() => setEditing({ ...emptyScheduleException })}
+        onPress={() => setEditing({ ...emptyScheduleException, exceptionDate: minimumDate })}
       />
 
       <Modal visible={editing !== null} transparent animationType="slide" onRequestClose={close}>
@@ -118,12 +120,10 @@ export function ExceptionEditor({
                   <Icon name="close" size={22} color={colors.text} />
                 </Pressable>
               </View>
-              <Field
-                label="التاريخ"
-                accessibilityLabel="تاريخ الاستثناء"
+              <InlineDateCalendar
                 value={editing.exceptionDate}
-                placeholder="2026-08-01"
-                onChangeText={(exceptionDate) => setEditing({ ...editing, exceptionDate })}
+                minimumDate={minimumDate}
+                onChange={(exceptionDate) => setEditing({ ...editing, exceptionDate })}
               />
 
               <View style={styles.modeGroup} accessibilityRole="radiogroup">

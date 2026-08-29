@@ -76,22 +76,29 @@ Status: `in_progress`
 - [x] Deliver remote FCM fan-out worker implementation and staging deployment
 - [x] Configure Firebase service-account secret on staging (`FIREBASE_SERVICE_ACCOUNT_JSON`, `NOTIFICATION_DISPATCH_SECRET`, `APP_ENV`)
 - [x] Staging trusted scheduler for `dispatch-notifications` (`pg_cron` + Vault + `pg_net`)
-- [ ] Deploy `dispatch-notifications` + secrets + scheduler to production
+- [x] Deploy `dispatch-notifications` + scheduler to production (function v3 + cron active 2026-08-18)
+- [x] Set production `FIREBASE_SERVICE_ACCOUNT_JSON` from `koupa-prod` (2026-08-18)
+- [x] Deploy production `sign-in-with-phone` (ACTIVE v1, 2026-08-18)
 - [x] In-app notifications list + mark read
+- [x] Typed notification destinations migration (`20260817000100`) on staging + production
 - [x] Account deletion RPC + profile actions
 - [x] Support email + Terms, Privacy, and account-deletion links on both Profile roles
 - [x] Explicit re-consent for newly active legal versions
 
+Operational status above reflects CLI verification on 2026-08-18. Production push
+still needs the Firebase service-account secret; Android acceptance remains open.
+
 ## Stage 8 — Release hygiene
 Status: `in_progress`
 
-- [x] Apply and verify migrations on staging
+- [x] Apply and verify migrations on staging through `20260818000100` (verified 2026-08-18)
+- [x] Verify staging appointment-transition cron runs through SQL (succeeded 2026-08-18)
 - [x] Seed staging demo data (idempotent resettable seed)
 - [x] Replace staging example legal URLs with approved versioned documents
 - [x] Apply and verify approved versioned legal documents on production
 - [ ] Google OAuth on installed Android build
-- [x] Verify hosted appointment-transition cron (staging + production)
-- [x] Production migration parity audit documented (7 migrations behind)
+- [x] Verify hosted appointment-transition cron (staging + production jobs active)
+- [x] Apply and verify migrations on production through `20260818000100` (2026-08-18)
 
 ## Stage 9 — Domain hardening (service layer)
 Status: `in_progress`
@@ -109,4 +116,9 @@ Status: `in_progress`
 - [x] RPC security audit note (`reference/RPC-SECURITY-AUDIT.md`)
 - [x] CI workflow (`typecheck` + `test`)
 - [ ] Restore Docker/local Supabase for full SQL fixture runs
-- [ ] Production migration apply + push path
+- [x] Production migration apply path
+- [x] Production push path secrets complete (`FIREBASE_SERVICE_ACCOUNT_JSON` set 2026-08-18)
+- [x] Undeploy retired `appointment-transitions` Edge Function on both envs (2026-08-18)
+
+Migrations through `20260818000100` (notification destinations + phone unique index)
+were applied to staging and production on 2026-08-18.

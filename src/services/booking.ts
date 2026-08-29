@@ -1,10 +1,12 @@
 import { supabase } from '@/lib/supabase';
 import type {
   Appointment,
+  BarberShopProfile,
   BarberProfile,
   BarberService,
   BarberSummary,
   BookingSlot,
+  BarberAppointmentEvent,
   TodayAppointment,
 } from '@/src/booking';
 import { mapCustomerAppointment } from '@/src/services/mappers/appointment';
@@ -39,6 +41,21 @@ function asWeeklyHours(value: Json): BarberProfile['weekly_hours'] {
       ends_at: String(row.ends_at ?? ''),
     }];
   });
+}
+
+function asShop(value: Json | null | undefined): BarberShopProfile | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const row = value as Record<string, Json | undefined>;
+  if (typeof row.id !== 'string' || typeof row.name !== 'string') return null;
+  return {
+    id: row.id,
+    name: row.name,
+    city: typeof row.city === 'string' ? row.city : null,
+    neighborhood: typeof row.neighborhood === 'string' ? row.neighborhood : null,
+    maps_url: typeof row.maps_url === 'string' ? row.maps_url : null,
+    average_rating: Number(row.average_rating ?? 0),
+    rating_count: Number(row.rating_count ?? 0),
+  };
 }
 
 async function rpcData<T>(action: () => PromiseLike<{ data: T; error: { message: string } | null }>): Promise<T> {
@@ -91,6 +108,7 @@ export async function getBarber(barberId: string): Promise<readonly BarberProfil
       service_count: services.length,
       services,
       weekly_hours: asWeeklyHours(item.weekly_hours),
+      shop: asShop(item.shop),
     };
   });
 }
@@ -172,10 +190,49 @@ export async function barberTodayAppointments(): Promise<readonly TodayAppointme
   return data ?? [];
 }
 
+export async function loadBarberAppointment(appointmentId: string): Promise<BarberAppointmentEvent | null> {
+  const { data, error } = await supabase
+    .rpc('barber_appointment_event', { target_appointment_id: appointmentId });
+  if (error) {
+    if (error.code !== 'PGRST202') throw toAppError(error);
+    const legacy = await supabase
+      .from('appointments')
+      .select('id,starts_at,ends_at,price_dzd,status,services(name),profiles!appointments_customer_id_fkey(name,phone)')
+      .eq('id', appointmentId)
+      .maybeSingle();
+    if (legacy.error) throw toAppError(legacy.error);
+    if (!legacy.data) return null;
+    const customer = Array.isArray(legacy.data.profiles) ? legacy.data.profiles[0] : legacy.data.profiles;
+    const service = Array.isArray(legacy.data.services) ? legacy.data.services[0] : legacy.data.services;
+    return {
+      id: legacy.data.id,
+      starts_at: legacy.data.starts_at,
+      ends_at: legacy.data.ends_at,
+      price_dzd: legacy.data.price_dzd,
+      status: legacy.data.status,
+      service_name: service?.name ?? '',
+      customer_name: customer?.name ?? '',
+      customer_phone: customer?.phone ?? '',
+    };
+  }
+  const row = data?.[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    starts_at: row.starts_at,
+    ends_at: row.ends_at,
+    price_dzd: row.price_dzd,
+    status: row.status,
+    service_name: row.service_name,
+    customer_name: row.customer_name,
+    customer_phone: row.customer_phone,
+  };
+}
+
 export async function loadCustomerAppointments(): Promise<readonly Appointment[]> {
   const { data, error } = await supabase
     .from('appointments')
-    .select('id,barber_id,service_id,starts_at,ends_at,price_dzd,status,services(name),profiles!appointments_barber_id_fkey(name,maps_url),shops(maps_url),ratings(id,stars,created_at,updated_at)')
+    .select('id,barber_id,service_id,starts_at,ends_at,price_dzd,status,services(name),profiles!appointments_barber_id_fkey(name,maps_url),shops(name,maps_url),ratings(id,stars,created_at,updated_at)')
     .order('starts_at', { ascending: false });
   if (error) throw toAppError(error);
   return (data ?? []).map((row) => mapCustomerAppointment(row as never));

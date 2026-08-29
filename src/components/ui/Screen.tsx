@@ -1,15 +1,15 @@
 import { type ReactNode } from 'react';
 import {
-  ActivityIndicator,
   ScrollView,
   StyleSheet,
-  Text,
   View,
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Spinner } from 'heroui-native/spinner';
+import { Typography } from 'heroui-native/text';
 
-import { colors, layout, space, typography } from '@/src/theme';
+import { colors, layout, space } from '@/src/theme';
 
 type Props = {
   readonly children?: ReactNode;
@@ -38,7 +38,7 @@ export function Screen({
   if (loading) {
     return (
       <View style={[styles.root, styles.center, style]}>
-        <ActivityIndicator color={colors.primary} size="large" />
+        <Spinner size="lg" color="accent" />
       </View>
     );
   }
@@ -64,8 +64,8 @@ export function Screen({
 export function ScreenTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <View style={styles.titleBlock}>
-      <Text style={styles.title}>{title}</Text>
-      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      <Typography type="h5" align="end">{title}</Typography>
+      {subtitle ? <Typography type="body" color="muted" align="end">{subtitle}</Typography> : null}
     </View>
   );
 }
@@ -86,13 +86,5 @@ const styles = StyleSheet.create({
   titleBlock: {
     gap: space[1],
     alignItems: 'flex-end',
-  },
-  title: {
-    ...typography.title,
-    textAlign: 'right',
-  },
-  subtitle: {
-    ...typography.caption,
-    textAlign: 'right',
   },
 });

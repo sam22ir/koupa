@@ -1,9 +1,9 @@
 module.exports = function (api) {
   api.cache(true);
   return {
-    // Koupa has no app-level Reanimated/worklet code. Keep Expo Go on its
-    // stable JS runtime instead of initializing the optional native worklets
-    // bridge during startup.
-    presets: [['babel-preset-expo', { worklets: false, reanimated: false }]],
+    // babel-preset-expo auto-detects react-native-reanimated and
+    // react-native-worklets when they are installed, enabling the worklet
+    // transform. This is required by both HeroUI Native and Uniwind.
+    presets: ['babel-preset-expo'],
   };
 };

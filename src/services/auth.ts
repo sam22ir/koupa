@@ -1,5 +1,3 @@
-import { makeRedirectUri } from 'expo-auth-session';
-import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import type { Session, User } from '@supabase/supabase-js';
@@ -9,10 +7,14 @@ import { appStorage } from '@/lib/storage';
 import {
   hasUnapprovedGoogleCollision,
   isExistingConfirmedEmailSignup,
+  normalizeAlgerianPhone,
   parseAuthCallback,
   type UserRole,
 } from '@/src/auth';
+import { authCallbackUrl } from '@/src/services/authCallbackUrl';
 import { AppError, toAppError } from '@/src/services/errors';
+
+export { authCallbackUrl, NATIVE_AUTH_CALLBACK_URL } from '@/src/services/authCallbackUrl';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -21,40 +23,6 @@ export type ConfirmationType = 'signup' | 'email_change';
 export const pendingRoleKey = 'koupa.pending-role';
 export const pendingConfirmationEmailKey = 'koupa.pending-confirmation-email';
 export const pendingConfirmationTypeKey = 'koupa.pending-confirmation-type';
-
-/**
- * OAuth / email redirect target used by Supabase `redirectTo`.
- *
- * Expo Go:
- *   exp://192.168.x.x:8081/--/callback
- * Dev client / Play:
- *   koupa://callback
- * Web:
- *   EXPO_PUBLIC_AUTH_REDIRECT_URL (production) or the current Expo web origin (development)
- *
- * CRITICAL: the exact string returned here MUST be in
- * Supabase → Authentication → URL Configuration → Redirect URLs.
- * If it is missing, Google finishes account pick then the browser spins forever.
- */
-export function authCallbackUrl(): string {
-  if (Platform.OS === 'web') {
-    const configuredWebRedirect = process.env.EXPO_PUBLIC_AUTH_REDIRECT_URL?.trim();
-    if (configuredWebRedirect) return configuredWebRedirect;
-    return makeRedirectUri({ path: 'callback' });
-  }
-
-  // Standalone / dev-client / Play builds use the app scheme.
-  if (Constants.appOwnership !== 'expo') {
-    return makeRedirectUri({
-      scheme: 'koupa',
-      path: 'callback',
-      native: 'koupa://callback',
-    });
-  }
-
-  // Expo Go — must use exp:// host so openAuthSessionAsync can intercept return.
-  return makeRedirectUri({ path: 'callback' });
-}
 
 function looksLikeAuthCallback(url: string): boolean {
   if (!url) return false;
@@ -156,6 +124,31 @@ export async function signInWithPassword(email: string, password: string): Promi
     await setPendingEmailConfirmationStorage(confirmationEmail, 'signup');
   }
   return data.session;
+}
+
+export async function signInWithPhone(phone: string, password: string): Promise<Session> {
+  const normalizedPhone = normalizeAlgerianPhone(phone);
+  if (!normalizedPhone) throw new AppError('VALIDATION', new Error('Invalid phone number'));
+
+  const { data, error } = await supabase.functions.invoke('sign-in-with-phone', {
+    body: { phone: normalizedPhone, password },
+  });
+  if (error) throw new AppError('UNAUTHORIZED', new Error('Invalid login credentials'));
+
+  const payload = data as { readonly access_token?: unknown; readonly refresh_token?: unknown } | null;
+  if (typeof payload?.access_token !== 'string' || typeof payload.refresh_token !== 'string') {
+    throw new AppError('UNAUTHORIZED', new Error('Authentication session is unavailable'));
+  }
+
+  const sessionResult = await supabase.auth.setSession({
+    access_token: payload.access_token,
+    refresh_token: payload.refresh_token,
+  });
+  if (sessionResult.error) throw toAppError(sessionResult.error, 'UNAUTHORIZED');
+  if (!sessionResult.data.session) {
+    throw new AppError('UNAUTHORIZED', new Error('Authentication session is unavailable'));
+  }
+  return sessionResult.data.session;
 }
 
 export async function signUpWithPassword(input: {

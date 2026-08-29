@@ -90,7 +90,7 @@ export default function ScanScreen() {
     const canAskAgain = permission.canAskAgain !== false;
     return (
       <Screen padded={false}>
-        <CustomerStageHeader title={t('scan.title')} subtitle={t('scan.permission')} />
+        <CustomerStageHeader tone="stage" title={t('scan.title')} subtitle={t('scan.permission')} />
         <View style={styles.permissionScreen}>
           <View style={styles.permissionIcon}>
             <Icon name="camera-outline" size={30} color={colors.primary} />
@@ -127,7 +127,7 @@ export default function ScanScreen() {
 
     return (
       <Screen padded={false}>
-        <CustomerStageHeader title={t('scan.title')} />
+        <CustomerStageHeader tone="stage" title={t('scan.title')} />
         <View style={styles.resultScreen}>
         <Card elevated style={styles.resultCard}>
           <View style={[styles.resultIcon, success && styles.successIcon]}>
@@ -147,7 +147,7 @@ export default function ScanScreen() {
           {success && appointmentId ? (
             <Button
               label={t('scan.viewAppointment')}
-              onPress={() => router.replace(`/appointment/${appointmentId}`)}
+              onPress={() => router.dismissTo(`/appointment/${appointmentId}`)}
               style={styles.resultButton}
             />
           ) : (
@@ -171,7 +171,7 @@ export default function ScanScreen() {
 
   return (
     <Screen padded={false}>
-      <CustomerStageHeader title={t('scan.title')} subtitle={context || undefined} />
+      <CustomerStageHeader tone="stage" title={t('scan.title')} subtitle={context || undefined} />
       <View style={styles.cameraFrame}>
         <CameraView
           testID="qr-camera"

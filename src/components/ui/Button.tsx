@@ -1,6 +1,7 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
-
-import { colors, radii, space, typography } from '@/src/theme';
+import { type ViewStyle } from 'react-native';
+import { Button as HeroButton } from 'heroui-native/button';
+import { useThemeColor } from 'heroui-native/hooks';
+import { Spinner } from 'heroui-native/spinner';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -12,6 +13,14 @@ type Props = {
   readonly loading?: boolean;
   readonly style?: ViewStyle;
   readonly accessibilityLabel?: string;
+  readonly testID?: string;
+};
+
+const variantMap: Record<Variant, 'primary' | 'secondary' | 'ghost' | 'danger'> = {
+  primary: 'primary',
+  secondary: 'secondary',
+  ghost: 'ghost',
+  danger: 'danger',
 };
 
 export function Button({
@@ -22,80 +31,27 @@ export function Button({
   loading,
   style,
   accessibilityLabel,
+  testID,
 }: Props) {
   const isDisabled = disabled || loading;
+  const spinnerColor = useThemeColor(
+    variant === 'primary' || variant === 'danger' ? 'accent-foreground' : 'accent',
+  );
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled: Boolean(isDisabled), busy: Boolean(loading) }}
-      disabled={isDisabled}
+    <HeroButton
+      variant={variantMap[variant]}
+      isDisabled={isDisabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.base,
-        variantStyles[variant],
-        isDisabled && styles.disabled,
-        pressed && !isDisabled && styles.pressed,
-        style,
-      ]}
+      style={style}
+      accessibilityLabel={accessibilityLabel ?? label}
+      testID={testID}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' || variant === 'danger' ? colors.onPrimary : colors.primary} />
+        <Spinner size="sm" color={spinnerColor} />
       ) : (
-        <Text style={[styles.label, labelStyles[variant]]}>{label}</Text>
+        <HeroButton.Label>{label}</HeroButton.Label>
       )}
-    </Pressable>
+    </HeroButton>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    minHeight: 48,
-    borderRadius: radii.lg,
-    paddingHorizontal: space[4],
-    paddingVertical: space[3],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: {
-    ...typography.button,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  pressed: {
-    transform: [{ scale: 0.98 }],
-  },
-});
-
-const variantStyles = StyleSheet.create({
-  primary: {
-    backgroundColor: colors.primary,
-  },
-  secondary: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  danger: {
-    backgroundColor: colors.danger,
-  },
-});
-
-const labelStyles = StyleSheet.create({
-  primary: {
-    color: colors.onPrimary,
-  },
-  secondary: {
-    color: colors.text,
-  },
-  ghost: {
-    color: colors.primary,
-  },
-  danger: {
-    color: colors.onPrimary,
-  },
-});

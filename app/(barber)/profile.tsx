@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Avatar, BrandLogo, Button, Card, Chip, ErrorBanner, Icon, Screen, Stage } from '@/src/components/ui';
+import { Avatar, Button, Card, Chip, CustomerStageHeader, ErrorBanner, Icon, Screen } from '@/src/components/ui';
 import { DeleteAccountButton } from '@/src/features/account/DeleteAccountButton';
 import { LegalSupportLinks } from '@/src/features/account/LegalSupportLinks';
 import { useAccountLifecycle } from '@/src/hooks/useAccountLifecycle';
@@ -40,18 +40,11 @@ export default function BarberProfileScreen() {
 
   return (
     <Screen padded={false} scroll style={styles.screen} contentStyle={styles.content}>
-      <Stage decoration="subtle">
-        <View style={styles.stageTopRow}>
-          <View style={styles.logoWrap}>
-            <BrandLogo variant="full" height={56} imageStyle={styles.logoImage} />
-            <View style={styles.logoAccent} />
-          </View>
-        </View>
-        <View style={styles.stageTitleBlock}>
-          <Text style={styles.stageTitle}>{t('profile.title')}</Text>
-          <Text style={styles.stageSubtitle}>{t('profile.subtitle')}</Text>
-        </View>
-      </Stage>
+      <CustomerStageHeader
+        tone="paper"
+        title={t('profile.title')}
+        subtitle={t('profile.subtitle')}
+      />
 
       <View style={styles.body}>
         <Card elevated style={styles.identityCard}>
@@ -121,44 +114,8 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: space[10],
   },
-  stageTopRow: {
-    minHeight: 58,
-    position: 'relative',
-  },
-  logoWrap: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    alignItems: 'center',
-    gap: space[2],
-  },
-  logoImage: {
-    tintColor: colors.onPrimary,
-    opacity: 0.96,
-  },
-  logoAccent: {
-    width: space[6],
-    height: 3,
-    borderRadius: radii.pill,
-    backgroundColor: colors.accent,
-  },
-  stageTitleBlock: {
-    gap: space[1],
-    alignItems: 'flex-end',
-  },
-  stageTitle: {
-    ...typography.title,
-    color: colors.onPrimary,
-    textAlign: 'right',
-  },
-  stageSubtitle: {
-    ...typography.body,
-    color: colors.onPrimaryMuted,
-    textAlign: 'right',
-  },
   body: {
     flex: 1,
-    marginTop: -space[5],
     gap: space[4],
     paddingHorizontal: layout.screenPaddingX,
     backgroundColor: colors.workspace,

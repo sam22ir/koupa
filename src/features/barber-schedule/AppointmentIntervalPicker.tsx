@@ -10,6 +10,46 @@ const labels: Record<number, string> = {
   30: '30 دقيقة',
 };
 
+export type SegmentedOption = {
+  readonly value: number;
+  readonly label: string;
+};
+
+export function SegmentedOptionPicker({
+  options,
+  value,
+  onChange,
+  accessibilityLabelPrefix,
+}: {
+  readonly options: readonly SegmentedOption[];
+  readonly value: number;
+  readonly onChange: (value: number) => void;
+  readonly accessibilityLabelPrefix?: string;
+}) {
+  return (
+    <View style={styles.segmented} accessibilityRole="radiogroup">
+      {options.map((option) => {
+        const selected = value === option.value;
+        const accessibilityLabel = accessibilityLabelPrefix
+          ? `${accessibilityLabelPrefix}: ${option.label}`
+          : option.label;
+        return (
+          <Pressable
+            key={option.value}
+            accessibilityRole="radio"
+            accessibilityLabel={accessibilityLabel}
+            accessibilityState={{ checked: selected, selected }}
+            onPress={() => onChange(option.value)}
+            style={[styles.segment, selected && styles.segmentSelected]}
+          >
+            <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>{option.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function AppointmentIntervalPicker({
   value,
   onChange,
@@ -18,23 +58,11 @@ export function AppointmentIntervalPicker({
   readonly onChange: (value: number) => void;
 }) {
   return (
-    <View style={styles.segmented} accessibilityRole="radiogroup">
-      {bookingIntervalOptions.map((option) => {
-        const selected = value === option;
-        return (
-          <Pressable
-            key={option}
-            accessibilityRole="radio"
-            accessibilityLabel={labels[option]}
-            accessibilityState={{ checked: selected, selected }}
-            onPress={() => onChange(option)}
-            style={[styles.segment, selected && styles.segmentSelected]}
-          >
-            <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>{option}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    <SegmentedOptionPicker
+      options={bookingIntervalOptions.map((option) => ({ value: option, label: labels[option] }))}
+      value={value}
+      onChange={onChange}
+    />
   );
 }
 

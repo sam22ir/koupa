@@ -1,14 +1,16 @@
+import type { Href } from 'expo-router';
+
 import type { AppDestination } from './resolveRoute';
 
 /** Href groups for Expo Router redirects from the session gate. */
-export function destinationHref(destination: AppDestination): string {
+export function destinationHref(destination: AppDestination): Href {
   switch (destination) {
     case 'loading':
       return '/';
     case 'session-error':
       return '/(auth)/session-error';
     case 'auth':
-      return '/(auth)/welcome';
+      return '/(auth)/intro';
     case 'confirm':
       return '/(auth)/confirm';
     case 'customer-setup':

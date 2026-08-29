@@ -2,6 +2,7 @@ import { isValidTime } from '@/src/barberSettings';
 import { normalizeAlgerianPhone } from '@/src/auth';
 import type { BarberDraft } from '@/src/data/onboarding';
 import { bookingIntervalOptions } from '@/src/features/barber-schedule/model';
+import { hasUsableLocation } from '@/src/location';
 
 export type BarberOnboardingStep = 0 | 1 | 2 | 3 | 4;
 export type BarberOnboardingError = 'basic' | 'location' | 'services' | 'schedule';
@@ -13,23 +14,6 @@ export function toPersistedOnboardingStep(screenStep: number): number {
 export function fromPersistedOnboardingStep(persistedStep: number): BarberOnboardingStep {
   if (!Number.isFinite(persistedStep) || persistedStep <= 0) return 0;
   return Math.min(4, Math.max(0, Math.trunc(persistedStep) - 1)) as BarberOnboardingStep;
-}
-
-const googleMapsHosts = new Set(['google.com', 'maps.google.com', 'www.google.com']);
-
-function hasValidMapsUrl(value: string): boolean {
-  try {
-    const url = new URL(value.trim());
-    const host = url.hostname.toLowerCase();
-    const hasShortLinkPath = host === 'goo.gl' && url.pathname.length > 1;
-    const isGoogleMapsHost = googleMapsHosts.has(host) && url.pathname.includes('/maps');
-    return (
-      url.protocol === 'https:'
-      && (host === 'maps.app.goo.gl' || hasShortLinkPath || isGoogleMapsHost)
-    );
-  } catch {
-    return false;
-  }
 }
 
 function hasValidServices(draft: BarberDraft): boolean {
@@ -73,13 +57,15 @@ export function validateBarberOnboardingStep(
   step: BarberOnboardingStep,
 ): BarberOnboardingError | null {
   if (step === 0) {
-    return draft.name.trim().length >= 2 && normalizeAlgerianPhone(draft.phone) ? null : 'basic';
+    const validIdentity = draft.name.trim().length >= 2 && normalizeAlgerianPhone(draft.phone);
+    const validShop = draft.workplaceType === 'worker' || draft.shopName.trim().length >= 2;
+    return validIdentity && validShop ? null : 'basic';
   }
   if (step === 1) {
     if (draft.workplaceType === 'worker') return null;
     return draft.city.trim().length >= 2
       && draft.neighborhood.trim().length >= 2
-      && hasValidMapsUrl(draft.mapsUrl)
+      && hasUsableLocation(draft)
       ? null
       : 'location';
   }

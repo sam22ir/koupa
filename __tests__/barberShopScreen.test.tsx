@@ -3,6 +3,12 @@ import { fireEvent, render } from '@testing-library/react-native';
 import { ShopHub } from '@/src/features/barber-shop/ShopHub';
 import type { ShopMembership, ShopSummary } from '@/src/shops';
 
+function elementChildren<T extends { props: Record<string, unknown> }>(
+  node: { children: ReadonlyArray<string | T> },
+): T[] {
+  return node.children.filter((child): child is T => typeof child !== 'string');
+}
+
 const recentUpdate = new Date().toISOString();
 
 const shop: ShopSummary = {
@@ -100,6 +106,7 @@ describe('barber Shop hub', () => {
   it('surfaces owner requests, members, and invite action', async () => {
     const onInvite = jest.fn();
     const onMember = jest.fn();
+    const onActivity = jest.fn();
     const shops = baseShops({
       ownedShop: shop,
       relationship: { kind: 'none' as const },
@@ -112,15 +119,27 @@ describe('barber Shop hub', () => {
       },
     });
     const screen = await render(
-      <ShopHub shops={shops} onInvite={onInvite} onMember={onMember} />,
+      <ShopHub shops={shops} onInvite={onInvite} onMember={onMember} onActivity={onActivity} />,
     );
-    expect(screen.getByText('نظرة سريعة على المحل')).toBeTruthy();
+    expect(screen.getByTestId('shop-owner-summary-title').props.children).toBe('نظرة سريعة على المحل');
+    expect(screen.getAllByText('نظرة سريعة على المحل')).toHaveLength(1);
+    expect(screen.queryByText('ما')).toBeNull();
+    expect(screen.queryByText('أدر الطلبات والحلاقين وإعدادات المحل من مكان واحد.')).toBeNull();
+    const statusMetric = screen.getByTestId('shop-metric-الحالة');
+    expect(elementChildren(statusMetric).map((child) => child.props.children)).toEqual(['الحالة', 'نشط']);
+    const membersHeader = screen.getByTestId('shop-members-header');
+    expect(elementChildren(membersHeader).map((child) => child.props.accessibilityLabel ?? child.props.children)).toEqual(['دعوة حلاق', 'الحلاقون']);
+    expect(screen.getByRole('button', { name: 'دعوة حلاق' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'النشاط' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'حذف المحل' })).toBeNull();
     expect(screen.getByText('آخر تحديث اليوم')).toBeTruthy();
     expect(screen.getByText('طلبات الانضمام')).toBeTruthy();
     expect(screen.getByText('عمر')).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'دعوة حلاق' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'النشاط' }));
     await fireEvent.press(screen.getByRole('button', { name: /ياسين/ }));
     expect(onInvite).toHaveBeenCalledTimes(1);
+    expect(onActivity).toHaveBeenCalledWith('shop-1');
     expect(onMember).toHaveBeenCalledWith(activeMember);
   });
 

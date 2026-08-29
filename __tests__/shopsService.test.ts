@@ -15,6 +15,7 @@ import {
   removeShopMember,
   saveOwnerBarberWorkspace,
   getShop,
+  searchNearbyShops,
   searchShops,
 } from '@/src/services/shops';
 import { emptyBarberSettingsDraft } from '@/src/barberSettings';
@@ -164,6 +165,37 @@ describe('barber Shop services', () => {
     });
   });
 
+  it('maps nearby shop distances from the coordinate search RPC', async () => {
+    mockRpc.mockResolvedValue({
+      data: [{
+        id: 'shop-nearby',
+        name: 'محل قريب',
+        bio: null,
+        maps_url: 'https://maps.google.com/?q=36.75,3.05',
+        city: 'Algiers',
+        neighborhood: 'Hydra',
+        average_rating: 4.8,
+        rating_count: 5,
+        owner_name: 'Samir',
+        latitude: 36.75,
+        longitude: 3.05,
+        distance_km: 1.4,
+      }],
+      error: null,
+    });
+
+    await expect(searchNearbyShops(36.7538, 3.0588, 'nearby')).resolves.toEqual([
+      expect.objectContaining({ id: 'shop-nearby', distance_km: 1.4 }),
+    ]);
+    expect(mockRpc).toHaveBeenCalledWith('search_nearby_shops', {
+      origin_latitude: 36.7538,
+      origin_longitude: 3.0588,
+      search_query: 'nearby',
+      radius_km: 25,
+      page_number: 0,
+    });
+  });
+
   it('falls back to the legacy shop search when the versioned RPC is unavailable', async () => {
     mockRpc
       .mockResolvedValueOnce({
@@ -195,6 +227,54 @@ describe('barber Shop services', () => {
       search_query: 'central',
       page_number: 0,
     });
+  });
+
+  it('uses coordinate-aware public rows when the nearby RPC is missing from the API cache', async () => {
+    mockRpc
+      .mockResolvedValueOnce({
+        data: null,
+        error: {
+          code: 'PGRST202',
+          message: 'Could not find the function public.search_nearby_shops(origin_latitude, origin_longitude, search_query, radius_km, page_number) in the schema cache',
+        },
+      });
+
+    mockFrom.mockReturnValueOnce({
+      select: jest.fn().mockResolvedValue({
+        data: [{
+          id: 'shop-nearby',
+          name: 'Central Barber',
+          bio: null,
+          maps_url: 'https://maps.google.com/?q=36.7525,3.0420',
+          latitude: null,
+          longitude: null,
+          owner: {
+            name: 'أمين',
+            city: 'الجزائر',
+            neighborhood: 'حيدرة',
+            role: 'barber',
+            is_published: true,
+            latitude: null,
+            longitude: null,
+            maps_url: null,
+          },
+        }],
+        error: null,
+      }),
+    });
+
+    await expect(searchNearbyShops(36.7538, 3.0588, 'central')).resolves.toEqual([
+      expect.objectContaining({ id: 'shop-nearby', distance_km: expect.any(Number) }),
+    ]);
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith('search_nearby_shops', {
+      origin_latitude: 36.7538,
+      origin_longitude: 3.0588,
+      search_query: 'central',
+      radius_km: 25,
+      page_number: 0,
+    });
+    expect(mockFrom).toHaveBeenCalledWith('shops');
   });
 
   it('falls back to the legacy shop profile when the versioned RPC is unavailable', async () => {

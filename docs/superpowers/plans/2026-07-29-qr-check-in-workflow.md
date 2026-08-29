@@ -14,7 +14,7 @@
 
 | File | Responsibility |
 |---|---|
-| `supabase/migrations/20260729000100_qr_check_in_workflow.sql` | Attendance audit table, structured atomic check-in RPC, undo RPC, corrected overdue transition |
+| `supabase/migrations/20260729000200_qr_check_in_workflow.sql` | Attendance audit table, structured atomic check-in RPC, undo RPC, corrected overdue transition |
 | `supabase/tests/qr_check_in.sql` | Deterministic SQL checks for result codes, boundaries, notifications, and undo |
 | `supabase/tests/qr_check_in_concurrency.sh` | Two-session race check proving one transition and one notification pair |
 | `src/qr.ts` | Strict QR payload parsing and typed RPC-result decoding |
@@ -178,7 +178,7 @@ git commit -m "Define QR check-in result contract"
 ### Task 2: Add the Atomic Database Workflow
 
 **Files:**
-- Create: `supabase/migrations/20260729000100_qr_check_in_workflow.sql`
+- Create: `supabase/migrations/20260729000200_qr_check_in_workflow.sql`
 
 - [ ] **Step 1: Create the attendance audit table**
 
@@ -416,7 +416,7 @@ Expected: no new SQL lint errors. If the local stack is not running, start it in
 - [ ] **Step 6: Commit the migration**
 
 ```bash
-git add supabase/migrations/20260729000100_qr_check_in_workflow.sql
+git add supabase/migrations/20260729000200_qr_check_in_workflow.sql
 git commit -m "Add atomic QR check-in workflow"
 ```
 
