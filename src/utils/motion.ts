@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing } from 'react-native';
 
 /**
@@ -15,15 +15,16 @@ export function entranceMotionEnabled(): boolean {
 /**
  * A 0 -> 1 progress handle that is stable across renders.
  *
- * The ref is required, not an optimisation: a fresh Animated.Value per render
- * would restart the timeline from zero on every state change.
+ * The lazy state initialiser is required, not an optimisation: a fresh
+ * Animated.Value per render would restart the timeline from zero on every state
+ * change. useState rather than useRef because React forbids touching a ref
+ * during render, and this value is read by the caller immediately.
  */
 export function useEntranceProgress(): Animated.Value {
-  const ref = useRef<Animated.Value | null>(null);
-  if (ref.current === null) {
-    ref.current = new Animated.Value(entranceMotionEnabled() ? 0 : 1);
-  }
-  return ref.current;
+  const [progress] = useState(
+    () => new Animated.Value(entranceMotionEnabled() ? 0 : 1),
+  );
+  return progress;
 }
 
 /**
