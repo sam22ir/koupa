@@ -295,6 +295,38 @@ export type AuthCallbackResult = {
   readonly kind: 'session' | 'recovery' | 'collision' | 'empty';
 };
 
+/**
+ * PKCE auth codes are single-use. The Google OAuth callback can reach
+ * completeAuthCallback through two paths at once: the inline consumer in
+ * signInWithGoogle (Linking / WebBrowser) and the deep-linked /callback route.
+ * Both mount before either finishes, so the same code would otherwise be
+ * exchanged twice and the second exchange would fail. This map shares one
+ * exchange promise per code so the code is consumed exactly once and every
+ * consumer resolves with the same outcome.
+ */
+const exchangePromises = new Map<string, Promise<User | null>>();
+
+async function exchangeCodeOnce(code: string): Promise<User | null> {
+  const inFlight = exchangePromises.get(code);
+  if (inFlight) return inFlight;
+
+  const exchange = supabase.auth
+    .exchangeCodeForSession(code)
+    .then(({ data, error }) => {
+      if (error) throw toAppError(error, 'UNAUTHORIZED');
+      return data.user ?? data.session?.user ?? null;
+    });
+
+  exchangePromises.set(code, exchange);
+  exchange
+    .catch(() => undefined)
+    .finally(() => {
+      exchangePromises.delete(code);
+    });
+
+  return exchange;
+}
+
 async function approveGoogleIdentityLink(): Promise<void> {
   const { error } = await supabase.auth.updateUser({
     data: { koupa_google_linked: true },
@@ -325,9 +357,7 @@ export async function completeAuthCallback(
 
   let callbackUser: User | null = null;
   if (params.code) {
-    const { data, error } = await supabase.auth.exchangeCodeForSession(params.code);
-    if (error) throw toAppError(error, 'UNAUTHORIZED');
-    callbackUser = data.user ?? data.session?.user ?? null;
+    callbackUser = await exchangeCodeOnce(params.code);
   } else if (params.token_hash && params.type) {
     const type =
       params.type === 'recovery'
