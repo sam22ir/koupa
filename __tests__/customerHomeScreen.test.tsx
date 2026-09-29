@@ -9,6 +9,10 @@ const mockLoadAppointments = jest.fn();
 const mockPush = jest.fn();
 let focusCallback: (() => void) | null = null;
 
+jest.mock('@/src/hooks/useQueue', () => ({
+  useMyQueueEntry: () => ({ entry: null, loaded: true, error: '', leaving: false, refresh: jest.fn(), leave: jest.fn() }),
+}));
+
 jest.mock('expo-router', () => {
   const ReactModule = jest.requireActual<typeof React>('react');
   return {

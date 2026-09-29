@@ -18,6 +18,8 @@ import {
 } from '@/src/components/ui';
 import { initialsFromName } from '@/src/utils/initials';
 import { useBooking } from '@/src/hooks/useBooking';
+import { useJoinQueue, usePublicQueueStatus } from '@/src/hooks/useQueue';
+import { JoinQueueCard } from '@/src/features/customer-queue/JoinQueueCard';
 import { UgcModerationActions } from '@/src/features/moderation/UgcModerationActions';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { t } from '@/src/i18n';
@@ -34,6 +36,8 @@ export default function BarberProfilePublicScreen() {
   const [barber, setBarber] = useState<BarberProfile | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const { status: queueStatus } = usePublicQueueStatus(id);
+  const joinQueue = useJoinQueue();
   const fallback = publicProfileReturnHref(returnTo, guestBrowsing ? 'customer' : profile?.role);
 
   const load = useCallback(async () => {
@@ -71,6 +75,19 @@ export default function BarberProfilePublicScreen() {
       setPendingIntentFromPath(`/book/${barberId}`, { serviceId, returnTo: returnPath });
       router.push({ pathname: '/(auth)/sign-up', params: { role: 'customer' } });
     }
+  };
+
+  const isGuest = guestBrowsing || !profile;
+  const onJoinQueue = async () => {
+    if (!barber) return;
+    if (isGuest) {
+      setPendingIntentFromPath(`/barber/${barber.id}`, {});
+      router.push({ pathname: '/(auth)/sign-up', params: { role: 'customer' } });
+      return;
+    }
+    if (!selectedServiceId) return;
+    // The line lives on Home, where the customer's position is shown.
+    if (await joinQueue.join(barber.id, selectedServiceId)) router.replace('/(customer)/home');
   };
 
   const selectedService = barber?.services.find((service) => service.id === selectedServiceId) ?? null;
@@ -180,6 +197,18 @@ export default function BarberProfilePublicScreen() {
                 ) : null}
               </View>
             </Card>
+
+            {queueStatus ? (
+              <JoinQueueCard
+                status={queueStatus}
+                canJoin={profile?.role !== 'barber'}
+                guest={isGuest}
+                serviceChosen={Boolean(selectedServiceId)}
+                joining={joinQueue.joining}
+                error={joinQueue.error}
+                onJoin={() => void onJoinQueue()}
+              />
+            ) : null}
 
             <SectionHeader title={t('booking.services')} />
             {barber.services.length ? (

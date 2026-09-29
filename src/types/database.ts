@@ -373,6 +373,7 @@ export type Database = {
           name: string
           neighborhood: string | null
           phone: string
+          queue_open: boolean
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
           workplace_type: string
@@ -393,6 +394,7 @@ export type Database = {
           name: string
           neighborhood?: string | null
           phone: string
+          queue_open?: boolean
           role: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           workplace_type?: string
@@ -413,11 +415,79 @@ export type Database = {
           name?: string
           neighborhood?: string | null
           phone?: string
+          queue_open?: boolean
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           workplace_type?: string
         }
         Relationships: []
+      }
+      queue_entries: {
+        Row: {
+          barber_id: string
+          called_at: string | null
+          customer_id: string | null
+          finished_at: string | null
+          guest_name: string | null
+          id: string
+          joined_at: string
+          next_notified_at: string | null
+          service_id: string | null
+          serving_at: string | null
+          source: string
+          status: string
+        }
+        Insert: {
+          barber_id: string
+          called_at?: string | null
+          customer_id?: string | null
+          finished_at?: string | null
+          guest_name?: string | null
+          id?: string
+          joined_at?: string
+          next_notified_at?: string | null
+          service_id?: string | null
+          serving_at?: string | null
+          source: string
+          status?: string
+        }
+        Update: {
+          barber_id?: string
+          called_at?: string | null
+          customer_id?: string | null
+          finished_at?: string | null
+          guest_name?: string | null
+          id?: string
+          joined_at?: string
+          next_notified_at?: string | null
+          service_id?: string | null
+          serving_at?: string | null
+          source?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "queue_entries_barber_id_fkey"
+            columns: ["barber_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queue_entries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queue_entries_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ratings: {
         Row: {
@@ -802,6 +872,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_walkin: {
+        Args: { guest_name_value: string; service_id_value: string }
+        Returns: string
+      }
       apply_barber_settings_payload: {
         Args: { settings: Json; target_barber_id: string }
         Returns: undefined
@@ -884,6 +958,8 @@ export type Database = {
       }
       delete_own_account: { Args: never; Returns: undefined }
       delete_owned_shop: { Args: never; Returns: undefined }
+      get_barber_queue: { Args: never; Returns: Json }
+      get_my_queue_entry: { Args: never; Returns: Json }
       get_public_barber_profile: {
         Args: { barber_id: string }
         Returns: {
@@ -900,6 +976,13 @@ export type Database = {
           services: Json
           shop: Json
           weekly_hours: Json
+        }[]
+      }
+      get_public_queue_status: {
+        Args: { barber_id_value: string }
+        Returns: {
+          queue_open: boolean
+          waiting_count: number
         }[]
       }
       get_public_shop_profile: {
@@ -961,6 +1044,11 @@ export type Database = {
         Args: { barber_id: string }
         Returns: boolean
       }
+      join_queue: {
+        Args: { barber_id_value: string; service_id_value: string }
+        Returns: string
+      }
+      leave_queue: { Args: { entry_id_value: string }; Returns: undefined }
       leave_shop: { Args: never; Returns: undefined }
       mark_appointment_present: {
         Args: { appointment_id: string }
@@ -973,6 +1061,22 @@ export type Database = {
       }
       normalize_booking_search: { Args: { value: string }; Returns: string }
       publish_barber_profile: { Args: { payload: Json }; Returns: undefined }
+      queue_call_grace_minutes: { Args: never; Returns: number }
+      queue_maintenance: {
+        Args: { target_barber?: string }
+        Returns: undefined
+      }
+      queue_max_active: { Args: never; Returns: number }
+      queue_notify: {
+        Args: {
+          barber_id_value: string
+          body_value: string
+          recipient_id: string
+          title_value: string
+        }
+        Returns: undefined
+      }
+      queue_notify_next: { Args: { target_barber: string }; Returns: undefined }
       rate_appointment: {
         Args: { stars_value: number; target_appointment_id: string }
         Returns: string
@@ -1121,6 +1225,7 @@ export type Database = {
           rating_count: number
         }[]
       }
+      set_queue_open: { Args: { open_value: boolean }; Returns: undefined }
       shop_activity_history: {
         Args: { target_shop_id: string }
         Returns: {
@@ -1191,6 +1296,10 @@ export type Database = {
       undo_qr_check_in: {
         Args: { target_appointment_id: string }
         Returns: string
+      }
+      update_queue_entry: {
+        Args: { action_value: string; entry_id_value: string }
+        Returns: undefined
       }
     }
     Enums: {

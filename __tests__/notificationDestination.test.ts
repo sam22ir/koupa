@@ -39,6 +39,12 @@ describe('notificationDestinationHref', () => {
     expect(notificationDestinationHref(notification(destination))).toBe(expected);
   });
 
+  it('opens Home for a customer and Today for a barber on a queue event', () => {
+    const event = notification({ kind: 'queue', barberId: 'barber-1' });
+    expect(notificationDestinationHref(event, 'customer')).toBe('/(customer)/home');
+    expect(notificationDestinationHref(event, 'barber')).toBe('/(barber)/today');
+  });
+
   it('opens a barber appointment event for a barber recipient', () => {
     expect(notificationDestinationHref(
       notification({ kind: 'appointment', appointmentId: 'appointment-1' }),

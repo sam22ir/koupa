@@ -14,6 +14,10 @@ export type AppErrorCode =
   | 'EMAIL_NOT_CONFIRMED'
   | 'PHONE_ALREADY_IN_USE'
   | 'INVITATION_NOT_ALLOWED'
+  | 'QUEUE_CLOSED'
+  | 'QUEUE_FULL'
+  | 'ALREADY_IN_QUEUE'
+  | 'QUEUE_ENTRY_CHANGED'
   | 'UNAUTHORIZED'
   | 'NETWORK'
   | 'UNKNOWN'
@@ -45,6 +49,10 @@ export function mapRpcMessage(error: unknown): AppErrorCode {
   if (!message) return 'UNKNOWN';
   // Must precede the generic 'required' => VALIDATION rule below.
   if (/confirmed email is required/i.test(message)) return 'EMAIL_NOT_CONFIRMED';
+  if (/queue is closed/i.test(message)) return 'QUEUE_CLOSED';
+  if (/queue is full/i.test(message)) return 'QUEUE_FULL';
+  if (/already in a queue/i.test(message)) return 'ALREADY_IN_QUEUE';
+  if (/queue entry cannot be updated/i.test(message)) return 'QUEUE_ENTRY_CHANGED';
   if (message.includes('unavailable')) return 'SLOT_UNAVAILABLE';
   if (message.includes('active appointment')) return 'ACTIVE_APPOINTMENT';
   if (message.includes('cannot be cancelled')) return 'CANCEL_NOT_ALLOWED';
@@ -115,5 +123,29 @@ export function bookingErrorMessage(error: unknown): string {
       return 'تحقق من الاتصال بالإنترنت.';
     default:
       return 'تعذّر تنفيذ طلب الحجز. تحقق من الاتصال وحاول مرة أخرى.';
+  }
+}
+
+/** Arabic message for a failed walk-in queue action. */
+export function queueErrorMessage(error: unknown): string {
+  switch (errorCode(error)) {
+    case 'QUEUE_CLOSED':
+      return 'الطابور مغلق حاليا.';
+    case 'QUEUE_FULL':
+      return 'الطابور ممتلئ حاليا. حاول لاحقا.';
+    case 'ALREADY_IN_QUEUE':
+      return 'أنت في طابور بالفعل. غادره أولا للانضمام إلى طابور آخر.';
+    case 'QUEUE_ENTRY_CHANGED':
+      return 'تغيّرت حالة هذا الدور. حدّث القائمة وحاول مرة أخرى.';
+    case 'EMAIL_NOT_CONFIRMED':
+      return 'أكد بريدك الإلكتروني للانضمام إلى الطابور.';
+    case 'VALIDATION':
+      return 'تحقق من البيانات المدخلة.';
+    case 'UNAUTHORIZED':
+      return 'يلزم تسجيل الدخول.';
+    case 'NETWORK':
+      return 'تحقق من الاتصال بالإنترنت.';
+    default:
+      return 'تعذّر تنفيذ العملية. تحقق من الاتصال وحاول مرة أخرى.';
   }
 }
