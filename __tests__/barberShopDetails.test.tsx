@@ -4,9 +4,10 @@ import ShopDetailsScreen from '@/app/(barber)/shop-details/[id]';
 
 const mockRouterDismissTo = jest.fn();
 const mockRouterReplace = jest.fn();
+const mockNavigate = jest.fn();
 
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), dismissTo: mockRouterDismissTo, replace: mockRouterReplace },
+  router: { push: jest.fn(), dismissTo: mockRouterDismissTo, replace: mockRouterReplace, navigate: (...args: unknown[]) => mockNavigate(...args), back: jest.fn(), canGoBack: () => false },
   useRouter: () => ({ push: jest.fn(), dismissTo: mockRouterDismissTo, replace: mockRouterReplace }),
   useLocalSearchParams: jest.fn(() => ({ id: 'shop-1' })),
 }));
@@ -67,7 +68,15 @@ describe('barber Shop details', () => {
     const actions = screen.getAllByRole('button');
     await fireEvent.press(actions[actions.length - 1]);
     expect(mockRequestJoin).toHaveBeenCalledWith('shop-1');
-    expect(mockRouterDismissTo).toHaveBeenCalledWith('/(barber)/shop');
+    expect(mockNavigate).toHaveBeenCalledWith('/(barber)/shop');
+  });
+
+  it('does not offer the owner a join request for their own shop', async () => {
+    mockOwnedShop = { id: 'shop-1' };
+    const screen = await render(<ShopDetailsScreen />);
+    await screen.findByText('محل النور');
+
+    expect(screen.queryByRole('button', { name: 'طلب انضمام' })).toBeNull();
   });
 
   it('confirms and completes owned-shop removal without relying on native Alert', async () => {
@@ -81,6 +90,6 @@ describe('barber Shop details', () => {
     await fireEvent.press(screen.getByTestId('delete-shop-confirm'));
 
     expect(mockRemoveShop).toHaveBeenCalledTimes(1);
-    expect(mockRouterReplace).toHaveBeenCalledWith('/shop');
+    expect(mockNavigate).toHaveBeenCalledWith('/(barber)/shop');
   });
 });

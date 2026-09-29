@@ -153,6 +153,7 @@ export async function signInWithPhone(phone: string, password: string): Promise<
 
 export async function signUpWithPassword(input: {
   readonly email: string;
+  readonly name?: string;
   readonly phone?: string;
   readonly password: string;
   readonly role: UserRole;
@@ -162,6 +163,7 @@ export async function signUpWithPassword(input: {
     koupa_role: input.role,
     koupa_signup_consent: true,
     koupa_phone: input.phone,
+    ...(input.name?.trim() ? { koupa_name: input.name.trim() } : {}),
   };
   const { data, error } = await supabase.auth.signUp({
     email: input.email,

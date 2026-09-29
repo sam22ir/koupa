@@ -149,7 +149,7 @@ describe('BarberTodayScreen', () => {
     expect(screen.getByLabelText('مكتملة، 1')).toBeTruthy();
     expect(screen.getAllByRole('button', { name: 'عرض رمز الحضور' })).toHaveLength(1);
 
-    await fireEvent.press(within(rows[0]).getByRole('button', { name: 'تأكيد الحضور' }));
+    await fireEvent.press(within(screen.getAllByTestId('today-appointment-card')[0]).getByRole('button', { name: 'تأكيد الحضور' }));
     await waitFor(() => expect(mockMarkPresent).toHaveBeenCalledWith('early'));
   });
 

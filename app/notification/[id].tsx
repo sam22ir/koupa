@@ -2,10 +2,10 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { BackButton, Button, CustomerStageHeader, ErrorBanner, Screen } from '@/src/components/ui';
+import { BackButton, Button, CustomerStageHeader, ErrorBanner, Icon, Screen } from '@/src/components/ui';
 import type { AppNotification } from '@/src/notifications';
 import * as notificationsService from '@/src/services/notifications';
-import { colors, space, typography } from '@/src/theme';
+import { colors, elevation, radii, space, typography } from '@/src/theme';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
 
@@ -46,20 +46,24 @@ export default function NotificationEventScreen() {
         <ErrorBanner error={error} />
         {!loading && item ? (
           <View style={styles.event}>
+            <View style={styles.icon}>
+              <Icon name="notifications-outline" size={22} color={colors.primarySoftText} />
+            </View>
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.copy}>{item.body}</Text>
           </View>
         ) : null}
         {!loading && !item && !error ? <Text style={styles.copy}>تعذر العثور على هذا الحدث.</Text> : null}
-        {!loading ? <Button label="العودة إلى الإشعارات" variant="secondary" onPress={() => router.dismissTo('/notifications')} /> : null}
+        {!loading ? <Button label="العودة إلى الإشعارات" variant="ghost" onPress={() => router.dismissTo('/notifications')} /> : null}
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  body: { flex: 1, padding: space[5], gap: space[4] },
-  event: { gap: space[2] },
+  body: { flex: 1, paddingHorizontal: space[5], gap: space[4] },
+  event: { gap: space[2], alignItems: 'flex-end', padding: space[5], borderRadius: radii.lg, backgroundColor: colors.surface, ...elevation.card },
+  icon: { width: 44, height: 44, marginBottom: space[2], borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft },
   title: { ...typography.titleSm, textAlign: 'right' },
   copy: { ...typography.body, color: colors.textMuted, textAlign: 'right' },
 });

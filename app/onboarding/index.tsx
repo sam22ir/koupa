@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { getSignupPhone } from '@/src/auth';
+import { getSignupName, getSignupPhone } from '@/src/auth';
 import { AuthHeader, Button, ErrorBanner, Field, Screen } from '@/src/components/ui';
 import { OnboardingLocationStep } from '@/src/components/onboarding/OnboardingLocationStep';
 import { WorkplaceChoice } from '@/src/components/onboarding/WorkplaceChoice';
@@ -42,6 +42,7 @@ export default function BarberOnboardingScreen() {
   const onboarding = useOnboarding({
     userId: session?.user.id,
     initialPhone: getSignupPhone(session?.user ?? null) ?? session?.user.phone,
+    initialName: getSignupName(session?.user ?? null),
   });
   const [step, setStep] = useState<SetupStep>(
     Math.min(1, onboarding.draftStep || 0) as SetupStep,

@@ -57,7 +57,7 @@ export default function BlockedUsersScreen() {
       <View style={styles.body}>
         <ErrorBanner error={error} />
         {loading ? <Text style={styles.loading}>{t('common.loading')}</Text> : null}
-        {!loading && !users.length && !error ? <EmptyState title={t('moderation.blockedUsersEmpty')} /> : null}
+        {!loading && !users.length && !error ? <EmptyState icon="ban-outline" title={t('moderation.blockedUsersEmpty')} /> : null}
         {users.map((user) => (
           <Card key={user.id} style={styles.userCard}>
             <Text style={styles.name}>{user.name}</Text>

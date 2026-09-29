@@ -78,6 +78,8 @@ export const colors = {
   stageDecor: 'rgba(255,255,255,0.08)',
   stageOverlay: 'rgba(255,255,255,0.14)',
   stageBorder: 'rgba(255,255,255,0.28)',
+  /** Amber highlight readable on the teal header. */
+  stageAccent: 'rgba(242,181,58,0.22)',
 
   // Text
   textMuted: ink[500],

@@ -1,9 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { Button } from 'heroui-native/button';
 import { Card } from 'heroui-native/card';
-import { Chip } from 'heroui-native/chip';
 import { Skeleton } from 'heroui-native/skeleton';
 import { Typography } from 'heroui-native/text';
 
@@ -14,20 +13,30 @@ import {
   type BarberProfile,
   type BookingSlot,
 } from '@/src/booking';
-import { BackButton, CustomerStageHeader, ErrorBanner, Screen } from '@/src/components/ui';
+import {
+  BackButton,
+  CustomerStageHeader,
+  DateStrip,
+  DetailList,
+  EmptyState,
+  ErrorBanner,
+  OptionCard,
+  Screen,
+  SectionHeader,
+  TimeSlotGrid,
+} from '@/src/components/ui';
 import {
   canAdvanceBookingStep,
   nextBookingStep,
   previousBookingStep,
   type BookingStep,
 } from '@/src/features/booking/bookingSteps';
-import { InlineDateCalendar } from '@/src/features/barber-schedule/InlineDateCalendar';
 import { useBooking } from '@/src/hooks/useBooking';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { t } from '@/src/i18n';
 import { bookingReturnHref } from '@/src/navigation/bookingNavigation';
 import { setPendingIntentFromPath } from '@/src/navigation/pendingIntent';
-import { colors, space } from '@/src/theme';
+import { colors, elevation, layout, space, typography } from '@/src/theme';
 
 export default function BookScreen() {
   const {
@@ -189,9 +198,48 @@ export default function BookScreen() {
   };
 
   const headerTone = step === 'recap' ? 'stage' : 'paper';
+  const price = (value: number) => `${value.toLocaleString('ar-DZ')} ${t('common.dzd')}`;
+
+  const footer = step === 'date' ? (
+    <FooterAction
+      summary={selectedService ? price(selectedService.price_dzd) : undefined}
+      caption={date ? formatBookingDate(date) : undefined}
+    >
+      <Button
+        className="flex-1"
+        isDisabled={!canAdvanceBookingStep('date', { serviceId, date, slot: selectedSlot })}
+        onPress={() => setStep(nextBookingStep('date'))}
+      >
+        <Button.Label>{t('common.next')}</Button.Label>
+      </Button>
+    </FooterAction>
+  ) : step === 'slots' ? (
+    <FooterAction
+      summary={selectedService ? price(selectedService.price_dzd) : undefined}
+      caption={selectedSlot ? formatBookingTime(selectedSlot) : date ? formatBookingDate(date) : undefined}
+    >
+      <Button
+        className="flex-1"
+        isDisabled={!canAdvanceBookingStep('slots', { serviceId, date, slot: selectedSlot })}
+        onPress={() => setStep(nextBookingStep('slots'))}
+      >
+        <Button.Label>{t('common.next')}</Button.Label>
+      </Button>
+    </FooterAction>
+  ) : step === 'recap' && selectedService && selectedSlot && !needsEmailConfirmation ? (
+    guestBrowsing ? (
+      <Button testID="guest-sign-in-to-book" onPress={signInToBook}>
+        <Button.Label>{t('booking.signInToBook')}</Button.Label>
+      </Button>
+    ) : (
+      <Button isDisabled={loading} onPress={() => void confirm()}>
+        <Button.Label>{appointmentId ? t('home.reschedule') : t('booking.confirmBook')}</Button.Label>
+      </Button>
+    )
+  ) : undefined;
 
   return (
-    <Screen padded={false} scroll>
+    <Screen padded={false} scroll bleedTop={headerTone === 'stage'} footer={footer}>
       <CustomerStageHeader
         tone={headerTone}
         context={t('auth.roleCustomer')}
@@ -199,122 +247,93 @@ export default function BookScreen() {
         subtitle={barber?.name}
         trailing={<BackButton fallback={returnHref} tone={headerTone === 'stage' ? 'onPrimary' : 'primary'} onPress={goBack} />}
       />
-      <View style={styles.body}>
+      <View style={[styles.body, step === 'recap' && styles.lifted]}>
         <ErrorBanner error={error} />
         {message ? (
-          <Typography type="body-xs" align="end" style={{ color: colors.primary }}>
-            {message}
-          </Typography>
+          <Text style={[styles.note, styles.noteSuccess]}>{message}</Text>
         ) : null}
 
         {step === 'date' ? (
           <>
-            <Typography type="h5" align="end">{t('booking.chooseService')}</Typography>
-            <View style={styles.wrap}>
-              {barber?.services.map((service) => (
-                <Chip
-                  key={service.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${service.name} · ${service.price_dzd} ${t('common.dzd')}`}
-                  variant={serviceId === service.id ? 'primary' : 'secondary'}
-                  color={serviceId === service.id ? 'accent' : 'default'}
-                  onPress={() => setServiceId(service.id)}
-                >
-                  <Chip.Label>{`${service.name} · ${service.price_dzd} ${t('common.dzd')}`}</Chip.Label>
-                </Chip>
-              ))}
+            <View style={styles.section}>
+              <SectionHeader title={t('booking.chooseService')} />
+              <View accessibilityRole="radiogroup" style={styles.options}>
+                {barber?.services.map((service) => (
+                  <OptionCard
+                    key={service.id}
+                    title={service.name}
+                    subtitle={`${service.duration_minutes} ${t('barber.durationMinutes')}`}
+                    value={price(service.price_dzd)}
+                    accessibilityLabel={`${service.name} · ${service.price_dzd} ${t('common.dzd')}`}
+                    selected={serviceId === service.id}
+                    onPress={() => setServiceId(service.id)}
+                  />
+                ))}
+              </View>
             </View>
-            <Typography type="h5" align="end">{t('booking.chooseDate')}</Typography>
-            {date ? (
-              <InlineDateCalendar
-                value={date}
-                minimumDate={dates[0] ?? date}
-                onChange={setDate}
-              />
-            ) : null}
-            <Button
-              isDisabled={!canAdvanceBookingStep('date', { serviceId, date, slot: selectedSlot })}
-              onPress={() => setStep(nextBookingStep('date'))}
-            >
-              <Button.Label>{t('common.next')}</Button.Label>
-            </Button>
+            <View style={styles.section}>
+              <SectionHeader title={t('booking.chooseDate')} />
+              {date ? <DateStrip dates={dates} value={date} onChange={setDate} /> : null}
+            </View>
           </>
         ) : null}
 
         {step === 'slots' ? (
-          <>
-            <Typography type="h5" align="end">{t('booking.chooseSlot')}</Typography>
-            {slotsLoading ? <Skeleton className="h-12 w-full rounded-lg" /> : null}
+          <View style={styles.section}>
+            <SectionHeader title={t('booking.chooseSlot')} hint={date ? formatBookingDate(date) : undefined} />
+            {slotsLoading ? (
+              <View style={styles.slotSkeleton}>
+                {[0, 1, 2, 3, 4, 5].map((index) => (
+                  <Skeleton key={index} className="h-[46px] flex-1 min-w-[30%] rounded-xl" />
+                ))}
+              </View>
+            ) : null}
             {!slotsLoading && slots.length === 0 ? (
-              <Card className="p-6 items-center gap-3">
-                <Typography type="h5" align="center">{t('booking.noSlots')}</Typography>
-                <Typography type="body" color="muted" align="center">{t('booking.noSlotsBody')}</Typography>
-                <Button variant="secondary" onPress={() => setStep('date')}>
-                  <Button.Label>{t('booking.changeDate')}</Button.Label>
-                </Button>
+              <Card className="p-2">
+                <EmptyState
+                  icon="time-outline"
+                  title={t('booking.noSlots')}
+                  body={t('booking.noSlotsBody')}
+                  actionLabel={t('booking.changeDate')}
+                  onAction={() => setStep('date')}
+                />
               </Card>
             ) : null}
-            <View style={styles.wrap}>
-              {slots.map((slot) => (
-                <Chip
-                  key={slot.starts_at}
-                  accessibilityRole="button"
-                  accessibilityLabel={formatBookingTime(slot.starts_at)}
-                  variant={selectedSlot === slot.starts_at ? 'primary' : 'secondary'}
-                  color={selectedSlot === slot.starts_at ? 'accent' : 'default'}
-                  onPress={() => setSelectedSlot(slot.starts_at)}
-                >
-                  <Chip.Label>{formatBookingTime(slot.starts_at)}</Chip.Label>
-                </Chip>
-              ))}
-            </View>
-            <Button
-              isDisabled={!canAdvanceBookingStep('slots', { serviceId, date, slot: selectedSlot })}
-              onPress={() => setStep(nextBookingStep('slots'))}
-            >
-              <Button.Label>{t('common.next')}</Button.Label>
-            </Button>
-          </>
+            <TimeSlotGrid
+              slots={slots.map((slot) => ({ key: slot.starts_at, label: formatBookingTime(slot.starts_at) }))}
+              selected={selectedSlot}
+              onSelect={setSelectedSlot}
+            />
+          </View>
         ) : null}
 
         {step === 'recap' && selectedService && selectedSlot ? (
-          <Card className="gap-2 p-4">
-            <Typography type="body-xs" color="muted" align="end">{t('booking.chooseService')}</Typography>
-            <Typography type="body" weight="semibold" align="end">{selectedService.name}</Typography>
-            <Typography type="body-xs" color="muted" align="end">{t('common.date')}</Typography>
-            <Typography type="body" weight="semibold" align="end">{formatBookingDate(date)}</Typography>
-            <Typography type="body-xs" color="muted" align="end">{t('common.time')}</Typography>
-            <Typography type="body" weight="semibold" align="end">{formatBookingTime(selectedSlot)}</Typography>
-            <Typography type="body-xs" color="muted" align="end">{t('common.price')}</Typography>
-            <Typography type="body" weight="semibold" align="end">{`${selectedService.price_dzd} ${t('common.dzd')}`}</Typography>
-            <Typography type="body-xs" color="muted" align="center">{t('booking.payAtShop')}</Typography>
+          <Card className="gap-4 p-5" style={styles.recapCard}>
+            <DetailList
+              rows={[
+                { label: t('common.service'), value: selectedService.name },
+                { label: t('common.date'), value: formatBookingDate(date) },
+                { label: t('common.time'), value: formatBookingTime(selectedSlot) },
+              ]}
+              total={{ label: t('common.price'), value: `${selectedService.price_dzd} ${t('common.dzd')}` }}
+            />
+            <Text style={styles.payNote}>{t('booking.payAtShop')}</Text>
             {needsEmailConfirmation ? (
-              <>
+              <View style={styles.notice}>
                 <Typography type="body" weight="semibold" align="center">{t('booking.confirmEmailTitle')}</Typography>
                 <Typography type="body-xs" color="muted" align="center">{t('booking.confirmEmailBody')}</Typography>
-                <Typography type="body-xs" align="center" style={{ color: colors.primary }}>
-                  {session?.user.email ?? ''}
-                </Typography>
+                <Text style={[styles.note, styles.noteCenter, styles.noteEmail]}>{session?.user.email ?? ''}</Text>
                 <ErrorBanner error={resendError} />
                 {resendNote ? (
-                  <Typography type="body-xs" align="center" style={{ color: colors.primary }}>{resendNote}</Typography>
+                  <Text style={[styles.note, styles.noteCenter, styles.noteSuccess]}>{resendNote}</Text>
                 ) : null}
                 <Button testID="resend-booking-confirmation" variant="secondary" onPress={() => void resendConfirmation()}>
                   <Button.Label>{t('booking.confirmEmailResend')}</Button.Label>
                 </Button>
-              </>
+              </View>
             ) : guestBrowsing ? (
-              <>
-                <Typography type="body-xs" color="muted" align="center">{t('booking.guestBookNote')}</Typography>
-                <Button testID="guest-sign-in-to-book" onPress={signInToBook}>
-                  <Button.Label>{t('booking.signInToBook')}</Button.Label>
-                </Button>
-              </>
-            ) : (
-              <Button isDisabled={loading} onPress={() => void confirm()}>
-                <Button.Label>{appointmentId ? t('home.reschedule') : t('booking.confirmBook')}</Button.Label>
-              </Button>
-            )}
+              <Typography type="body-xs" color="muted" align="center">{t('booking.guestBookNote')}</Typography>
+            ) : null}
           </Card>
         ) : null}
       </View>
@@ -322,15 +341,48 @@ export default function BookScreen() {
   );
 }
 
+/** Sticky footer: running summary on the reading edge, the step's action opposite. */
+function FooterAction({
+  summary,
+  caption,
+  children,
+}: {
+  readonly summary?: string;
+  readonly caption?: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <View style={styles.footerRow}>
+      {summary ? (
+        <View style={styles.footerSummary}>
+          {caption ? <Text numberOfLines={1} style={styles.footerCaption}>{caption}</Text> : null}
+          <Text style={styles.footerPrice}>{summary}</Text>
+        </View>
+      ) : null}
+      {children}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   body: {
-    paddingHorizontal: space[5],
-    gap: space[3],
-    paddingBottom: space[8],
+    paddingHorizontal: layout.screenPaddingX,
+    gap: space[6],
+    paddingBottom: space[4],
   },
-  wrap: {
-    flexDirection: 'row-reverse',
-    flexWrap: 'wrap',
-    gap: space[2],
-  },
+  lifted: { marginTop: layout.stageBodyOverlap },
+  section: { gap: space[3] },
+  options: { gap: space[2] },
+  slotSkeleton: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: space[2] },
+  recapCard: { ...elevation.float },
+  payNote: { ...typography.caption, textAlign: 'center' },
+  note: { ...typography.caption, textAlign: 'right' },
+  noteCenter: { textAlign: 'center' },
+  noteSuccess: { color: colors.success },
+  noteEmail: { ...typography.label, color: colors.primarySoftText },
+  notice: { gap: space[2] },
+  footerRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[4] },
+  footerSummary: { flexShrink: 1, alignItems: 'flex-end' },
+  footerCaption: { ...typography.caption, textAlign: 'right' },
+  footerPrice: { ...typography.numeric, fontSize: 17, lineHeight: 24, textAlign: 'right' },
 });

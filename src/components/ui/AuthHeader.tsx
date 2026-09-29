@@ -10,19 +10,22 @@ type Props = {
   readonly backHref?: Href;
   readonly showBack?: boolean;
   readonly progress?: string;
+  /** `stage` sits on the teal auth header (white logo, translucent controls). */
+  readonly tone?: 'paper' | 'stage';
 };
 
 /** Shared brand row for account and profile setup screens. */
-export function AuthHeader({ backHref = '/(auth)/welcome', showBack = true, progress }: Props) {
+export function AuthHeader({ backHref = '/(auth)/welcome', showBack = true, progress, tone = 'paper' }: Props) {
+  const stage = tone === 'stage';
   return (
     <View testID="auth-shell-top-row" style={styles.row}>
-      <BrandLogo height={38} />
+      <BrandLogo height={38} imageStyle={stage ? { tintColor: colors.onPrimary } : undefined} />
       {progress ? (
-        <View style={styles.progress}>
-          <Text style={styles.progressText}>{progress}</Text>
+        <View style={[styles.progress, stage && styles.progressStage]}>
+          <Text style={[styles.progressText, stage && styles.progressTextStage]}>{progress}</Text>
         </View>
       ) : showBack ? (
-        <BackButton fallback={backHref} tone="primary" />
+        <BackButton fallback={backHref} tone={stage ? 'onPrimary' : 'primary'} />
       ) : <View style={styles.spacer} />}
     </View>
   );
@@ -43,10 +46,16 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
+  progressStage: {
+    borderColor: colors.stageBorder,
+    backgroundColor: colors.stageOverlay,
+  },
   progressText: {
-    ...typography.caption,
+    ...typography.label,
     fontSize: 12,
+    lineHeight: 18,
     color: colors.textMuted,
   },
-  spacer: { width: 42, height: 42 },
+  progressTextStage: { color: colors.onPrimary },
+  spacer: { width: 44, height: 44 },
 });

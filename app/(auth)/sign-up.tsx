@@ -1,11 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { isValidEmail, isValidPassword, normalizeAlgerianPhone } from '@/src/auth';
 import {
-  AuthHeader,
+  AuthShell,
   Button,
   ErrorBanner,
   Field,
@@ -16,10 +15,9 @@ import { PRIVACY_URL, TERMS_URL } from '@/src/config/legal';
 import * as authService from '@/src/services/auth';
 import * as onboardingService from '@/src/services/onboarding';
 import { useAppSession } from '@/src/providers/SessionProvider';
-import { colors, layout, radii, space, typography } from '@/src/theme';
+import { colors, space, typography } from '@/src/theme';
 
 export default function SignUpScreen() {
-  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ role?: string }>();
   const role = (params.role === 'barber' || params.role === 'customer')
     ? params.role
@@ -56,7 +54,7 @@ export default function SignUpScreen() {
     setEmailError(undefined);
     setPhoneError(undefined);
     setPasswordError(undefined);
-    if (!isBarber && !name.trim()) {
+    if (!name.trim()) {
       setNameError(t('auth.nameRequired'));
       return;
     }
@@ -77,6 +75,7 @@ export default function SignUpScreen() {
       await setPendingRole(role);
       await signUpWithPassword({
         email: email.trim(),
+        name: name.trim(),
         phone: normalizedPhone,
         password,
         role,
@@ -130,36 +129,7 @@ export default function SignUpScreen() {
     : t('auth.signUpCustomerSubtitle');
 
   return (
-    <View style={styles.root}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: Math.max(insets.top + space[4], layout.screenPaddingTop + space[3]),
-            paddingBottom: Math.max(insets.bottom, space[8]),
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <AuthHeader />
-
-        <View style={styles.header}>
-          <View style={[styles.roleTag, isBarber && styles.barberRoleTag]}>
-            <Text
-              style={[
-                styles.roleTagText,
-                isBarber && styles.barberRoleTagText,
-              ]}
-            >
-              {roleLabel}
-            </Text>
-          </View>
-          <Text style={styles.title}>{t('auth.signUp')}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
-        </View>
-
+    <AuthShell kicker={roleLabel} title={t('auth.signUp')} subtitle={subtitle}>
         <View style={styles.form}>
           <Button
             label={t('auth.google')}
@@ -172,15 +142,13 @@ export default function SignUpScreen() {
             <Text style={styles.or}>{t('auth.or')}</Text>
             <View style={styles.dividerLine} />
           </View>
-          {isBarber ? null : (
-            <Field
-              label={t('auth.name')}
-              value={name}
-              onChangeText={setName}
-              error={nameError}
-              autoCapitalize="words"
-            />
-          )}
+          <Field
+            label={t('auth.name')}
+            value={name}
+            onChangeText={setName}
+            error={nameError}
+            autoCapitalize="words"
+          />
           <Field
             label={t('auth.email')}
             value={email}
@@ -250,48 +218,11 @@ export default function SignUpScreen() {
             </Pressable>
           </View>
         </View>
-      </ScrollView>
-    </View>
+    </AuthShell>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    width: '100%',
-    maxWidth: 520,
-    alignSelf: 'center',
-    flexGrow: 1,
-    paddingHorizontal: layout.screenPaddingX,
-  },
-  header: {
-    marginTop: space[6],
-    gap: space[2],
-    alignItems: 'flex-end',
-  },
-  roleTag: {
-    paddingHorizontal: space[3],
-    paddingVertical: space[1],
-    borderRadius: radii.pill,
-    backgroundColor: colors.primarySoft,
-  },
-  barberRoleTag: {
-    backgroundColor: colors.accentSoft,
-  },
-  roleTagText: {
-    ...typography.label,
-    fontSize: 12,
-    color: colors.primary,
-  },
-  barberRoleTagText: {
-    color: colors.accentText,
-  },
   legalNotice: {
     ...typography.caption,
     fontSize: 12,
@@ -300,22 +231,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   legalLink: { color: colors.primary, fontFamily: typography.label.fontFamily },
-  title: {
-    fontFamily: typography.display.fontFamily,
-    fontSize: 28,
-    lineHeight: 38,
-    color: colors.text,
-    textAlign: 'right',
-  },
-  subtitle: {
-    ...typography.body,
-    fontSize: 14,
-    lineHeight: 22,
-    color: colors.textMuted,
-    textAlign: 'right',
-  },
   form: {
-    marginTop: space[5],
     gap: space[4],
   },
   passwordToggle: {
@@ -323,7 +239,6 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: -space[3],
   },
   pressed: {
     transform: [{ scale: 0.98 }],

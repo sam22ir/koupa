@@ -23,6 +23,7 @@ import { t } from '@/src/i18n';
 import { consumeCustomerFindCityPreference } from '@/src/navigation/customerFindPreference';
 import { SEARCH_PAGE_SIZE } from '@/src/services';
 import { colors } from '@/src/theme/colors';
+import { elevation } from '@/src/theme/elevation';
 import { fonts } from '@/src/theme/fonts';
 import { radii } from '@/src/theme/radii';
 import { space } from '@/src/theme/spacing';
@@ -181,6 +182,7 @@ export default function FindScreen() {
     <Screen padded={false}>
       <View style={styles.body}>
       <View style={styles.header}>
+        <Text accessibilityRole="header" style={styles.title}>{t('find.title')}</Text>
         <View style={styles.searchBox}>
           <TextInput
             accessibilityLabel={t('find.placeholder')}
@@ -207,7 +209,7 @@ export default function FindScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('common.search')}
           >
-            <Icon name={query.trim() ? 'arrow-back-circle' : 'search-outline'} size={22} color={colors.primary} />
+            <Icon name={query.trim() ? 'arrow-back-circle' : 'search-outline'} size={22} color={query.trim() ? colors.primary : colors.textMuted} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -216,7 +218,7 @@ export default function FindScreen() {
             onPress={() => setFilterOpen((open) => !open)}
             style={[styles.filterButton, filterOpen && styles.filterButtonActive]}
           >
-            <Icon name="options-outline" size={22} color={colors.primary} />
+            <Icon name="options-outline" size={20} color={filterOpen ? colors.primarySoftText : colors.text} />
           </Pressable>
         </View>
         {guestBrowsing ? null : (
@@ -303,8 +305,11 @@ export default function FindScreen() {
               <Text style={styles.rowTitle} numberOfLines={2}>{item.name}</Text>
               <Text style={styles.rowMeta} numberOfLines={1}>{[item.neighborhood, item.city].filter(Boolean).join('، ')}</Text>
               <View style={styles.rowFooter}>
-                <Text style={styles.rowRating}>{directoryRatingText(item.average_rating, t('find.noRatings'))}</Text>
-                <Text style={styles.rowPrice}>{t('find.fromPrice')} {item.starting_price_dzd} {t('common.dzd')}</Text>
+                <RatingPill average={item.average_rating} />
+                <Text style={styles.rowPrice}>
+                  <Text style={styles.rowPriceLead}>{t('find.fromPrice')} </Text>
+                  {item.starting_price_dzd} {t('common.dzd')}
+                </Text>
               </View>
             </Pressable>
           )}
@@ -335,7 +340,7 @@ export default function FindScreen() {
               <Text style={styles.rowTitle} numberOfLines={2}>{item.name}</Text>
               <Text style={styles.rowMeta} numberOfLines={1}>{item.owner_name}</Text>
               <View style={styles.rowFooter}>
-                <Text style={styles.rowRating}>{directoryRatingText(item.average_rating, t('find.noRatings'))}</Text>
+                <RatingPill average={item.average_rating} />
                 {item.distance_km !== null && item.distance_km !== undefined ? (
                   <Text style={styles.rowPrice}>{formatDistanceKm(item.distance_km)}</Text>
                 ) : null}
@@ -349,15 +354,28 @@ export default function FindScreen() {
   );
 }
 
+/** Amber pill for a real score; a plain muted line when there is none (never "0.0"). */
+function RatingPill({ average }: { readonly average: number | null | undefined }) {
+  const text = directoryRatingText(average, t('find.noRatings'));
+  const rated = text !== t('find.noRatings');
+  if (!rated) return <Text style={styles.rowNoRating}>{text}</Text>;
+  return (
+    <View style={styles.ratingPill}>
+      <Text style={styles.rowRating}>{text}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   body: {
     flex: 1,
   },
   header: {
     paddingHorizontal: space[5],
-    paddingTop: space[4],
+    paddingTop: space[2],
     gap: space[3],
   },
+  title: { ...typography.title, textAlign: 'right' },
   searchBox: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -365,9 +383,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    paddingHorizontal: space[4],
-    minHeight: 48,
+    borderRadius: radii.md,
+    paddingStart: space[2],
+    paddingEnd: space[4],
+    minHeight: 52,
   },
   filterButton: {
     width: 40,
@@ -382,18 +401,17 @@ const styles = StyleSheet.create({
   },
   filterPanel: {
     gap: space[3],
-    padding: space[3],
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.xl,
+    padding: space[4],
+    borderRadius: radii.lg,
     backgroundColor: colors.surface,
+    ...elevation.card,
   },
   filterTitle: { ...typography.label, color: colors.textMuted, textAlign: 'right' },
   ratingOptions: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: space[2] },
-  ratingOption: { minHeight: 40, flex: 1, minWidth: 88, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, paddingHorizontal: space[2] },
-  ratingOptionSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  ratingOptionText: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
-  ratingOptionTextSelected: { color: colors.primary },
+  ratingOption: { minHeight: 36, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radii.pill, paddingHorizontal: space[4], backgroundColor: colors.surface },
+  ratingOptionSelected: { borderColor: colors.text, backgroundColor: colors.text },
+  ratingOptionText: { ...typography.chip, textAlign: 'center' },
+  ratingOptionTextSelected: { color: colors.onPrimary },
   input: {
     flex: 1,
     color: colors.text,
@@ -414,24 +432,25 @@ const styles = StyleSheet.create({
   segment: {
     flexDirection: 'row-reverse',
     backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.lg,
+    borderRadius: radii.pill,
     padding: 4,
   },
   segmentItem: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: space[2],
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
   },
   segmentOn: {
     backgroundColor: colors.surface,
+    ...elevation.card,
   },
   segmentText: {
     ...typography.label,
     color: colors.textMuted,
   },
   segmentTextOn: {
-    color: colors.primary,
+    color: colors.primarySoftText,
   },
   list: {
     padding: space[5],
@@ -443,10 +462,9 @@ const styles = StyleSheet.create({
     gap: space[1],
     alignItems: 'flex-end',
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     padding: space[4],
+    ...elevation.card,
   },
   rowCardPressed: { backgroundColor: colors.primarySoft },
   rowTitle: { ...typography.bodyStrong, width: '100%', textAlign: 'right' },
@@ -459,6 +477,9 @@ const styles = StyleSheet.create({
     gap: space[2],
     marginTop: space[1],
   },
-  rowRating: { ...typography.caption, color: colors.accentText },
-  rowPrice: { ...typography.caption, color: colors.textMuted, flexShrink: 1 },
+  ratingPill: { minHeight: 24, justifyContent: 'center', paddingHorizontal: space[2], borderRadius: radii.pill, backgroundColor: colors.accentSoft },
+  rowRating: { ...typography.label, fontSize: 12, lineHeight: 18, color: colors.accentText },
+  rowNoRating: { ...typography.caption, color: colors.textSubtle },
+  rowPrice: { ...typography.numeric, fontSize: 14, flexShrink: 1 },
+  rowPriceLead: { ...typography.caption, color: colors.textMuted },
 });

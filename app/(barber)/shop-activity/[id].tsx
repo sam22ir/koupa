@@ -1,14 +1,15 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { BackButton, Button, Card, ErrorBanner, Icon, Screen } from '@/src/components/ui';
+import { BackButton, Button, Card, CustomerStageHeader, ErrorBanner, Icon, Screen } from '@/src/components/ui';
 import { ShopActivityList, type ShopActivityItem } from '@/src/features/barber-shop/ShopActivityList';
 import { useShops } from '@/src/hooks/useShops';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { shopActivityActionLabel } from '@/src/shops';
-import { colors, layout, radii, space, typography } from '@/src/theme';
+import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
+import { goBackFromShopScreen } from '@/src/navigation/barberShopNavigation';
 
 function isWithinWeek(value: string, now = Date.now()): boolean {
   const timestamp = new Date(value).getTime();
@@ -47,7 +48,11 @@ export default function ShopActivityScreen() {
 
   return (
     <Screen padded={false} scroll style={styles.screen}>
-      <BackButton fallback="/(barber)/shop" onPress={() => router.replace('/shop')} />
+      <CustomerStageHeader
+        title={t('shopWorkspace.activity')}
+        context={t('auth.roleBarber')}
+        trailing={<BackButton fallback="/(barber)/shop" onPress={goBackFromShopScreen} />}
+      />
 
       <View style={styles.body}>
         <ErrorBanner error={error || null} />
@@ -99,12 +104,12 @@ function Metric({ label, value }: { readonly label: string; readonly value: numb
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: colors.workspace },
-  body: { flex: 1, gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[10], backgroundColor: colors.workspace },
+  screen: { backgroundColor: colors.background },
+  body: { flex: 1, gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[10] },
   metricsRow: { flexDirection: 'row-reverse', gap: space[3] },
-  metric: { flex: 1, minHeight: 82, alignItems: 'center', justifyContent: 'center', gap: space[1], borderRadius: radii.lg, backgroundColor: colors.surface, padding: space[3] },
-  metricValue: { ...typography.titleSm, color: colors.primary, textAlign: 'center' },
-  metricLabel: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
+  metric: { flex: 1, minHeight: 82, alignItems: 'flex-end', justifyContent: 'center', gap: space[1], borderRadius: radii.lg, backgroundColor: colors.surface, padding: space[4], ...elevation.card },
+  metricValue: { ...typography.title, color: colors.primary, textAlign: 'right' },
+  metricLabel: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
   latestCard: { gap: space[2], padding: layout.cardPadding },
   latestLabelRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
   latestLabel: { ...typography.label, color: colors.textMuted, textAlign: 'right' },

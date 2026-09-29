@@ -27,12 +27,17 @@ export function Field({ label, error, hint, accessory, style, accessibilityLabel
       <View className="flex-row-reverse items-center">
         <Input
           textAlign="right"
-          style={style}
+          // Leave room on the left for an accessory drawn inside the field.
+          style={[accessory ? { paddingLeft: 48 } : null, style]}
           accessibilityLabel={accessibilityLabel ?? label}
           {...rest}
-          className="flex-1"
+          className="flex-1 min-w-0"
         />
-        {accessory ? <View className="ms-2">{accessory}</View> : null}
+        {accessory ? (
+          <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 48, alignItems: 'center', justifyContent: 'center' }}>
+            {accessory}
+          </View>
+        ) : null}
       </View>
       {error ? <FieldError>{error}</FieldError> : null}
       {!error && hint ? <Description>{hint}</Description> : null}

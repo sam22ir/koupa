@@ -12,7 +12,7 @@ import {
   parseBarberCheckInPayload,
   type CheckInResult,
 } from '@/src/qr';
-import { colors, radii, space, typography } from '@/src/theme';
+import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
 
 type ScanState =
   | { readonly kind: 'scanning' }
@@ -89,7 +89,7 @@ export default function ScanScreen() {
   if (!permission.granted) {
     const canAskAgain = permission.canAskAgain !== false;
     return (
-      <Screen padded={false}>
+      <Screen padded={false} bleedTop>
         <CustomerStageHeader tone="stage" context={t('auth.roleCustomer')} title={t('scan.title')} subtitle={t('scan.permission')} />
         <View style={styles.permissionScreen}>
           <View style={styles.permissionIcon}>
@@ -126,7 +126,7 @@ export default function ScanScreen() {
     const appointmentId = result?.appointmentId ?? params.appointmentId;
 
     return (
-      <Screen padded={false}>
+      <Screen padded={false} bleedTop>
         <CustomerStageHeader tone="stage" context={t('auth.roleCustomer')} title={t('scan.title')} />
         <View style={styles.resultScreen}>
         <Card elevated style={styles.resultCard}>
@@ -170,7 +170,7 @@ export default function ScanScreen() {
   ].filter(Boolean).join(' · ');
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} bleedTop>
       <CustomerStageHeader tone="stage" context={t('auth.roleCustomer')} title={t('scan.title')} subtitle={context || undefined} />
       <View style={styles.cameraFrame}>
         <CameraView
@@ -218,7 +218,13 @@ export default function ScanScreen() {
 const styles = StyleSheet.create({
   permissionScreen: {
     justifyContent: 'center',
-    gap: space[5],
+    gap: space[4],
+    marginTop: layout.stageBodyOverlap,
+    marginHorizontal: layout.screenPaddingX,
+    padding: space[5],
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+    ...elevation.float,
   },
   permissionIcon: {
     width: 64,
@@ -235,8 +241,9 @@ const styles = StyleSheet.create({
   },
   cameraFrame: {
     flex: 1,
-    marginHorizontal: space[5],
-    borderRadius: radii.xl,
+    marginTop: layout.stageBodyOverlap,
+    marginHorizontal: layout.screenPaddingX,
+    borderRadius: radii['2xl'],
     overflow: 'hidden',
     backgroundColor: colors.text,
   },
@@ -280,10 +287,13 @@ const styles = StyleSheet.create({
   },
   resultScreen: {
     justifyContent: 'center',
+    marginTop: layout.stageBodyOverlap,
+    paddingHorizontal: layout.screenPaddingX,
   },
   resultCard: {
     alignItems: 'center',
     gap: space[3],
+    ...elevation.float,
   },
   resultIcon: {
     width: 72,

@@ -49,8 +49,8 @@ export default function CustomerHomeScreen() {
 function GuestHome() {
   return (
     <Screen padded={false} scroll bleedTop style={styles.screen}>
-      <Stage>
-        <BrandLogo height={30} imageStyle={{ tintColor: colors.onPrimary }} />
+      <Stage overlap>
+        <BrandLogo height={40} style={styles.logo} imageStyle={{ tintColor: colors.onPrimary }} />
         <View style={styles.guestCopy}>
           <Text style={styles.guestGreeting}>{t('home.greeting')}</Text>
           <Text accessibilityRole="header" style={styles.guestTitle}>{t('home.guestTitle')}</Text>
@@ -180,10 +180,9 @@ function SignedInHome() {
           </View>
         ) : upcoming ? (
           <View style={styles.upcomingSection}>
-            <Typography type="body" weight="semibold" color="muted" align="end">
-              {t('home.nextAppointment')}
-            </Typography>
             <UpcomingAppointmentCard
+              lifted
+              heading={t('home.nextAppointment')}
               appointment={upcoming}
               onManage={() => router.push(`/appointment/${upcoming.id}`)}
               onScan={() => router.push({
@@ -224,6 +223,7 @@ const styles = StyleSheet.create({
     paddingBottom: space[6],
   },
   lifted: { marginTop: layout.stageBodyOverlap },
+  logo: { alignSelf: 'flex-end' },
   guestCopy: { gap: space[1], marginTop: space[5], marginBottom: space[4], alignItems: 'flex-end' },
   guestGreeting: { ...typography.label, color: colors.onPrimaryMuted, textAlign: 'right' },
   guestTitle: { ...typography.display, color: colors.onPrimary, textAlign: 'right' },

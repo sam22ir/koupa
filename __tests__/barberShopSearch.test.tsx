@@ -8,8 +8,10 @@ import type { ShopSummary } from '@/src/shops';
 const mockRouterPush = jest.fn();
 const mockRouterReplace = jest.fn();
 
+const mockNavigate = jest.fn();
+
 jest.mock('expo-router', () => ({
-  router: { push: mockRouterPush, replace: mockRouterReplace, back: jest.fn(), dismissTo: jest.fn() },
+  router: { push: mockRouterPush, replace: mockRouterReplace, dismissTo: jest.fn(), navigate: (...args: unknown[]) => mockNavigate(...args), back: jest.fn(), canGoBack: () => false },
   useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace, back: jest.fn(), dismissTo: jest.fn() }),
   useLocalSearchParams: jest.fn(() => ({})),
 }));
@@ -104,7 +106,7 @@ describe('barber Shop discovery workflow', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'رجوع' }));
 
-    expect(mockRouterReplace).toHaveBeenCalledWith('/shop');
+    expect(mockNavigate).toHaveBeenCalledWith('/(barber)/shop');
   });
 
   it('does not show an idle shop-load error before the invite search is submitted', async () => {

@@ -26,6 +26,8 @@ describe('booking navigation', () => {
   it('keeps public profile fallback inside the viewer workspace', () => {
     expect(publicProfileReturnHref('/home', 'customer')).toBe('/home');
     expect(publicProfileReturnHref(undefined, 'barber')).toBe('/(barber)/today');
+    expect(publicProfileReturnHref('/(barber)/profile', 'barber')).toBe('/(barber)/profile');
+    expect(publicProfileReturnHref('/(barber)/profile', 'customer')).toBe('/(customer)/find');
     expect(publicProfileReturnHref()).toBe('/(auth)/welcome');
   });
 });

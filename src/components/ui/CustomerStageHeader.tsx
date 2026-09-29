@@ -1,9 +1,9 @@
 import { type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from 'heroui-native/text';
 
-import { colors, layout, space, typography } from '@/src/theme';
+import { colors, layout, radii, space, typography } from '@/src/theme';
 
 import { BrandLogo } from './BrandLogo';
 import { Stage } from './Stage';
@@ -26,8 +26,8 @@ export function CustomerStageHeader({ title, subtitle, context, trailing, tone =
         <View testID="page-header-stage" style={styles.mainRow}>
           {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
           <View style={styles.mainTitleBlock}>
-            <Typography type="h4" align="end" style={styles.stageTitle}>{title}</Typography>
-            {subtitle ? <Typography type="body" align="end" style={styles.stageSubtitle}>{subtitle}</Typography> : null}
+            <Text accessibilityRole="header" style={[styles.compactTitle, styles.stageTitle]}>{title}</Text>
+            {subtitle ? <Text style={styles.stageSubtitle}>{subtitle}</Text> : null}
           </View>
         </View>
       </Stage>
@@ -69,26 +69,21 @@ function CompactHeader({
       style={[
         styles.compact,
         stage ? styles.compactStage : styles.compactPaper,
-        { paddingTop: Math.max(insets.top, layout.screenPaddingTop) },
+        { paddingTop: Math.max(insets.top, layout.screenPaddingTop) + (stage ? space[2] : 0) },
       ]}
     >
       <PageHeaderIdentity context={context} trailing={trailing} stage={stage} />
       <View style={styles.titleBlock}>
-        <Typography
-          type="h3"
-          align="end"
+        <Text
+          accessibilityRole="header"
           style={[styles.compactTitle, stage ? styles.stageTitle : styles.paperTitle]}
         >
           {title}
-        </Typography>
+        </Text>
         {subtitle ? (
-          <Typography
-            type="body"
-            align="end"
-            style={[styles.compactSubtitle, stage ? styles.stageSubtitle : styles.paperSubtitle]}
-          >
+          <Text style={[styles.compactSubtitle, stage ? styles.stageSubtitle : styles.paperSubtitle]}>
             {subtitle}
-          </Typography>
+          </Text>
         ) : null}
       </View>
     </View>
@@ -145,6 +140,10 @@ const styles = StyleSheet.create({
   },
   compactStage: {
     backgroundColor: colors.stage,
+    // Room for the body's first card to float over the lower edge.
+    paddingBottom: space[6] - layout.stageBodyOverlap,
+    borderBottomLeftRadius: radii['3xl'],
+    borderBottomRightRadius: radii['3xl'],
     overflow: 'hidden',
   },
   identityRow: {
@@ -191,12 +190,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   compactTitle: {
-    fontFamily: typography.display.fontFamily,
-    fontSize: 27,
+    ...typography.title,
+    fontSize: 26,
     lineHeight: 36,
+    textAlign: 'right',
   },
   compactSubtitle: {
     ...typography.body,
+    textAlign: 'right',
   },
   stageTitle: {
     color: colors.onPrimary,
@@ -204,6 +205,7 @@ const styles = StyleSheet.create({
   stageSubtitle: {
     ...typography.body,
     color: colors.onPrimaryMuted,
+    textAlign: 'right',
   },
   paperTitle: {
     color: colors.text,

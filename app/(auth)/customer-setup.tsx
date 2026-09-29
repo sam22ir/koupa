@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getSignupPhone, normalizeAlgerianPhone } from '@/src/auth';
+import { getSignupName, getSignupPhone, normalizeAlgerianPhone } from '@/src/auth';
 import { AuthHeader, Button, ErrorBanner, Field } from '@/src/components/ui';
 import { t } from '@/src/i18n';
 import { setCustomerFindCityPreference } from '@/src/navigation/customerFindPreference';
@@ -11,16 +11,10 @@ import { useAppSession } from '@/src/providers/SessionProvider';
 import * as onboardingService from '@/src/services/onboarding';
 import { colors, layout, radii, space, typography } from '@/src/theme';
 
-function googleDisplayName(user: { readonly user_metadata?: Record<string, unknown> } | null): string {
-  const meta = user?.user_metadata ?? {};
-  const value = meta.full_name ?? meta.name;
-  return typeof value === 'string' ? value.trim() : '';
-}
-
 export default function CustomerSetupScreen() {
   const insets = useSafeAreaInsets();
   const { session, refreshProfile, signOut } = useAppSession();
-  const [name, setName] = useState(googleDisplayName(session?.user ?? null));
+  const [name, setName] = useState(getSignupName(session?.user ?? null));
   const [phone, setPhone] = useState(
     getSignupPhone(session?.user ?? null) ?? session?.user.phone ?? '',
   );

@@ -108,6 +108,7 @@ export function useAuthActions({
 
   const signUpWithPassword = useCallback(async (input: {
     readonly email: string;
+    readonly name?: string;
     readonly phone: string;
     readonly password: string;
     readonly role: UserRole;

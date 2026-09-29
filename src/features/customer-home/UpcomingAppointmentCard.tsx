@@ -1,20 +1,19 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from 'heroui-native/button';
 import { Card } from 'heroui-native/card';
-import { Chip } from 'heroui-native/chip';
 import { Typography } from 'heroui-native/text';
 
 import {
   algeriaDate,
-  appointmentStatusLabel,
   formatBookingDate,
   formatBookingTime,
   type Appointment,
 } from '@/src/booking';
 import { DirectionsModal } from '@/src/components/navigation/DirectionsModal';
+import { AppointmentStatusBadge } from '@/src/components/ui/StatusBadge';
 import { t } from '@/src/i18n';
-import { colors, radii, space } from '@/src/theme';
+import { colors, elevation, radii, space, typography } from '@/src/theme';
 
 import {
   appointmentOverflowActions,
@@ -29,6 +28,10 @@ type Props = {
   readonly onCancel: () => void;
   readonly onDirections?: () => void;
   readonly compact?: boolean;
+  /** Floats over the teal header on Home. */
+  readonly lifted?: boolean;
+  /** Small muted line above the status, e.g. "موعدك القادم". */
+  readonly heading?: string;
 };
 
 export function UpcomingAppointmentCard({
@@ -39,8 +42,9 @@ export function UpcomingAppointmentCard({
   onCancel,
   onDirections,
   compact = false,
+  lifted = false,
+  heading,
 }: Props) {
-  const status = appointmentStatusLabel(appointment.status);
   const [directionsVisible, setDirectionsVisible] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [now] = useState(() => Date.now());
@@ -49,7 +53,7 @@ export function UpcomingAppointmentCard({
   const handleDirections = onDirections ?? (() => setDirectionsVisible(true));
 
   return (
-    <Card className="p-4 gap-3">
+    <Card className="p-4 gap-3" style={lifted ? elevation.float : undefined}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${appointment.service_name}، ${t('home.details')}`}
@@ -57,12 +61,8 @@ export function UpcomingAppointmentCard({
         style={({ pressed }) => [styles.summary, pressed && styles.summaryPressed]}
       >
         <View style={styles.summaryTop}>
-          <Chip size="sm" variant="soft" color="accent">
-            <Chip.Label>{status}</Chip.Label>
-          </Chip>
-          <Typography type="body-xs" color="muted" align="end">
-            {formatBookingDate(algeriaDate(new Date(appointment.starts_at)))}
-          </Typography>
+          {heading ? <Text style={styles.heading}>{heading}</Text> : <View />}
+          <AppointmentStatusBadge status={appointment.status} />
         </View>
         <Typography type="h5" align="end" numberOfLines={2}>
           {appointment.service_name}
@@ -78,6 +78,7 @@ export function UpcomingAppointmentCard({
           ) : null}
         </View>
         <View style={styles.facts}>
+          <Fact wide label={t('common.date')} value={formatBookingDate(algeriaDate(new Date(appointment.starts_at)))} />
           <Fact label={t('common.time')} value={formatBookingTime(appointment.starts_at)} />
           <Fact
             label={t('common.price')}
@@ -131,20 +132,29 @@ const styles = StyleSheet.create({
   summaryPressed: { backgroundColor: colors.primarySoft },
   summaryTop: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
   personCopy: { alignItems: 'flex-end', gap: 2 },
+  factWide: { flexBasis: '100%' },
+  heading: { ...typography.label, color: colors.textMuted, textAlign: 'right' },
   facts: {
     flexDirection: 'row-reverse',
-    gap: space[3],
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: space[3],
+    flexWrap: 'wrap',
+    gap: space[2],
   },
-  fact: { flex: 1, gap: space[1], alignItems: 'flex-end' },
+  fact: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+    alignItems: 'flex-end',
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+    borderRadius: radii.md - 2,
+    backgroundColor: colors.background,
+  },
   overflow: { gap: space[2] },
 });
 
-function Fact({ label, value }: { readonly label: string; readonly value: string }) {
+function Fact({ label, value, wide = false }: { readonly label: string; readonly value: string; readonly wide?: boolean }) {
   return (
-    <View style={styles.fact}>
+    <View style={[styles.fact, wide && styles.factWide]}>
       <Typography type="body-xs" color="muted" align="end">
         {label}
       </Typography>

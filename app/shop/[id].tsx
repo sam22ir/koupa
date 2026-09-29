@@ -3,14 +3,25 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ShopProfile } from '@/src/shops';
-import { Avatar, BackButton, Button, Card, CustomerStageHeader, EmptyState, ErrorBanner, Screen } from '@/src/components/ui';
+import {
+  Avatar,
+  BackButton,
+  Button,
+  Card,
+  CustomerStageHeader,
+  EmptyState,
+  ErrorBanner,
+  Icon,
+  Screen,
+  SectionHeader,
+} from '@/src/components/ui';
 import { useShops } from '@/src/hooks/useShops';
 import { UgcModerationActions } from '@/src/features/moderation/UgcModerationActions';
 import { t } from '@/src/i18n';
 import { publicProfileReturnHref } from '@/src/navigation/bookingNavigation';
 import { setPendingIntentFromPath } from '@/src/navigation/pendingIntent';
 import { useAppSession } from '@/src/providers/SessionProvider';
-import { colors, radii, space, typography } from '@/src/theme';
+import { colors, elevation, radii, space, typography } from '@/src/theme';
 import { initialsFromName } from '@/src/utils/initials';
 import { getShopOwnerId } from '@/src/services/shops';
 import { isUserBlocked } from '@/src/services/ugcModeration';
@@ -98,12 +109,14 @@ export default function ShopProfileScreen() {
           ) : null}
           {shop.bio ? <Text style={styles.bio}>{shop.bio}</Text> : null}
           {shop.maps_url ? <Button label={t('find.openLocation')} variant="secondary" onPress={() => void Linking.openURL(shop.maps_url!).catch(() => undefined)} /> : null}
-          <Text style={styles.section}>{t('booking.chooseBarber')}</Text>
+          <SectionHeader title={t('booking.chooseBarber')} />
           {shop.barbers.length === 0 ? <EmptyState title={t('find.empty')} /> : null}
           {shop.barbers.map((barber) => (
             <Pressable
               key={barber.id}
-              style={styles.row}
+              accessibilityRole="button"
+              accessibilityLabel={barber.name}
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               onPress={() => {
                 const returnTo = `/shop/${shop.id}`;
                 if (profile?.role === 'customer') {
@@ -122,6 +135,7 @@ export default function ShopProfileScreen() {
                 <Text style={styles.name}>{barber.name}</Text>
                 {profile?.role !== 'barber' ? <Text style={styles.meta}>{t('booking.book')}</Text> : null}
               </View>
+              {profile?.role !== 'barber' ? <Icon name="chevron-back" size={18} color={colors.textSubtle} /> : null}
             </Pressable>
           ))}
         </>
@@ -134,6 +148,7 @@ export default function ShopProfileScreen() {
 const styles = StyleSheet.create({
   body: {
     paddingHorizontal: space[5],
+    paddingBottom: space[6],
     gap: space[3],
   },
   bio: {
@@ -142,30 +157,27 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   moderationCard: { gap: space[2] },
-  section: {
-    ...typography.titleSm,
-    textAlign: 'right',
-  },
   row: {
     flexDirection: 'row-reverse',
     gap: space[3],
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     padding: space[4],
-    marginBottom: space[3],
+    ...elevation.card,
   },
+  rowPressed: { backgroundColor: colors.primarySoft },
   copy: {
     flex: 1,
     alignItems: 'flex-end',
   },
   name: {
     ...typography.bodyStrong,
+    textAlign: 'right',
   },
   meta: {
     ...typography.caption,
-    color: colors.primary,
+    color: colors.primarySoftText,
+    textAlign: 'right',
   },
 });

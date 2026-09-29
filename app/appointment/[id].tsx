@@ -4,12 +4,20 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   algeriaDate,
-  appointmentStatusLabel,
   formatBookingDate,
   formatBookingTime,
   type Appointment,
 } from '@/src/booking';
-import { BackButton, Button, Card, Chip, CustomerStageHeader, ErrorBanner, Icon, Screen } from '@/src/components/ui';
+import {
+  AppointmentStatusBadge,
+  BackButton,
+  Button,
+  Card,
+  CustomerStageHeader,
+  ErrorBanner,
+  Icon,
+  Screen,
+} from '@/src/components/ui';
 import { DirectionsModal } from '@/src/components/navigation/DirectionsModal';
 import {
   appointmentOverflowActions,
@@ -17,13 +25,7 @@ import {
 } from '@/src/features/customer-home/appointmentFirstView';
 import { loadCustomerAppointments, useBooking } from '@/src/hooks/useBooking';
 import { t } from '@/src/i18n';
-import { colors, layout, radii, space, typography } from '@/src/theme';
-
-function statusTone(status: Appointment['status']): 'neutral' | 'accent' | 'primary' {
-  if (status === 'booked') return 'accent';
-  if (status === 'present') return 'primary';
-  return 'neutral';
-}
+import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
 
 export default function AppointmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -106,7 +108,6 @@ export default function AppointmentDetailScreen() {
   }
 
   const date = formatBookingDate(algeriaDate(new Date(item.starts_at)));
-  const status = appointmentStatusLabel(item.status);
 
   return (
     <Screen padded={false} scroll>
@@ -114,13 +115,27 @@ export default function AppointmentDetailScreen() {
       <View style={styles.body}>
         <ErrorBanner error={error} />
 
-        <Card style={styles.summaryCard}>
+        <Card elevated style={styles.summaryCard}>
           <View style={styles.summaryTop}>
-            <Chip label={status} tone={statusTone(item.status)} />
-            <Text style={styles.date}>{date}</Text>
+            <Text style={styles.service}>{item.service_name}</Text>
+            <AppointmentStatusBadge status={item.status} />
           </View>
-          <Text style={styles.service}>{item.service_name}</Text>
+          <View style={styles.whenPanel}>
+            <View style={styles.whenIcon}>
+              <Icon name="calendar-outline" size={22} color={colors.primarySoftText} />
+            </View>
+            <View style={styles.whenCopy}>
+              <Text style={styles.whenTime}>{formatBookingTime(item.starts_at)}</Text>
+              <Text style={styles.whenDate}>{date}</Text>
+            </View>
+          </View>
+        </Card>
+
+        <Card style={styles.placeCard}>
           <View style={styles.person}>
+            <View style={styles.placeIcon}>
+              <Icon name="cut-outline" size={20} color={colors.primarySoftText} />
+            </View>
             <View style={styles.personCopy}>
               <Text style={styles.personName}>{item.barber_name ?? '—'}</Text>
               {item.shop_name ? <Text style={styles.shopName}>{item.shop_name}</Text> : null}
@@ -133,14 +148,18 @@ export default function AppointmentDetailScreen() {
               onPress={() => setDirectionsVisible(true)}
               style={({ pressed }) => [styles.locationRow, pressed && styles.locationPressed]}
             >
-              <Icon name="navigate-outline" size={18} color={colors.primary} />
+              <Icon name="navigate-outline" size={18} color={colors.primarySoftText} />
               <Text style={styles.locationLabel}>{t('find.openLocation')}</Text>
             </Pressable>
           ) : null}
-          <View style={styles.facts}>
-            <Fact label={t('common.time')} value={formatBookingTime(item.starts_at)} />
-            <Fact label={t('common.price')} value={`${item.price_dzd.toLocaleString('ar-DZ')} ${t('common.dzd')}`} />
+        </Card>
+
+        <Card style={styles.priceCard}>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>{t('common.price')}</Text>
+            <Text style={styles.priceValue}>{`${item.price_dzd.toLocaleString('ar-DZ')} ${t('common.dzd')}`}</Text>
           </View>
+          <Text style={styles.payNote}>{t('booking.payAtShop')}</Text>
         </Card>
 
         <AppointmentDetailActions
@@ -156,7 +175,6 @@ export default function AppointmentDetailScreen() {
             },
           })}
           onCancel={cancel}
-          onDirections={item.location_maps_url ? () => setDirectionsVisible(true) : undefined}
         />
 
         <DirectionsModal
@@ -198,18 +216,17 @@ function AppointmentDetailActions({
   onScan,
   onReschedule,
   onCancel,
-  onDirections,
 }: {
   readonly appointment: Appointment;
   readonly onScan: () => void;
   readonly onReschedule: () => void;
   readonly onCancel: () => void;
-  readonly onDirections?: () => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [now] = useState(() => Date.now());
   const primary = appointmentPrimaryKind(appointment, now);
-  const overflow = appointmentOverflowActions(appointment, now);
+  // Directions already has its own button on the barber card here.
+  const overflow = appointmentOverflowActions(appointment, now).filter((action) => action !== 'directions');
 
   return (
     <View style={styles.detailActions}>
@@ -217,15 +234,12 @@ function AppointmentDetailActions({
       {overflow.length ? (
         <Button
           label={moreOpen ? t('home.hideActions') : t('home.moreActions')}
-          variant="ghost"
+          variant="outline"
           onPress={() => setMoreOpen((open) => !open)}
         />
       ) : null}
       {moreOpen ? (
         <View style={styles.overflow}>
-          {overflow.includes('directions') && onDirections ? (
-            <Button label={t('directions.action')} variant="secondary" onPress={onDirections} />
-          ) : null}
           {overflow.includes('reschedule') ? (
             <Button label={t('home.rescheduleAction')} variant="secondary" onPress={onReschedule} />
           ) : null}
@@ -254,44 +268,43 @@ function AppointmentDetailSkeleton() {
   );
 }
 
-function Fact({ label, value }: { readonly label: string; readonly value: string }) {
-  return (
-    <View style={styles.fact}>
-      <Text style={styles.factLabel}>{label}</Text>
-      <Text style={styles.factValue}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   body: { gap: space[3], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[10] },
   detailActions: { gap: space[2] },
   overflow: { gap: space[2] },
   summaryCard: { gap: space[4] },
-  summaryTop: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', gap: space[3] },
-  date: { ...typography.caption, color: colors.textMuted, flexShrink: 1, textAlign: 'right' },
-  service: { ...typography.title, textAlign: 'right' },
+  whenPanel: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[3], padding: space[4], borderRadius: radii.md, backgroundColor: colors.primarySoft },
+  whenIcon: { width: 44, height: 44, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  whenCopy: { flex: 1, alignItems: 'flex-end' },
+  whenTime: { ...typography.numeric, fontSize: 26, lineHeight: 36, color: colors.primarySoftText },
+  whenDate: { ...typography.label, color: colors.text, textAlign: 'right' },
+  placeCard: { gap: space[3], ...elevation.card },
+  placeIcon: { width: 44, height: 44, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft },
+  priceCard: { gap: space[1], ...elevation.card },
+  priceRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'baseline' },
+  priceLabel: { ...typography.bodyStrong, textAlign: 'right' },
+  priceValue: { ...typography.numeric, fontSize: 20, lineHeight: 28, color: colors.primary },
+  payNote: { ...typography.caption, textAlign: 'right' },
+  summaryTop: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'flex-start', gap: space[3] },
+  service: { ...typography.title, flex: 1, textAlign: 'right' },
   person: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[3] },
   personCopy: { flex: 1, alignItems: 'flex-end', gap: 2 },
   personName: { ...typography.bodyStrong, textAlign: 'right' },
   shopName: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
-  locationRow: { minHeight: 44, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: space[2], borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, paddingHorizontal: space[3] },
-  locationPressed: { backgroundColor: colors.primarySoft },
-  locationLabel: { ...typography.label, color: colors.primary },
-  facts: { flexDirection: 'row-reverse', gap: space[3], borderTopWidth: 1, borderTopColor: colors.border, paddingTop: space[3] },
-  fact: { flex: 1, gap: space[1], alignItems: 'flex-end' },
-  factLabel: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
-  factValue: { ...typography.bodyStrong, textAlign: 'right' },
-  ratingCard: { gap: space[3] },
+  locationRow: { minHeight: 44, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: space[2], borderRadius: radii.md, paddingHorizontal: space[3], backgroundColor: colors.primarySoft },
+  locationPressed: { backgroundColor: colors.border },
+  locationLabel: { ...typography.label, color: colors.primarySoftText },
+  facts: { borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: space[4] },
+  ratingCard: { gap: space[3], ...elevation.card },
   section: { ...typography.titleSm, textAlign: 'right' },
   stars: { flexDirection: 'row-reverse', justifyContent: 'center', gap: space[2] },
-  starButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border },
+  starButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, borderWidth: 1, borderColor: colors.border },
   starSelected: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
   starPressed: { transform: [{ scale: 0.96 }] },
   errorBody: { paddingHorizontal: layout.screenPaddingX, paddingVertical: space[4] },
-  errorCard: { gap: space[3], padding: layout.cardPadding, borderWidth: 1, borderColor: colors.border, borderRadius: radii['2xl'], backgroundColor: colors.surface },
+  errorCard: { gap: space[3], padding: layout.cardPadding, borderRadius: radii.lg, backgroundColor: colors.surface, ...elevation.card },
   skeletonBody: { gap: space[3], paddingHorizontal: layout.screenPaddingX, paddingVertical: space[4] },
-  skeletonSummary: { gap: space[4], padding: layout.cardPadding, borderRadius: radii['2xl'], backgroundColor: colors.surface },
+  skeletonSummary: { gap: space[4], padding: layout.cardPadding, borderRadius: radii.lg, backgroundColor: colors.surface },
   skeletonTop: { width: '45%', height: 24, alignSelf: 'flex-end', borderRadius: radii.pill, backgroundColor: colors.surfaceMuted },
   skeletonTitle: { width: '70%', height: 26, alignSelf: 'flex-end', borderRadius: radii.sm, backgroundColor: colors.surfaceMuted },
   skeletonPerson: { width: '75%', height: 48, alignSelf: 'flex-end', borderRadius: radii.lg, backgroundColor: colors.surfaceMuted },

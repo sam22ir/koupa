@@ -90,7 +90,7 @@ describe('booking selection', () => {
   });
 
   async function goToSlots() {
-    await screen.findByText('حلاقة · 800 دج');
+    await screen.findByLabelText('حلاقة · 800 دج');
     await fireEvent.press(screen.getByRole('button', { name: 'التالي' }));
     await waitFor(() => expect(screen.getByText('11:00 ص')).toBeTruthy());
   }
@@ -104,7 +104,7 @@ describe('booking selection', () => {
 
   it('asks for date, then a slot, then a recap before confirm', async () => {
     await render(<BookScreen />);
-    await screen.findByText('حلاقة · 800 دج');
+    await screen.findByLabelText('حلاقة · 800 دج');
     expect(screen.queryByText('11:00 ص')).toBeNull();
     expect(screen.queryByRole('button', { name: 'تأكيد الحجز' })).toBeNull();
 
@@ -200,7 +200,7 @@ describe('booking selection', () => {
   it('ignores a carried date outside the booking window', async () => {
     mockParams = { barberId: 'barber-1', serviceId: 'cut', date: '2020-01-01', slot: '2026-08-05T10:00:00Z' };
     await render(<BookScreen />);
-    await screen.findByText('حلاقة · 800 دج');
+    await screen.findByLabelText('حلاقة · 800 دج');
 
     expect(screen.queryByText('راجع حجزك')).toBeNull();
     await waitFor(() => expect(mockGetSlots).toHaveBeenLastCalledWith('barber-1', 'cut', bookingDates(1)[0]));
@@ -226,7 +226,7 @@ describe('booking selection', () => {
     await goToSlots();
     await fireEvent.press(screen.getByText('11:00 ص'));
     await fireEvent.press(screen.getByRole('button', { name: 'رجوع' }));
-    await fireEvent.press(screen.getByText('لحية · 500 دج'));
+    await fireEvent.press(screen.getByLabelText('لحية · 500 دج'));
     await fireEvent.press(screen.getByRole('button', { name: 'التالي' }));
     expect(screen.getByRole('button', { name: 'التالي' })).toBeDisabled();
   });
@@ -234,7 +234,7 @@ describe('booking selection', () => {
   it('returns to the declared Shop source instead of a barber profile', async () => {
     mockParams = { barberId: 'barber-1', returnTo: '/shop/shop-1' };
     await render(<BookScreen />);
-    await screen.findByText('حلاقة · 800 دج');
+    await screen.findByLabelText('حلاقة · 800 دج');
 
     await fireEvent.press(screen.getByRole('button', { name: 'رجوع' }));
 
@@ -249,7 +249,7 @@ describe('booking selection', () => {
       returnTo: '/appointment/appointment-1',
     };
     await render(<BookScreen />);
-    await screen.findByText('حلاقة · 800 دج');
+    await screen.findByLabelText('حلاقة · 800 دج');
 
     await fireEvent.press(screen.getByRole('button', { name: 'رجوع' }));
     expect(mockDismissTo).toHaveBeenCalledWith('/appointment/appointment-1');

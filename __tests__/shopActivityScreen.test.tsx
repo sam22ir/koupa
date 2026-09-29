@@ -4,10 +4,11 @@ import ShopActivityScreen from '@/app/(barber)/shop-activity/[id]';
 
 const mockGetActivity = jest.fn();
 const mockReplace = jest.fn();
+const mockNavigate = jest.fn();
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: 'shop-1' }),
-  router: { dismissTo: jest.fn(), replace: (...args: unknown[]) => mockReplace(...args) },
+  router: { dismissTo: jest.fn(), replace: (...args: unknown[]) => mockReplace(...args), navigate: (...args: unknown[]) => mockNavigate(...args), back: jest.fn(), canGoBack: () => false },
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -73,6 +74,6 @@ describe('ShopActivityScreen', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'رجوع' }));
 
-    expect(mockReplace).toHaveBeenCalledWith('/shop');
+    expect(mockNavigate).toHaveBeenCalledWith('/(barber)/shop');
   });
 });

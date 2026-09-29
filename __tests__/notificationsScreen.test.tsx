@@ -8,7 +8,7 @@ const mockMarkRead = jest.fn().mockResolvedValue(true);
 jest.mock('expo-router', () => {
   const ReactModule = jest.requireActual<typeof import('react')>('react');
   return {
-    router: { push: (...args: unknown[]) => mockPush(...args), dismissTo: jest.fn() },
+    router: { push: (...args: unknown[]) => mockPush(...args), dismissTo: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => false) },
     useFocusEffect: (callback: () => void) => ReactModule.useEffect(callback, [callback]),
   };
 });
@@ -58,5 +58,17 @@ describe('notifications screen', () => {
 
     const expoRouter = jest.requireMock('expo-router') as { router: { dismissTo: jest.Mock } };
     expect(expoRouter.router.dismissTo).toHaveBeenCalledWith('/(customer)/profile');
+  });
+
+  it('returns to the screen that opened notifications when there is history', async () => {
+    const expoRouter = jest.requireMock('expo-router') as {
+      router: { dismissTo: jest.Mock; back: jest.Mock; canGoBack: jest.Mock };
+    };
+    expoRouter.router.canGoBack.mockReturnValueOnce(true);
+    await render(<NotificationsScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'رجوع' }));
+    expect(expoRouter.router.back).toHaveBeenCalled();
+    expect(expoRouter.router.dismissTo).not.toHaveBeenCalled();
   });
 });

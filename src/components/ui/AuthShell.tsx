@@ -1,10 +1,9 @@
 import type { Href } from 'expo-router';
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Typography } from 'heroui-native/text';
 
-import { colors, layout, space, typography } from '@/src/theme';
+import { colors, layout, radii, space, typography } from '@/src/theme';
 
 import { AuthHeader } from './AuthHeader';
 
@@ -19,6 +18,11 @@ type Props = {
   readonly children: ReactNode;
 };
 
+/**
+ * Account screens: a teal brand header with the title, then the form on one
+ * white sheet whose rounded top overlaps the header. Fields sit directly on the
+ * sheet; no further cards inside it.
+ */
 export function AuthShell({
   title,
   subtitle,
@@ -31,59 +35,75 @@ export function AuthShell({
   const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView
+    <KeyboardAvoidingView
       style={styles.root}
-      contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, space[6]) }]}
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardShouldPersistTaps="handled"
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, space[5]) }]}>
-        <AuthHeader backHref={backHref} showBack={showBack} progress={progress} />
-        <View style={styles.intro}>
-          {kicker ? <Typography type="body-xs" align="end" style={styles.kicker}>{kicker}</Typography> : null}
-          <Typography type="h3" align="end" style={styles.title}>{title}</Typography>
-          {subtitle ? <Typography type="body" align="end" style={styles.subtitle}>{subtitle}</Typography> : null}
+      <ScrollView
+        style={styles.root}
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, space[3]) + space[2] }]}>
+          <AuthHeader backHref={backHref} showBack={showBack} progress={progress} tone="stage" />
+          <View style={styles.intro}>
+            {kicker ? <Text style={styles.kicker}>{kicker}</Text> : null}
+            <Text accessibilityRole="header" style={styles.title}>{title}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          </View>
         </View>
-      </View>
 
-      {/* Fields bring their own surfaces, so the form sits on paper rather than
-          inside a second container. */}
-      <View style={styles.body}>{children}</View>
-    </ScrollView>
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, space[4]) + space[6] }]}>
+          {children}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
+
+const SHEET_OVERLAP = 28;
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.stage,
   },
   content: {
     flexGrow: 1,
   },
   header: {
     paddingHorizontal: layout.screenPaddingX,
-    paddingBottom: space[4],
+    paddingBottom: space[6] + SHEET_OVERLAP,
+    backgroundColor: colors.stage,
   },
   intro: {
-    marginTop: space[9],
+    marginTop: space[6],
     gap: space[1],
   },
   kicker: {
-    fontFamily: typography.label.fontFamily,
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: colors.primary,
+    ...typography.label,
+    color: colors.onPrimaryMuted,
+    textAlign: 'right',
   },
   title: {
-    lineHeight: 38,
+    ...typography.display,
+    color: colors.onPrimary,
+    textAlign: 'right',
   },
   subtitle: {
     ...typography.body,
-    lineHeight: 24,
+    color: colors.onPrimaryMuted,
+    textAlign: 'right',
   },
-  body: {
+  sheet: {
+    flexGrow: 1,
+    marginTop: -SHEET_OVERLAP,
+    paddingTop: space[6],
     paddingHorizontal: layout.screenPaddingX,
     gap: space[5],
+    borderTopLeftRadius: radii['3xl'],
+    borderTopRightRadius: radii['3xl'],
+    backgroundColor: colors.surface,
   },
 });

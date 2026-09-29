@@ -1,5 +1,5 @@
 import { useRouter, type Href } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { EmptyState } from '@/src/components/ui';
 import { Screen } from '@/src/components/ui/Screen';
@@ -7,7 +7,7 @@ import { ShopHub } from '@/src/features/barber-shop/ShopHub';
 import { useShops } from '@/src/hooks/useShops';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
-import { colors } from '@/src/theme';
+import { colors, layout, space, typography } from '@/src/theme';
 
 export default function BarberShopScreen() {
   const router = useRouter();
@@ -33,6 +33,7 @@ export default function BarberShopScreen() {
   return (
     <Screen padded={false} style={styles.screen}>
       <View style={styles.surface}>
+        <Text accessibilityRole="header" style={styles.title}>{t('tabs.shop')}</Text>
         <ShopHub
           shops={shops}
           onSearch={() => push('/shop-search')}
@@ -48,6 +49,7 @@ export default function BarberShopScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: colors.workspace },
-  surface: { flex: 1, backgroundColor: colors.workspace },
+  screen: { backgroundColor: colors.background },
+  surface: { flex: 1, backgroundColor: colors.background },
+  title: { ...typography.title, textAlign: 'right', paddingHorizontal: layout.screenPaddingX, paddingTop: space[2] },
 });

@@ -275,6 +275,7 @@ describe('SignUpScreen', () => {
     await waitFor(() => {
       expect(mockSession.signUpWithPassword).toHaveBeenCalledWith({
         email: 'customer@example.com',
+        name: 'سارة',
         phone: '+213555123456',
         password: 'secret123',
         role: 'customer',
@@ -321,19 +322,26 @@ describe('SignUpScreen', () => {
     expect(mockSession.refreshProfile).not.toHaveBeenCalled();
   });
 
-  it('keeps barber signup free of the name field and profile creation', async () => {
+  it('asks a barber for their name at signup but creates no customer profile', async () => {
     mockSearchParams.mockReturnValue({ role: 'barber' });
     mockSession.pendingRole = 'barber';
     mockSession.signUpWithPassword.mockResolvedValueOnce('signup');
     await render(<SignUpScreen />);
 
-    expect(screen.queryByLabelText('الاسم')).toBeNull();
+    await fireEvent.changeText(screen.getByLabelText('الاسم'), 'سمير');
     await fireEvent.changeText(screen.getByLabelText('البريد الإلكتروني'), 'barber@example.com');
     await fireEvent.changeText(screen.getByLabelText('رقم الهاتف للتواصل'), '0555123456');
     await fireEvent.changeText(screen.getByLabelText('كلمة المرور'), 'secret123');
     await fireEvent.press(screen.getByRole('button', { name: 'إنشاء حساب' }));
 
     await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/'));
+    expect(mockSession.signUpWithPassword).toHaveBeenCalledWith({
+      email: 'barber@example.com',
+      name: 'سمير',
+      phone: '+213555123456',
+      password: 'secret123',
+      role: 'barber',
+    });
     expect(mockCreateCustomerProfile).not.toHaveBeenCalled();
   });
 

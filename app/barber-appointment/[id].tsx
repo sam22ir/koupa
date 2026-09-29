@@ -2,8 +2,19 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { appointmentStatusLabel, formatBookingTime, type BarberAppointmentEvent } from '@/src/booking';
-import { BackButton, Button, Card, CustomerStageHeader, ErrorBanner, Screen } from '@/src/components/ui';
+import { formatBookingTime, type BarberAppointmentEvent } from '@/src/booking';
+import {
+  AppointmentStatusBadge,
+  Avatar,
+  BackButton,
+  Button,
+  Card,
+  CustomerStageHeader,
+  DetailList,
+  ErrorBanner,
+  Screen,
+} from '@/src/components/ui';
+import { initialsFromName } from '@/src/utils/initials';
 import { loadBarberAppointment } from '@/src/hooks/useBooking';
 import { t } from '@/src/i18n';
 import { colors, space, typography } from '@/src/theme';
@@ -44,12 +55,23 @@ export default function BarberAppointmentEventScreen() {
         {loading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
         <ErrorBanner error={error} />
         {!loading && item ? (
-          <Card style={styles.card}>
-            <Text style={styles.name}>{item.customer_name}</Text>
-            <Text style={styles.copy}>{item.customer_phone}</Text>
-            <Text style={styles.name}>{item.service_name}</Text>
-            <Text style={styles.copy}>{formatBookingTime(item.starts_at)}</Text>
-            <Text style={styles.status}>{appointmentStatusLabel(item.status)}</Text>
+          <Card elevated style={styles.card}>
+            <View style={styles.person}>
+              <Avatar initials={initialsFromName(item.customer_name)} size={52} />
+              <View style={styles.personCopy}>
+                <Text style={styles.name}>{item.customer_name}</Text>
+                <Text selectable style={styles.copy}>{item.customer_phone}</Text>
+              </View>
+              <AppointmentStatusBadge status={item.status} />
+            </View>
+            <View style={styles.details}>
+              <DetailList
+                rows={[
+                  { label: t('common.service'), value: item.service_name },
+                  { label: t('common.time'), value: formatBookingTime(item.starts_at) },
+                ]}
+              />
+            </View>
           </Card>
         ) : null}
         {!loading && !item && !error ? <Text style={styles.copy}>تعذر العثور على الموعد.</Text> : null}
@@ -61,8 +83,10 @@ export default function BarberAppointmentEventScreen() {
 
 const styles = StyleSheet.create({
   body: { flex: 1, padding: space[5], gap: space[4] },
-  card: { gap: space[2] },
-  name: { ...typography.bodyStrong, textAlign: 'right' },
-  copy: { ...typography.body, color: colors.textMuted, textAlign: 'right' },
-  status: { ...typography.titleSm, color: colors.primary, textAlign: 'right' },
+  card: { gap: space[4] },
+  person: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[3] },
+  personCopy: { flex: 1, minWidth: 0, alignItems: 'flex-end', gap: 2 },
+  details: { borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: space[4] },
+  name: { ...typography.titleSm, textAlign: 'right' },
+  copy: { ...typography.caption, textAlign: 'right' },
 });

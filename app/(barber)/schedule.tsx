@@ -1,7 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ErrorBanner, Icon, Screen } from '@/src/components/ui';
+import { applySchedulePreset, applyServiceExample } from '@/src/data/onboarding';
+import { StarterSetup } from '@/src/features/barber-activation/StarterSetup';
+import { loadBarberPublishReadiness, type BarberPublishReadiness } from '@/src/services/onboarding';
 import { BookingRulesEditor } from '@/src/features/barber-schedule/BookingRulesEditor';
 import { ExceptionEditor } from '@/src/features/barber-schedule/ExceptionEditor';
 import { ScheduleWorkspaceTabs, type WorkspaceTab } from '@/src/features/barber-schedule/ScheduleWorkspaceTabs';
@@ -14,7 +17,7 @@ import { useBarberSettings } from '@/src/hooks/useBarberSettings';
 import { useUnsavedWorkspaceLeaveGuard } from '@/src/hooks/useUnsavedWorkspaceLeaveGuard';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
-import { colors, layout, radii, space, typography } from '@/src/theme';
+import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
 
 function firstInvalidTab(errors: ReturnType<typeof validateWorkspace>): WorkspaceTab | null {
   if (errors.schedule || errors.exceptions) return 'schedule';
@@ -35,6 +38,20 @@ export default function BarberScheduleScreen() {
   const settings = useBarberSettings({ userId: session?.user.id ?? profile?.id });
   const { dirty, draft, reset, save: persistSave } = settings;
   const [tab, setTab] = useState<WorkspaceTab>('schedule');
+  const [readiness, setReadiness] = useState<BarberPublishReadiness | null>(null);
+  const profileId = profile?.id;
+  const isUnpublished = Boolean(profile && profile.role === 'barber' && !profile.is_published);
+
+  // Only an unpublished barber who has not saved services or hours needs starters.
+  // Re-read after each save so the card disappears once the data is real.
+  useEffect(() => {
+    if (!isUnpublished || !profileId) return;
+    let active = true;
+    void loadBarberPublishReadiness(profileId)
+      .then((next) => { if (active) setReadiness(next); })
+      .catch(() => { if (active) setReadiness(null); });
+    return () => { active = false; };
+  }, [isUnpublished, profileId, settings.message]);
 
   const save = useCallback(async () => {
     const validation = validateWorkspace(draft);
@@ -80,6 +97,7 @@ export default function BarberScheduleScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          <Text accessibilityRole="header" style={styles.title}>{t('tabs.schedule')}</Text>
           {settings.dirty ? (
             <View style={styles.dirtyBadge}>
               <View style={styles.dirtyDot} />
@@ -89,7 +107,7 @@ export default function BarberScheduleScreen() {
           <ErrorBanner error={errorMessage(settings.error) || null} />
           {settings.message === 'saved' ? (
             <View style={styles.success} accessibilityLiveRegion="polite">
-              <Icon name="checkmark-circle" size={19} color={colors.primary} />
+              <Icon name="checkmark-circle" size={19} color={colors.success} />
               <Text style={styles.successText}>{t('scheduleWorkspace.saved')}</Text>
             </View>
           ) : null}
@@ -109,6 +127,21 @@ export default function BarberScheduleScreen() {
               </Text>
             </View>
           </View>
+
+          {isUnpublished && readiness ? (
+            <StarterSetup
+              needsServices={!readiness.hasServices}
+              needsHours={!readiness.hasWorkingHours}
+              onApplyWeek={(preset) => {
+                updateSettings({ schedules: applySchedulePreset(preset) });
+                setTab('schedule');
+              }}
+              onAddService={(example) => {
+                updateSettings({ services: applyServiceExample(settings.draft.settings.services, example) });
+                setTab('services');
+              }}
+            />
+          ) : null}
 
           <ScheduleWorkspaceTabs value={tab} onChange={setTab} errors={workspaceErrors} />
 
@@ -160,27 +193,27 @@ const styles = StyleSheet.create({
   dirtyBadge: { maxWidth: 160, flexDirection: 'row-reverse', alignItems: 'center', gap: space[2] },
   dirtyDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent },
   dirtyBadgeText: { ...typography.caption, color: colors.accentText, textAlign: 'right' },
-  screen: { backgroundColor: colors.workspace },
+  screen: { backgroundColor: colors.background },
   workspace: {
     flex: 1,
-    backgroundColor: colors.workspace,
+    backgroundColor: colors.background,
   },
-  scroll: { flex: 1, backgroundColor: colors.workspace },
+  scroll: { flex: 1, backgroundColor: colors.background },
+  title: { ...typography.title, textAlign: 'right', paddingTop: space[2] },
   scrollContent: { gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[16] + space[4] },
   success: { minHeight: 42, flexDirection: 'row-reverse', alignItems: 'center', gap: space[2], borderRadius: radii.md, backgroundColor: colors.successSoft, paddingHorizontal: space[3] },
-  successText: { ...typography.caption, color: colors.primary, textAlign: 'right' },
+  successText: { ...typography.caption, color: colors.success, textAlign: 'right' },
   bookingControl: {
     minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: space[4],
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
     paddingHorizontal: space[4],
     paddingVertical: space[3],
+    ...elevation.card,
   },
   bookingCopy: { flex: 1, gap: space[1], alignItems: 'flex-end' },
   bookingLabel: { ...typography.bodyStrong, textAlign: 'right' },
@@ -189,10 +222,9 @@ const styles = StyleSheet.create({
   editorSurface: {
     gap: space[6],
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
     backgroundColor: colors.surface,
     padding: space[4],
+    ...elevation.card,
   },
-  sectionDivider: { height: 1, backgroundColor: colors.border },
+  sectionDivider: { height: 1, backgroundColor: colors.borderSubtle },
 });

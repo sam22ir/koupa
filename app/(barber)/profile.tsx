@@ -1,20 +1,26 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { Avatar, Button, Card, Chip, ErrorBanner, Icon, Screen } from '@/src/components/ui';
-import { DeleteAccountButton } from '@/src/features/account/DeleteAccountButton';
+import { ErrorBanner, Screen } from '@/src/components/ui';
+import { AccountFooter, DangerZone } from '@/src/features/account/AccountSections';
+import { AccountHeader } from '@/src/features/account/AccountHeader';
 import { LegalSupportLinks } from '@/src/features/account/LegalSupportLinks';
+import { SettingsGroup, SettingsRow } from '@/src/features/account/SettingsList';
 import { useAccountLifecycle } from '@/src/hooks/useAccountLifecycle';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors, layout, radii, space, typography } from '@/src/theme';
-import { initialsFromName } from '@/src/utils/initials';
 
 export default function BarberProfileScreen() {
-  const { profile, signOut, legalDocuments } = useAppSession();
+  const { profile, session, signOut, legalDocuments } = useAppSession();
   const account = useAccountLifecycle();
   const [error, setError] = useState<unknown>(null);
+
+  const name = profile?.name ?? t('profile.accountNameFallback');
+  const email = session?.user.email ?? '';
+  const phone = profile?.phone ?? '';
+  const published = Boolean(profile?.is_published);
 
   const logout = async () => {
     try {
@@ -39,179 +45,74 @@ export default function BarberProfileScreen() {
   };
 
   return (
-    <Screen padded={false} scroll style={styles.screen} contentStyle={styles.content}>
+    <Screen padded={false} scroll bleedTop>
+      <AccountHeader
+        title={t('profile.title')}
+        name={name}
+        lines={[email, phone].filter(Boolean)}
+        role={t('auth.roleBarber')}
+        status={profile ? <PublishPill published={published} /> : null}
+      />
       <View style={styles.body}>
-        <Card elevated style={styles.identityCard}>
-          <View style={styles.header}>
-            <Avatar initials={initialsFromName(profile?.name ?? '؟')} size={64} />
-            <View style={styles.copy}>
-              <Text style={styles.name}>{profile?.name ?? t('profile.accountNameFallback')}</Text>
-              <Text style={styles.meta}>{profile?.phone ?? t('profile.accountPhoneFallback')}</Text>
-            </View>
-          </View>
-          <View style={styles.identityFooter}>
-            <Chip label={t('auth.roleBarber')} tone="primary" />
-            <Text style={styles.identityNote}>{t('profile.identityNote')}</Text>
-          </View>
-        </Card>
-
         <ErrorBanner error={error || account.error} />
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('profile.accountSection')}</Text>
-          <View style={styles.actionSurface}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('profile.notifications')}
-              onPress={() => router.push('/notifications')}
-              style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-            >
-              <Icon name="chevron-back" size={19} color={colors.textMuted} />
-              <View style={styles.actionCopy}>
-                <Text style={styles.actionTitle}>{t('profile.notifications')}</Text>
-              </View>
-              <View style={styles.actionIcon}>
-                <Icon name="notifications-outline" size={20} color={colors.primary} />
-              </View>
-            </Pressable>
-          </View>
-        </View>
+        <SettingsGroup title={t('profile.accountSection')}>
+          {profile?.id && published ? (
+            <SettingsRow
+              icon="storefront-outline"
+              label={t('profile.viewPublicProfile')}
+              onPress={() => router.push({
+                pathname: '/barber/[id]',
+                params: { id: profile.id, returnTo: '/(barber)/profile' },
+              })}
+            />
+          ) : null}
+          <SettingsRow
+            icon="notifications-outline"
+            label={t('profile.notifications')}
+            onPress={() => router.push('/notifications')}
+          />
+        </SettingsGroup>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('profile.resourcesSection')}</Text>
-          <Card style={styles.resourceCard}>
-            <LegalSupportLinks documents={legalDocuments} />
-          </Card>
-        </View>
+        <LegalSupportLinks documents={legalDocuments} title={t('profile.helpPrivacySection')} />
 
-        <Card style={styles.sessionCard}>
-          <Button label={t('common.logout')} variant="secondary" onPress={() => void logout()} />
-        </Card>
+        <SettingsGroup title={t('profile.sessionSection')}>
+          <SettingsRow icon="log-out-outline" label={t('common.logout')} onPress={() => void logout()} />
+        </SettingsGroup>
 
-        <View style={styles.dangerSection}>
-          <Text style={styles.dangerTitle}>{t('profile.dangerSection')}</Text>
-          <Text style={styles.dangerBody}>{t('profile.dangerBody')}</Text>
-          <DeleteAccountButton onConfirm={deleteAccount} disabled={account.loading} />
-        </View>
+        <DangerZone onDelete={deleteAccount} disabled={account.loading} />
+        <AccountFooter />
       </View>
     </Screen>
   );
 }
 
+/** Whether customers can find this barber, stated in words, not color alone. */
+function PublishPill({ published }: { readonly published: boolean }) {
+  return (
+    <View style={[styles.pill, published ? styles.pillOn : styles.pillOff]}>
+      <View style={[styles.dot, { backgroundColor: published ? colors.onPrimary : colors.accent }]} />
+      <Text style={styles.pillText}>{published ? t('profile.published') : t('profile.unpublished')}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: colors.workspace,
-  },
-  content: {
-    flexGrow: 1,
-    gap: 0,
-    paddingTop: 0,
-    paddingBottom: space[10],
-  },
   body: {
-    flex: 1,
-    gap: space[4],
+    paddingTop: space[5],
     paddingHorizontal: layout.screenPaddingX,
-    backgroundColor: colors.workspace,
+    gap: space[5],
   },
-  identityCard: {
-    gap: space[4],
-    borderRadius: radii['2xl'],
-  },
-  header: {
-    flexDirection: 'row-reverse',
-    gap: space[3],
-    alignItems: 'center',
-  },
-  copy: {
-    flex: 1,
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  name: {
-    ...typography.titleSm,
-  },
-  meta: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  identityFooter: {
+  pill: {
+    minHeight: 26,
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space[3],
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: space[3],
+    gap: space[1] + 2,
+    paddingHorizontal: space[3],
+    borderRadius: radii.pill,
   },
-  identityNote: {
-    ...typography.caption,
-    color: colors.textMuted,
-    flex: 1,
-    textAlign: 'right',
-  },
-  section: {
-    gap: space[2],
-  },
-  sectionTitle: {
-    ...typography.label,
-    color: colors.textMuted,
-    textAlign: 'right',
-  },
-  actionSurface: {
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.xl,
-    backgroundColor: colors.surface,
-  },
-  actionRow: {
-    minHeight: 64,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: space[3],
-    paddingHorizontal: space[4],
-  },
-  actionRowPressed: {
-    backgroundColor: colors.primarySoft,
-  },
-  actionCopy: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  actionTitle: {
-    ...typography.bodyStrong,
-    textAlign: 'right',
-  },
-  actionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primarySoft,
-  },
-  resourceCard: {
-    paddingVertical: space[3],
-  },
-  sessionCard: {
-    padding: space[3],
-  },
-  dangerSection: {
-    gap: space[2],
-    paddingTop: space[4],
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  dangerTitle: {
-    ...typography.label,
-    color: colors.danger,
-    textAlign: 'right',
-  },
-  dangerBody: {
-    ...typography.caption,
-    color: colors.textMuted,
-    lineHeight: 21,
-    textAlign: 'right',
-  },
+  pillOn: { backgroundColor: colors.stageOverlay },
+  pillOff: { backgroundColor: colors.stageAccent },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  pillText: { ...typography.label, fontSize: 12, lineHeight: 18, color: colors.onPrimary },
 });

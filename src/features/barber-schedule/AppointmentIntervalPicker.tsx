@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { bookingIntervalOptions } from '@/src/features/barber-schedule/model';
-import { colors, radii, space, typography } from '@/src/theme';
+import { colors, elevation, radii, space, typography } from '@/src/theme';
 
 const labels: Record<number, string> = {
   5: '5 دقائق',
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   segmented: {
     minHeight: 48,
     flexDirection: 'row-reverse',
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     backgroundColor: colors.surfaceMuted,
     padding: space[1],
   },
@@ -79,9 +79,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.sm,
+    borderRadius: radii.pill,
   },
-  segmentSelected: { backgroundColor: colors.surface },
+  segmentSelected: { backgroundColor: colors.surface, ...elevation.card },
   segmentText: { ...typography.label, color: colors.textMuted, fontVariant: ['tabular-nums'] },
   segmentTextSelected: { color: colors.primary },
 });

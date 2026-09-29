@@ -24,6 +24,8 @@ export function bookingReturnHref({ barberId, appointmentId, returnTo }: Booking
 /** Keeps public profile Back controls inside known Customer browse routes. */
 export function publicProfileReturnHref(returnTo?: string, role?: UserRole): Href {
   if (returnTo && customerBrowseOrigins.has(returnTo)) return returnTo as Href;
+  // A barber previewing their own public profile from Account goes back there.
+  if (role === 'barber' && returnTo === '/(barber)/profile') return '/(barber)/profile';
   if (role === 'barber') return '/(barber)/today';
   if (role === 'customer') return '/(customer)/find';
   return '/(auth)/welcome';

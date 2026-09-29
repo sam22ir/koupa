@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
 
@@ -11,9 +11,9 @@ import { useUnsavedWorkspaceLeaveGuard } from '@/src/hooks/useUnsavedWorkspaceLe
 import { useShops } from '@/src/hooks/useShops';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
+import { goBackFromShopScreen, returnToShopTab } from '@/src/navigation/barberShopNavigation';
 
 export default function ShopMemberScreen() {
-  const router = useRouter();
   const params = useLocalSearchParams<{ barberId?: string | string[] }>();
   const barberId = Array.isArray(params.barberId) ? params.barberId[0] : params.barberId;
   const { session } = useAppSession();
@@ -40,7 +40,7 @@ export default function ShopMemberScreen() {
   if (!member) {
     return (
       <Screen scroll>
-        <BackButton fallback="/(barber)/shop" />
+        <BackButton fallback="/(barber)/shop" onPress={goBackFromShopScreen} />
         <ErrorBanner error={shops.error || null} />
         <Text>{shops.loading ? t('common.loading') : t('shopWorkspace.noMembers')}</Text>
       </Screen>
@@ -52,10 +52,10 @@ export default function ShopMemberScreen() {
       member={member}
       activity={activity ?? []}
       settings={settings}
-      onBack={() => requestLeave(() => router.dismissTo('/(barber)/shop'))}
+      onBack={() => requestLeave(goBackFromShopScreen)}
       onRemove={() => requestAction(() => {
         void shops.removeMember(member.id).then((removed) => {
-          if (removed) router.dismissTo('/(barber)/shop');
+          if (removed) returnToShopTab();
         });
       })}
     />

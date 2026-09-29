@@ -98,7 +98,7 @@ Always keep the line height from the token; Arabic marks need the room.
 
 Paper is the default for Find, Appointments, Schedule, Shop, Profile, and account screens. Teal is used there as brand ink: the logo, selected actions, the active tab, and small icons.
 
-The **bold teal header** (`Stage`) opens four screens: the Home greeting, Today, Scan, and booking confirmation. On Home the next-appointment card floats over the header's lower edge with `float` elevation. Keep headers simple: greeting, one line, search or a summary. A single soft white glow is allowed; no orbs, patterns, parked logos, or gold dashes.
+The **bold teal header** opens: the Home greeting, Today, Scan, booking confirmation, the Account screens, Welcome, and every account-entry screen (`AuthShell`: sign in, sign up, password, setup, legal). On Home the next-appointment card floats over the header's lower edge with `float` elevation. Keep headers simple: greeting, one line, search or a summary. A single soft white glow is allowed; no orbs, patterns, parked logos, or gold dashes.
 
 ## Main screen patterns
 
@@ -109,7 +109,7 @@ The **bold teal header** (`Stage`) opens four screens: the Home greeting, Today,
 - Show customer and barber choices as matching, full-width cards. They must look equally available while idle. Use a brief press or hover response only after interaction.
 - Explain the role choice plainly. Do not use warning badges or pretend that one option is already selected.
 - Do not invent appointment counts, shop names, prices, or booking times for a preview.
-- Use the shared `AuthHeader` for sign-up and setup screens. Keep forms in one column and do not wrap the whole form in another card.
+- Use the shared `AuthShell` for sign-up, sign-in and setup screens: teal header with logo, back or step count and title, then the form on one white sheet whose rounded top overlaps the header. Keep forms in one column and add no further cards inside the sheet.
 - Keep required Terms and Privacy consent visible. Make email sign-up the main action and Google sign-up secondary.
 - Keep customer name and phone prominent during profile setup; make city clearly optional.
 - Show the barber setup step count because its five stages need orientation.
@@ -126,6 +126,14 @@ The **bold teal header** (`Stage`) opens four screens: the Home greeting, Today,
 - Keep operational screens focused on the task in front of the user.
 - Use cards only when they separate useful real information. Avoid decorative counters, status dots, and hairlines on every row.
 - Keep secondary actions quiet or behind an overflow menu when they are not needed right away.
+
+### Account (both roles)
+
+- Open with the teal `AccountHeader`: screen name, initials, name, email and phone, and a role badge. Barbers also see whether customers can find them, in words.
+- Below it, grouped `SettingsGroup` / `SettingsRow` lists: Account, Help and privacy, Session. Rows have an icon tile, a label, and a chevron (or an external-link mark when they leave the app).
+- Customers edit their name in a bottom sheet; the contact phone is shown read-only.
+- Barbers get "ملفي كما يراه الزبائن" once published, which opens their public profile and returns to Account.
+- Account deletion sits alone in a red-outlined danger card at the end, followed by the logo and app version.
 
 ## Brand mark
 

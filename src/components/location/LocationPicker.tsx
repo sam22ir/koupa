@@ -146,21 +146,25 @@ export function LocationPicker({ latitude, longitude, onChange }: Props) {
           ) : null}
         </View>
         <View style={styles.actions}>
+          {/* The fastest route first: one tap fills the pin, city and neighborhood. */}
           <Button
+            testID="location-use-current"
+            label={t('location.useCurrent')}
+            loading={locating && !open}
+            onPress={() => void requestGps(false)}
+          />
+          <Button
+            testID="location-pick-on-map"
             label={t('location.pickOnMap')}
+            variant="secondary"
             onPress={() => {
               setDraft(selected ?? ALGIERS_CENTER);
               setError(null);
               setOpen(true);
             }}
           />
-          <Button
-            label={t('location.useCurrent')}
-            variant="secondary"
-            loading={locating && !open}
-            onPress={() => void requestGps(false)}
-          />
         </View>
+        {error && !open ? <Text style={styles.error}>{error}</Text> : null}
       </Card>
 
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
