@@ -71,7 +71,7 @@ export function DeleteAccountButton({
               />
               <Button
                 label={t('common.yes')}
-                variant="danger"
+                variant="dangerSolid"
                 loading={deleting}
                 onPress={() => void confirm()}
                 style={styles.action}
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: 'rgba(20,30,38,0.48)',
+    backgroundColor: colors.scrim,
     padding: space[5],
   },
   dialog: {

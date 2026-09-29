@@ -1,12 +1,17 @@
-/** Corner radii for Teal Stage. Soft product shapes, not sharp ledger edges. */
+/** Corner radii for Koupa Teal. Global.css mirrors sm/md/lg for HeroUI parts. */
 export const radii = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 18,
-  '2xl': 22,
+  xs: 6,
+  sm: 10,
+  /** Buttons, fields, icon buttons. */
+  md: 14,
+  /** Cards. */
+  lg: 18,
+  xl: 20,
+  /** Sheets, dialogs, the teal stage's bottom corners. */
+  '2xl': 24,
+  '3xl': 28,
   pill: 999,
-  avatar: 20,
+  avatar: 16,
   avatarSquare: 16,
 } as const;
 

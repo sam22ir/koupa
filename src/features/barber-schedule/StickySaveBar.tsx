@@ -40,6 +40,6 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
-    boxShadow: '0 4px 12px rgba(15, 28, 34, 0.18)',
+    boxShadow: '0 4px 12px rgba(7, 40, 39, 0.18)',
   },
 });

@@ -10,10 +10,15 @@ module.exports = ({ config: baseConfig }) => ({
   userInterfaceStyle: baseConfig.userInterfaceStyle || 'automatic',
   plugins: Array.from(new Set([
     ...(baseConfig.plugins || []),
+    ['expo-build-properties', { android: { minSdkVersion: 24 } }],
     'expo-router',
     'expo-status-bar',
     'expo-font',
-    'expo-splash-screen',
+    ['expo-splash-screen', {
+      image: './assets/brand/splash-screen.png',
+      imageWidth: 280,
+      backgroundColor: '#1A7A78',
+    }],
     ['expo-camera', { recordAudioAndroid: false }],
     ['expo-location', {
       locationWhenInUsePermission: 'اسمح لتطبيق كوپا باستخدام موقعك لعرض المحلات القريبة.',

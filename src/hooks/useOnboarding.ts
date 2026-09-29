@@ -98,6 +98,11 @@ export function useOnboarding({ userId, initialPhone }: UseOnboardingProps) {
     await onboardingService.createCustomerProfile(userId, name, phone);
   }, [userId]);
 
+  const createBarber = useCallback(async (nextDraft: BarberDraft) => {
+    if (!userId) throw new Error('No active session');
+    await onboardingService.createBarberProfile(nextDraft);
+  }, [userId]);
+
   const publishBarber = useCallback(async (nextDraft: BarberDraft) => {
     if (!userId) throw new Error('No active session');
     await onboardingService.publishBarberProfile(nextDraft);
@@ -115,6 +120,7 @@ export function useOnboarding({ userId, initialPhone }: UseOnboardingProps) {
     retrySave,
     saveDraft,
     createCustomer,
+    createBarber,
     publishBarber,
   };
 }

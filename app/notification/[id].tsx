@@ -6,9 +6,12 @@ import { BackButton, Button, CustomerStageHeader, ErrorBanner, Screen } from '@/
 import type { AppNotification } from '@/src/notifications';
 import * as notificationsService from '@/src/services/notifications';
 import { colors, space, typography } from '@/src/theme';
+import { t } from '@/src/i18n';
+import { useAppSession } from '@/src/providers/SessionProvider';
 
 export default function NotificationEventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { profile } = useAppSession();
   const [item, setItem] = useState<AppNotification | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
@@ -33,7 +36,11 @@ export default function NotificationEventScreen() {
 
   return (
     <Screen padded={false}>
-      <CustomerStageHeader title="تفاصيل الإشعار" trailing={<BackButton fallback="/notifications" />} />
+      <CustomerStageHeader
+        title="تفاصيل الإشعار"
+        context={profile?.role === 'barber' ? t('auth.roleBarber') : t('auth.roleCustomer')}
+        trailing={<BackButton fallback="/notifications" />}
+      />
       <View style={styles.body}>
         {loading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
         <ErrorBanner error={error} />

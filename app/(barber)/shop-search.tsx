@@ -7,7 +7,7 @@ import { BackButton } from '@/src/components/ui/BackButton';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { ErrorBanner } from '@/src/components/ui/ErrorBanner';
 import { Field } from '@/src/components/ui/Field';
-import { Screen, ScreenTitle } from '@/src/components/ui/Screen';
+import { Screen } from '@/src/components/ui/Screen';
 import { ShopSearchResult } from '@/src/features/barber-shop/ShopSearchResult';
 import { useShops } from '@/src/hooks/useShops';
 import { t } from '@/src/i18n';
@@ -48,13 +48,7 @@ export default function ShopSearchScreen() {
 
   return (
     <Screen scroll>
-      <View style={styles.header}>
-        <BackButton fallback="/(barber)/shop" onPress={() => router.replace('/shop')} />
-        <ScreenTitle
-          title={inviteMode ? t('shopWorkspace.inviteBarber') : t('shopWorkspace.search')}
-          subtitle={inviteMode ? t('shopWorkspace.inviteSearchSubtitle') : t('shopWorkspace.searchHint')}
-        />
-      </View>
+      <BackButton fallback="/(barber)/shop" onPress={() => router.replace('/shop')} />
       <Field
         label={inviteMode ? t('shopWorkspace.barberSearchLabel') : t('shopWorkspace.shopSearchLabel')}
         value={query}
@@ -115,7 +109,6 @@ export default function ShopSearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row-reverse', alignItems: 'flex-start', justifyContent: 'space-between', gap: space[3] },
   list: { gap: space[3] },
   candidate: { minHeight: 72, flexDirection: 'row-reverse', alignItems: 'center', gap: space[3], borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surface, padding: space[3] },
   candidateCopy: { flex: 1, alignItems: 'flex-end', gap: space[1] },

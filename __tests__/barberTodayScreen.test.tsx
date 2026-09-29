@@ -3,6 +3,19 @@ import { router } from 'expo-router';
 import React from 'react';
 import { Alert } from 'react-native';
 
+// The publish checklist reads services and hours through the Supabase client,
+// which is constructed at module load. Rendering must not need credentials.
+jest.mock('@/lib/supabase', () => ({
+  supabase: {
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+    })),
+    rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
+  },
+}));
+
 import BarberTodayScreen from '../app/(barber)/today';
 import type { TodayAppointment } from '../src/booking';
 
@@ -103,14 +116,13 @@ describe('BarberTodayScreen', () => {
     expect(mockRouter.push).toHaveBeenCalledWith('/(barber)/schedule');
   });
 
-  it('uses a teal moment header without a decorative logo lockup', async () => {
+  it('uses the compact role identity header without a screen masthead', async () => {
     await render(<BarberTodayScreen />);
 
     await screen.findByText('لا مواعيد اليوم');
-    expect(screen.getByTestId('page-header-stage')).toBeTruthy();
-    expect(screen.getByTestId('teal-stage')).toBeTruthy();
-    expect(screen.queryByTestId('today-logo-accent')).toBeNull();
-    expect(screen.queryByTestId('today-logo-wrap')).toBeNull();
+    expect(screen.getByText('مرحبا')).toBeTruthy();
+    expect(screen.getByText('أحمد')).toBeTruthy();
+    expect(screen.queryByText('مواعيد اليوم')).toBeNull();
   });
 
   it('keeps the dashboard summary outside the clipped appointment scroller', async () => {

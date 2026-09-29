@@ -6,7 +6,6 @@ import {
   Avatar,
   Button,
   Card,
-  CustomerStageHeader,
   ErrorBanner,
   Field,
   Icon,
@@ -94,7 +93,6 @@ export default function CustomerProfileScreen() {
 
   return (
     <Screen padded={false} scroll>
-      <CustomerStageHeader title={t('profile.title')} tone="paper" />
       <View style={styles.body}>
         <Card elevated style={styles.identityCard}>
           {editing ? (

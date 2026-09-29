@@ -9,7 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spinner } from 'heroui-native/spinner';
 import { Typography } from 'heroui-native/text';
 
-import { colors, layout, space } from '@/src/theme';
+import { colors, elevation, layout, space } from '@/src/theme';
+import { PageHeaderIdentity } from './CustomerStageHeader';
 
 type Props = {
   readonly children?: ReactNode;
@@ -18,6 +19,10 @@ type Props = {
   readonly padded?: boolean;
   readonly style?: ViewStyle;
   readonly contentStyle?: ViewStyle;
+  /** Let the first child (a teal header) run under the status bar; it pads itself. */
+  readonly bleedTop?: boolean;
+  /** Sticky action bar pinned below the content (e.g. the booking CTA). */
+  readonly footer?: ReactNode;
 };
 
 export function Screen({
@@ -27,11 +32,13 @@ export function Screen({
   padded = true,
   style,
   contentStyle,
+  bleedTop = false,
+  footer,
 }: Props) {
   const insets = useSafeAreaInsets();
   const padding = {
-    paddingTop: Math.max(insets.top, space[3]),
-    paddingBottom: Math.max(insets.bottom, space[4]),
+    paddingTop: bleedTop ? 0 : Math.max(insets.top, space[3]),
+    paddingBottom: footer ? space[6] : Math.max(insets.bottom, space[4]),
     paddingHorizontal: padded ? layout.screenPaddingX : 0,
   };
 
@@ -43,8 +50,12 @@ export function Screen({
     );
   }
 
+  const footerBar = footer ? (
+    <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, space[4]) }]}>{footer}</View>
+  ) : null;
+
   if (scroll) {
-    return (
+    const scroller = (
       <ScrollView
         style={[styles.root, style]}
         contentContainerStyle={[padding, styles.scrollContent, contentStyle]}
@@ -56,16 +67,42 @@ export function Screen({
         {children}
       </ScrollView>
     );
+    if (!footerBar) return scroller;
+    return (
+      <View style={[styles.root, style]}>
+        {scroller}
+        {footerBar}
+      </View>
+    );
   }
 
-  return <View style={[styles.root, padding, style, contentStyle]}>{children}</View>;
+  if (!footerBar) return <View style={[styles.root, padding, style, contentStyle]}>{children}</View>;
+  return (
+    <View style={[styles.root, style]}>
+      <View style={[styles.fill, padding, contentStyle]}>{children}</View>
+      {footerBar}
+    </View>
+  );
 }
 
-export function ScreenTitle({ title, subtitle }: { title: string; subtitle?: string }) {
+export function ScreenTitle({
+  title,
+  subtitle,
+  context,
+  trailing,
+}: {
+  title: string;
+  subtitle?: string;
+  context?: string;
+  trailing?: ReactNode;
+}) {
   return (
-    <View style={styles.titleBlock}>
-      <Typography type="h5" align="end">{title}</Typography>
-      {subtitle ? <Typography type="body" color="muted" align="end">{subtitle}</Typography> : null}
+    <View style={styles.pageMasthead}>
+      <PageHeaderIdentity context={context} trailing={trailing} />
+      <View style={styles.pageHeading}>
+        <Typography type="h3" align="end">{title}</Typography>
+        {subtitle ? <Typography type="body" color="muted" align="end">{subtitle}</Typography> : null}
+      </View>
     </View>
   );
 }
@@ -79,12 +116,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  fill: {
+    flex: 1,
+  },
+  footer: {
+    gap: space[2],
+    paddingTop: space[3],
+    paddingHorizontal: layout.screenPaddingX,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    ...elevation.float,
+  },
   scrollContent: {
     gap: space[4],
     flexGrow: 1,
   },
-  titleBlock: {
-    gap: space[1],
+  pageMasthead: {
+    gap: space[4],
+  },
+  pageHeading: {
+    gap: space[2],
     alignItems: 'flex-end',
   },
 });

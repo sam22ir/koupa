@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { CustomerStageHeader, ErrorBanner, Icon, Screen } from '@/src/components/ui';
+import { ErrorBanner, Icon, Screen } from '@/src/components/ui';
 import { BookingRulesEditor } from '@/src/features/barber-schedule/BookingRulesEditor';
 import { ExceptionEditor } from '@/src/features/barber-schedule/ExceptionEditor';
 import { ScheduleWorkspaceTabs, type WorkspaceTab } from '@/src/features/barber-schedule/ScheduleWorkspaceTabs';
@@ -74,26 +74,18 @@ export default function BarberScheduleScreen() {
 
   return (
     <Screen padded={false} loading={settings.loading} style={styles.screen}>
-      <CustomerStageHeader
-        tone="paper"
-        title={t('scheduleWorkspace.title')}
-        subtitle={t('scheduleWorkspace.subtitle')}
-        trailing={
-          settings.dirty ? (
-            <View style={styles.dirtyBadge}>
-              <View style={styles.dirtyDot} />
-              <Text style={styles.dirtyBadgeText}>{t('scheduleWorkspace.dirty')}</Text>
-            </View>
-          ) : null
-        }
-      />
-
       <View style={styles.workspace}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          {settings.dirty ? (
+            <View style={styles.dirtyBadge}>
+              <View style={styles.dirtyDot} />
+              <Text style={styles.dirtyBadgeText}>{t('scheduleWorkspace.dirty')}</Text>
+            </View>
+          ) : null}
           <ErrorBanner error={errorMessage(settings.error) || null} />
           {settings.message === 'saved' ? (
             <View style={styles.success} accessibilityLiveRegion="polite">

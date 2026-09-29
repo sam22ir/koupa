@@ -1,6 +1,7 @@
 export { Avatar } from './Avatar';
 export { BackButton } from './BackButton';
 export { AuthShell } from './AuthShell';
+export { AuthHeader } from './AuthHeader';
 export { BrandLogo } from './BrandLogo';
 export { Button } from './Button';
 export { Card } from './Card';

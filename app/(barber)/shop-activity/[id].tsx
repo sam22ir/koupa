@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { BackButton, Button, Card, CustomerStageHeader, ErrorBanner, Icon, Screen } from '@/src/components/ui';
+import { BackButton, Button, Card, ErrorBanner, Icon, Screen } from '@/src/components/ui';
 import { ShopActivityList, type ShopActivityItem } from '@/src/features/barber-shop/ShopActivityList';
 import { useShops } from '@/src/hooks/useShops';
 import { t } from '@/src/i18n';
@@ -47,12 +47,7 @@ export default function ShopActivityScreen() {
 
   return (
     <Screen padded={false} scroll style={styles.screen}>
-      <CustomerStageHeader
-        tone="paper"
-        title={t('shopWorkspace.activity')}
-        subtitle={t('shopWorkspace.activitySubtitle')}
-        trailing={<BackButton fallback="/(barber)/shop" onPress={() => router.replace('/shop')} />}
-      />
+      <BackButton fallback="/(barber)/shop" onPress={() => router.replace('/shop')} />
 
       <View style={styles.body}>
         <ErrorBanner error={error || null} />
@@ -105,12 +100,7 @@ function Metric({ label, value }: { readonly label: string; readonly value: numb
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.workspace },
-  stageTopRow: { minHeight: 56, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  logoImage: { tintColor: colors.onPrimary, opacity: 0.96 },
-  stageTitleBlock: { gap: space[1], alignItems: 'flex-end' },
-  stageTitle: { ...typography.title, color: colors.onPrimary, textAlign: 'right' },
-  stageSubtitle: { ...typography.body, color: colors.onPrimaryMuted, textAlign: 'right' },
-  body: { flex: 1, marginTop: -space[5], gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[10], backgroundColor: colors.workspace },
+  body: { flex: 1, gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[10], backgroundColor: colors.workspace },
   metricsRow: { flexDirection: 'row-reverse', gap: space[3] },
   metric: { flex: 1, minHeight: 82, alignItems: 'center', justifyContent: 'center', gap: space[1], borderRadius: radii.lg, backgroundColor: colors.surface, padding: space[3] },
   metricValue: { ...typography.titleSm, color: colors.primary, textAlign: 'center' },

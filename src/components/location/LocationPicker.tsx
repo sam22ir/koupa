@@ -44,13 +44,13 @@ function leafletHtml(center: GeoPoint): string {
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    html, body, #map { height: 100%; margin: 0; background: #dce9ea; }
+    html, body, #map { height: 100%; margin: 0; background: ${colors.workspace}; }
     .center-pin {
       position: absolute; left: 50%; top: 50%;
       width: 22px; height: 22px; margin: -28px 0 0 -11px;
       border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
-      background: #1A7A78; border: 3px solid #fff; z-index: 500;
-      box-shadow: 0 2px 8px rgba(15,28,34,0.28);
+      background: ${colors.primary}; border: 3px solid #fff; z-index: 500;
+      box-shadow: 0 2px 8px rgba(11,21,21,0.28);
     }
   </style>
 </head>

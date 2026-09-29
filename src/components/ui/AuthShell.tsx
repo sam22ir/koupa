@@ -6,8 +6,7 @@ import { Typography } from 'heroui-native/text';
 
 import { colors, layout, space, typography } from '@/src/theme';
 
-import { BrandLogo } from './BrandLogo';
-import { BackButton } from './BackButton';
+import { AuthHeader } from './AuthHeader';
 
 type Props = {
   readonly title: string;
@@ -39,12 +38,8 @@ export function AuthShell({
       keyboardShouldPersistTaps="handled"
     >
       <View style={[styles.header, { paddingTop: Math.max(insets.top, space[5]) }]}>
-        <View testID="auth-shell-top-row" style={styles.topRow}>
-          <BrandLogo height={44} />
-          {showBack ? <BackButton fallback={backHref} tone="primary" /> : null}
-        </View>
+        <AuthHeader backHref={backHref} showBack={showBack} progress={progress} />
         <View style={styles.intro}>
-          {progress ? <Typography type="body-xs" color="muted" align="end" style={styles.progress}>{progress}</Typography> : null}
           {kicker ? <Typography type="body-xs" align="end" style={styles.kicker}>{kicker}</Typography> : null}
           <Typography type="h3" align="end" style={styles.title}>{title}</Typography>
           {subtitle ? <Typography type="body" align="end" style={styles.subtitle}>{subtitle}</Typography> : null}
@@ -70,17 +65,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.screenPaddingX,
     paddingBottom: space[4],
   },
-  topRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   intro: {
     marginTop: space[9],
     gap: space[1],
-  },
-  progress: {
-    marginBottom: space[1],
   },
   kicker: {
     fontFamily: typography.label.fontFamily,

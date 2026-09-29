@@ -19,6 +19,11 @@ import {
   type TodayAppointment,
 } from '@/src/booking';
 import {
+  loadBarberPublishReadiness,
+  publishExistingBarberProfile,
+  type BarberPublishReadiness,
+} from '@/src/services/onboarding';
+import {
   getCustomerInitials,
   getTodayDashboard,
   getTodayDurationMinutes,
@@ -27,12 +32,13 @@ import {
   Avatar,
   Button,
   Chip,
-  CustomerStageHeader,
   EmptyState,
   ErrorBanner,
   Icon,
   Screen,
+  BrandLogo,
 } from '@/src/components/ui';
+import { RoleHomeHeader } from '@/src/components/ui/RoleHomeHeader';
 import { QrCodeMatrix } from '@/src/components/QrCodeMatrix';
 import { useBooking } from '@/src/hooks/useBooking';
 import { t } from '@/src/i18n';
@@ -72,7 +78,7 @@ function Counter({ label, value }: { readonly label: string; readonly value: num
 }
 
 export default function BarberTodayScreen() {
-  const { profile, legalError, retryLegalAcceptance } = useAppSession();
+  const { profile, legalError, retryLegalAcceptance, refreshProfile } = useAppSession();
   const { today, markPresent, cancelBarber, undoQrCheckIn, error } = useBooking();
   const [items, setItems] = useState<readonly TodayAppointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +87,11 @@ export default function BarberTodayScreen() {
   const [selectedAppointment, setSelectedAppointment] = useState<TodayAppointment | null>(null);
   const [sharingQr, setSharingQr] = useState(false);
   const [activationWorkplace, setActivationWorkplace] = useState<BarberActivationWorkplace | null>(null);
+  const [readiness, setReadiness] = useState<BarberPublishReadiness | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<unknown>(null);
+  const profileId = profile?.id;
+  const isUnpublished = Boolean(profile && profile.role === 'barber' && !profile.is_published);
   const qrCardRef = useRef<View | null>(null);
 
   const dashboard = useMemo(() => getTodayDashboard(items), [items]);
@@ -99,8 +110,27 @@ export default function BarberTodayScreen() {
     useCallback(() => {
       void refresh();
       void readBarberOnboardingHints().then(setActivationWorkplace);
-    }, [refresh]),
+      // Re-read on focus so finishing services or hours in the Schedule tab
+      // ticks the checklist off as soon as the barber comes back. Depend on the
+      // id rather than the profile object, which is not identity-stable.
+      if (isUnpublished && profileId) {
+        void loadBarberPublishReadiness(profileId).then(setReadiness).catch(() => setReadiness(null));
+      }
+    }, [isUnpublished, profileId, refresh]),
   );
+
+  const publishProfile = async () => {
+    setPublishing(true);
+    setPublishError(null);
+    try {
+      await publishExistingBarberProfile();
+      await refreshProfile();
+    } catch (caught) {
+      setPublishError(caught);
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   const dismissActivationTips = async () => {
     await clearBarberOnboardingHints();
@@ -214,7 +244,32 @@ export default function BarberTodayScreen() {
 
       <ErrorBanner error={error} />
 
-      {activationWorkplace ? (
+      {isUnpublished ? (
+        <View style={styles.activationCard} accessibilityLabel={t('barber.publishChecklistTitle')}>
+          <Text style={styles.activationTitle}>{t('barber.publishChecklistTitle')}</Text>
+          <Text style={styles.activationLine}>{t('barber.publishChecklistBody')}</Text>
+          <Text style={styles.activationLine}>
+            {`${readiness?.hasServices ? '✓' : '•'} ${t('barber.publishNeedsServices')}`}
+          </Text>
+          <Text style={styles.activationLine}>
+            {`${readiness?.hasWorkingHours ? '✓' : '•'} ${t('barber.publishNeedsHours')}`}
+          </Text>
+          <ErrorBanner error={publishError} />
+          <Button
+            label={t('barber.stepServices')}
+            variant="secondary"
+            onPress={() => router.push('/(barber)/schedule')}
+          />
+          <Button
+            label={t('barber.publish')}
+            loading={publishing}
+            disabled={!readiness?.hasServices || !readiness?.hasWorkingHours}
+            onPress={() => void publishProfile()}
+          />
+        </View>
+      ) : null}
+
+      {activationWorkplace && !isUnpublished ? (
         <View style={styles.activationCard} accessibilityLabel={t('barber.activationTitle')}>
           <Text style={styles.activationTitle}>{t('barber.activationTitle')}</Text>
           <Text style={styles.activationLine}>{t('barber.activationQr')}</Text>
@@ -232,30 +287,22 @@ export default function BarberTodayScreen() {
         </View>
       ) : null}
 
-      <Pressable
-        style={({ pressed }) => [styles.qrAction, pressed && styles.pressed]}
-        onPress={showQr}
-        accessibilityRole="button"
-        accessibilityLabel={t('barber.showQr')}
-        disabled={!profile?.id}
-      >
-        <View style={styles.qrActionCopy}>
-          <Icon name="qr-code-outline" size={21} color={colors.primary} />
-          <Text style={styles.qrActionText}>{t('barber.showQr')}</Text>
-        </View>
-        <Icon name="chevron-back" size={18} color={colors.textMuted} />
-      </Pressable>
     </View>
   );
 
   return (
     <Screen padded={false} style={styles.screen}>
-      <CustomerStageHeader
-        tone="stage"
-        title={t('barber.todayTitle')}
-        subtitle={todayFormatter.format(new Date())}
-      />
-
+      <RoleHomeHeader
+        greeting={t('home.greeting')}
+        name={profile?.name ?? t('profile.accountNameFallback')}
+        profileLabel={t('tabs.profile')}
+        notificationsLabel={t('profile.notifications')}
+        onProfile={() => router.push('/(barber)/profile')}
+        onNotifications={() => router.push('/notifications')}
+        quickAction={profile?.id ? { label: t('barber.showQr'), icon: 'qr-code-outline', onPress: showQr } : undefined}
+      >
+        <Text style={styles.date}>{todayFormatter.format(new Date())}</Text>
+      </RoleHomeHeader>
       <View style={styles.body}>
         {listHeader}
         <FlatList
@@ -349,7 +396,7 @@ export default function BarberTodayScreen() {
             </View>
             {qrPayload ? (
               <View ref={qrCardRef} testID="barber-qr-share-card" style={styles.qrShareCard}>
-                <Text style={styles.qrBrand}>كوپا</Text>
+                <BrandLogo height={42} />
                 <Text style={styles.qrBarberName}>{profile?.name}</Text>
                 <View style={styles.qrCodeSurface}>
                   <QrCodeMatrix
@@ -476,60 +523,10 @@ export default function BarberTodayScreen() {
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.workspace },
-  stageTopRow: {
-    minHeight: 72,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoWrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    alignItems: 'center',
-    gap: space[2],
-  },
-  logoImage: {
-    tintColor: colors.onPrimary,
-    opacity: 0.96,
-  },
-  logoAccent: {
-    width: space[8],
-    height: 3,
-    borderRadius: radii.pill,
-    backgroundColor: colors.accent,
-  },
-  headerQrButton: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 48,
-    height: 48,
-    borderRadius: radii.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.stageOverlay,
-  },
-  headerQrPressed: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  stageTitleBlock: {
-    gap: space[1],
-    alignItems: 'flex-end',
-  },
-  title: {
-    ...typography.title,
-    color: colors.onPrimary,
-    textAlign: 'right',
-  },
-  date: {
-    ...typography.caption,
-    color: colors.onPrimaryMuted,
-    textAlign: 'right',
-  },
+  date: { ...typography.caption, color: colors.onPrimaryMuted, textAlign: 'right' },
   body: {
     flex: 1,
-    marginTop: layout.stageBodyOverlap,
+    marginTop: 0,
     gap: space[3],
     paddingHorizontal: layout.screenPaddingX,
     backgroundColor: colors.workspace,
@@ -600,26 +597,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     textAlign: 'right',
   },
-  qrAction: {
-    minHeight: 52,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    paddingHorizontal: space[4],
-  },
-  qrActionCopy: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: space[2],
-  },
-  qrActionText: {
-    ...typography.label,
-    color: colors.primary,
-  },
   pressed: {
     transform: [{ scale: 0.99 }],
     backgroundColor: colors.primarySoft,
@@ -682,7 +659,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(15,28,34,0.58)',
+    backgroundColor: colors.scrim,
     padding: space[5],
   },
   modalCard: {
@@ -732,11 +709,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
     padding: space[4],
-  },
-  qrBrand: {
-    ...typography.title,
-    color: colors.primary,
-    textAlign: 'center',
   },
   qrBarberName: {
     ...typography.titleSm,

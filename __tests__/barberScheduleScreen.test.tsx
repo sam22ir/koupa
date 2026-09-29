@@ -87,10 +87,11 @@ describe('BarberScheduleScreen', () => {
     };
   });
 
-  it('renders the branded workspace, positive booking status, tabs, and sticky Save', async () => {
+  it('renders booking status and tabs without a screen masthead', async () => {
     await render(<BarberScheduleScreen />);
 
-    expect(screen.getByText('الجدول والخدمات')).toBeTruthy();
+    expect(screen.queryByText('الجدول والخدمات')).toBeNull();
+    expect(screen.getByText('ساعات العمل الأسبوعية')).toBeTruthy();
     expect(screen.getByRole('switch', { name: 'استقبال الحجوزات' })).toBeChecked();
     expect(screen.getByRole('tab', { name: 'الجدول' })).toBeSelected();
     expect(screen.getByRole('tab', { name: 'الخدمات' })).toBeTruthy();

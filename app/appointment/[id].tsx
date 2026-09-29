@@ -84,7 +84,7 @@ export default function AppointmentDetailScreen() {
   if (loading) {
     return (
       <Screen padded={false}>
-        <CustomerStageHeader title={t('home.details')} trailing={<BackButton fallback="/(customer)/appointments" />} />
+        <CustomerStageHeader title={t('home.details')} context={t('auth.roleCustomer')} trailing={<BackButton fallback="/(customer)/appointments" />} />
         <AppointmentDetailSkeleton />
       </Screen>
     );
@@ -93,7 +93,7 @@ export default function AppointmentDetailScreen() {
   if (!item) {
     return (
       <Screen padded={false}>
-        <CustomerStageHeader title={t('home.details')} trailing={<BackButton fallback="/(customer)/appointments" />} />
+        <CustomerStageHeader title={t('home.details')} context={t('auth.roleCustomer')} trailing={<BackButton fallback="/(customer)/appointments" />} />
         <View style={styles.errorBody}>
           <View style={styles.errorCard}>
             <ErrorBanner error={error || new Error(t('appointments.notFound'))} />
@@ -110,7 +110,7 @@ export default function AppointmentDetailScreen() {
 
   return (
     <Screen padded={false} scroll>
-      <CustomerStageHeader title={t('home.details')} trailing={<BackButton fallback="/(customer)/appointments" />} />
+      <CustomerStageHeader title={t('home.details')} context={t('auth.roleCustomer')} trailing={<BackButton fallback="/(customer)/appointments" />} />
       <View style={styles.body}>
         <ErrorBanner error={error} />
 

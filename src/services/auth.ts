@@ -225,7 +225,7 @@ export async function openGoogleAuthSession(authUrl: string): Promise<string | n
       if (settled) return;
       if (!looksLikeAuthCallback(url)) return;
       settled = true;
-      if (__DEV__) console.log('[auth] Linking captured callback =', url);
+      if (__DEV__) console.log('[auth] Linking captured auth callback');
       void WebBrowser.dismissAuthSession();
       resolve(url);
     });
@@ -245,15 +245,18 @@ export async function openGoogleAuthSession(authUrl: string): Promise<string | n
     }
 
     const browserPromise = WebBrowser.openAuthSessionAsync(authUrl, redirectTo, {
-      showInRecents: true,
       preferEphemeralSession: Platform.OS === 'ios',
-      // Android: keep session in same task so return deep link is more reliable.
-      createTask: Platform.OS !== 'android',
+      // Keep the Custom Tab inside this app's task on Android. MainActivity is
+      // singleTask, so koupa://callback fired from a *separate* task (which is
+      // what createTask + BrowserProxyActivity's ".webContainer" taskAffinity
+      // produces) makes Android tear down and relaunch the app instead of
+      // delivering onNewIntent. Same task means the callback comes back here.
+      createTask: false,
     }).then((response) => {
       if (settled) return null;
       if (response.type === 'success' && 'url' in response && response.url) {
         settled = true;
-        if (__DEV__) console.log('[auth] WebBrowser success url =', response.url);
+        if (__DEV__) console.log('[auth] WebBrowser returned an auth callback');
         return response.url;
       }
       if (__DEV__) console.log('[auth] WebBrowser response type =', response.type);
@@ -364,7 +367,29 @@ export async function completeAuthCallback(
     }
   }
 
-  if (role && !isRecovery) await updateUserRole(role, true);
+  if (role && !isRecovery) {
+    // Existing profiles have an immutable role. A Google signup attempt can
+    // also return an already-authenticated account, so never let the new
+    // signup choice rewrite that account's role metadata.
+    const userId = user?.id;
+    if (userId) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .maybeSingle();
+      if (profileError) throw toAppError(profileError, 'UNAUTHORIZED');
+      if (profile) {
+        if (profile.role !== user.user_metadata?.koupa_role) {
+          await updateUserRole(profile.role);
+        }
+      } else {
+        await updateUserRole(role, true);
+      }
+    } else {
+      await updateUserRole(role, true);
+    }
+  }
   await clearPendingEmailConfirmationStorage();
 
   if (isRecovery) {
@@ -414,7 +439,7 @@ export async function signInWithGoogle(role?: UserRole): Promise<AuthCallbackRes
     return { kind: 'empty' };
   }
 
-  console.log('[auth] Google callback captured →', callback);
+  console.log('[auth] Google callback captured');
   return completeAuthCallback(callback, role);
 }
 

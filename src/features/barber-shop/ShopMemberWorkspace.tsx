@@ -63,15 +63,7 @@ export function ShopMemberWorkspace({ member, activity, settings, onRemove, onBa
 
   return (
     <View style={styles.root}>
-      <View style={styles.header}>
-        {onBack ? (
-          <BackButton fallback="/(barber)/shop" onPress={onBack} />
-        ) : null}
-        <View style={styles.titleCopy}>
-          <Text style={styles.eyebrow}>{t('shopWorkspace.ownerWorkspace')}</Text>
-          <Text style={styles.subtitle}>{member.barber_name ?? member.barber_id}</Text>
-        </View>
-      </View>
+      {onBack ? <BackButton fallback="/(barber)/shop" onPress={onBack} /> : null}
 
       <View style={styles.tabs} accessibilityRole="tablist">
         {[
@@ -164,21 +156,6 @@ export function ShopMemberWorkspace({ member, activity, settings, onRemove, onBa
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background, gap: space[3] },
-  header: {
-    minHeight: 76,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space[3],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: space[4],
-    paddingVertical: space[3],
-  },
-  titleCopy: { flex: 1, alignItems: 'flex-end', gap: space[1] },
-  eyebrow: { ...typography.label, color: colors.text, textAlign: 'right' },
-  subtitle: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
   tabs: { flexDirection: 'row-reverse', marginHorizontal: space[4], padding: space[1], borderRadius: radii.md, backgroundColor: colors.surfaceMuted },
   tab: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.sm },
   selectedTab: { backgroundColor: colors.surface },

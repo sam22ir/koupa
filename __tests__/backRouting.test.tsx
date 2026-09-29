@@ -3,6 +3,7 @@ import React from 'react';
 
 import LegalConsentScreen from '@/app/(auth)/legal-consent';
 import { AuthShell, BackButton } from '@/src/components/ui';
+import { colors, radii } from '@/src/theme';
 
 const mockDismissTo = jest.fn();
 const mockBack = jest.fn();
@@ -49,8 +50,8 @@ describe('app-owned back routing', () => {
     expect(screen.getByRole('button', { name: 'رجوع' })).toHaveStyle({
       width: 44,
       height: 44,
-      borderRadius: 16,
-      backgroundColor: 'rgba(255,255,255,0.12)',
+      borderRadius: radii.md,
+      backgroundColor: colors.stageOverlay,
     });
   });
 

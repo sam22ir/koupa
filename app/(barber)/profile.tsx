@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Avatar, Button, Card, Chip, CustomerStageHeader, ErrorBanner, Icon, Screen } from '@/src/components/ui';
+import { Avatar, Button, Card, Chip, ErrorBanner, Icon, Screen } from '@/src/components/ui';
 import { DeleteAccountButton } from '@/src/features/account/DeleteAccountButton';
 import { LegalSupportLinks } from '@/src/features/account/LegalSupportLinks';
 import { useAccountLifecycle } from '@/src/hooks/useAccountLifecycle';
@@ -40,12 +40,6 @@ export default function BarberProfileScreen() {
 
   return (
     <Screen padded={false} scroll style={styles.screen} contentStyle={styles.content}>
-      <CustomerStageHeader
-        tone="paper"
-        title={t('profile.title')}
-        subtitle={t('profile.subtitle')}
-      />
-
       <View style={styles.body}>
         <Card elevated style={styles.identityCard}>
           <View style={styles.header}>

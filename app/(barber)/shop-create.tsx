@@ -7,7 +7,7 @@ import { BackButton } from '@/src/components/ui/BackButton';
 import { Button } from '@/src/components/ui/Button';
 import { ErrorBanner } from '@/src/components/ui/ErrorBanner';
 import { Field } from '@/src/components/ui/Field';
-import { Screen, ScreenTitle } from '@/src/components/ui/Screen';
+import { Screen } from '@/src/components/ui/Screen';
 import { useShops } from '@/src/hooks/useShops';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
@@ -44,7 +44,6 @@ export default function ShopCreateScreen() {
   return (
     <Screen scroll>
       <BackButton fallback="/(barber)/shop" />
-      <ScreenTitle title={t('shopWorkspace.create')} subtitle={t('shopWorkspace.createSubtitle')} />
       <ErrorBanner error={validationMessage(validation ?? shops.error)} />
       <View style={styles.form}>
         <Field label={t('shopWorkspace.shopNameField')} value={draft.name} onChangeText={(name) => update({ name })} />

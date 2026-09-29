@@ -12,7 +12,6 @@ import { splitAppointments, type AppointmentGroups } from '@/src/customerAppoint
 import {
   Button,
   Chip,
-  CustomerStageHeader,
   EmptyState,
   ErrorBanner,
   Screen,
@@ -98,7 +97,6 @@ export default function AppointmentsScreen() {
 
   return (
     <Screen padded={false}>
-      <CustomerStageHeader title={t('appointments.title')} tone="paper" />
       <View style={styles.body}>
         <View style={styles.tabs} accessibilityRole="tablist">
           {tabs.map((tab) => {

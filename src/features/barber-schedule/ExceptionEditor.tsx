@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   note: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
   empty: { ...typography.body, color: colors.textMuted, textAlign: 'right', paddingVertical: space[2] },
   pressed: { opacity: 0.65 },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,30,38,0.42)' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.scrim },
   modalSheet: { maxHeight: '92%', gap: space[4], borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, backgroundColor: colors.surface, padding: space[5] },
   modalHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
   modalTitle: { ...typography.titleSm, textAlign: 'right' },

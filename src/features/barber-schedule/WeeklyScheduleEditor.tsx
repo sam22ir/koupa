@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row-reverse', gap: space[2] },
   action: { flex: 1 },
   pressed: { opacity: 0.65 },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,30,38,0.42)' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.scrim },
   modalSheet: {
     maxHeight: '86%',
     gap: space[3],

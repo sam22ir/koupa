@@ -23,7 +23,11 @@ export default function NotificationsScreen() {
 
   return (
     <Screen padded={false}>
-      <CustomerStageHeader title={t('notifications.title')} trailing={<BackButton fallback={profileHref} />} />
+      <CustomerStageHeader
+        title={t('notifications.title')}
+        context={profile?.role === 'barber' ? t('auth.roleBarber') : t('auth.roleCustomer')}
+        trailing={<BackButton fallback={profileHref} />}
+      />
       <View style={styles.content}>
         <ErrorBanner error={error || null} />
         <Button

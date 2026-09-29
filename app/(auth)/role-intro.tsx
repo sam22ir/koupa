@@ -6,7 +6,7 @@ import { Checkbox } from 'heroui-native/checkbox';
 import { ControlField } from 'heroui-native/control-field';
 import { FieldError } from 'heroui-native/field-error';
 
-import { BackButton, BrandLogo, Button, Icon, type IconName } from '@/src/components/ui';
+import { AuthHeader, Button, Icon, type IconName } from '@/src/components/ui';
 import { PRIVACY_URL, TERMS_URL } from '@/src/config/legal';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
@@ -102,10 +102,7 @@ export default function RoleIntroScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.masthead}>
-          <BrandLogo height={44} />
-          <BackButton fallback="/(auth)/welcome" />
-        </View>
+        <AuthHeader />
 
         <View style={styles.hero}>
           <Text style={[styles.kicker, { color: copy.accent }]}>{t(copy.kicker)}</Text>
@@ -136,7 +133,7 @@ export default function RoleIntroScreen() {
           style={styles.consent}
         >
           <ControlField.Indicator>
-            <Checkbox />
+            <Checkbox style={[styles.consentCheckbox, { borderColor: copy.accent }]} />
           </ControlField.Indicator>
           <View style={styles.consentCopy}>
             <Text style={styles.consentMain}>{t('auth.roleIntroConsent')}</Text>
@@ -192,11 +189,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: layout.screenPaddingX,
-  },
-  masthead: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   hero: {
     marginTop: space[9],
@@ -265,6 +257,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'flex-start',
     gap: space[3],
+  },
+  consentCheckbox: {
+    borderWidth: 1.5,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surface,
   },
   consentCopy: {
     flex: 1,

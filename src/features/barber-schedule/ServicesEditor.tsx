@@ -163,7 +163,7 @@ export function ServicesEditor({
                   <Text style={styles.archiveConfirmBody}>لن تظهر للحجوزات الجديدة، وستبقى محفوظة في المواعيد السابقة.</Text>
                   <View style={styles.archiveConfirmActions}>
                     <Button label="إلغاء" variant="secondary" onPress={() => setConfirmArchive(false)} style={styles.action} />
-                    <Button label="تأكيد الأرشفة" variant="danger" onPress={archive} style={styles.action} />
+                    <Button label="تأكيد الأرشفة" variant="dangerSolid" onPress={archive} style={styles.action} />
                   </View>
                 </View>
               ) : null}
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   archivedFactValue: { ...typography.label, color: colors.text, textAlign: 'center', fontVariant: ['tabular-nums'] },
   archivedFactLabel: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
   restore: { minHeight: 40, minWidth: 82, paddingHorizontal: space[3] },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,30,38,0.42)' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.scrim },
   modalSheet: { gap: space[4], borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, backgroundColor: colors.surface, padding: space[5] },
   modalHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
   modalTitle: { ...typography.titleSm, textAlign: 'right' },

@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { appointmentStatusLabel, formatBookingTime, type BarberAppointmentEvent } from '@/src/booking';
 import { BackButton, Button, Card, CustomerStageHeader, ErrorBanner, Screen } from '@/src/components/ui';
 import { loadBarberAppointment } from '@/src/hooks/useBooking';
+import { t } from '@/src/i18n';
 import { colors, space, typography } from '@/src/theme';
 
 export default function BarberAppointmentEventScreen() {
@@ -34,7 +35,11 @@ export default function BarberAppointmentEventScreen() {
 
   return (
     <Screen padded={false}>
-      <CustomerStageHeader title="تفاصيل الموعد" trailing={<BackButton fallback="/(barber)/today" />} />
+      <CustomerStageHeader
+        title="تفاصيل الموعد"
+        context={t('auth.roleBarber')}
+        trailing={<BackButton fallback="/(barber)/today" />}
+      />
       <View style={styles.body}>
         {loading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
         <ErrorBanner error={error} />

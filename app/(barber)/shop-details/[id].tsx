@@ -7,7 +7,7 @@ import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
 import { ErrorBanner } from '@/src/components/ui/ErrorBanner';
 import { EmptyState } from '@/src/components/ui/EmptyState';
-import { Screen, ScreenTitle } from '@/src/components/ui/Screen';
+import { Screen } from '@/src/components/ui/Screen';
 import { ShopMemberList } from '@/src/features/barber-shop/ShopMemberList';
 import { useShops } from '@/src/hooks/useShops';
 import { t } from '@/src/i18n';
@@ -52,7 +52,6 @@ export default function ShopDetailsScreen() {
     return (
       <Screen scroll>
         <BackButton fallback="/(barber)/shop" />
-        <ScreenTitle title={t('shopWorkspace.details')} />
         <Text>{t('common.loading')}</Text>
       </Screen>
     );
@@ -65,7 +64,8 @@ export default function ShopDetailsScreen() {
   return (
     <Screen scroll>
       <BackButton fallback="/(barber)/shop" />
-      <ScreenTitle title={shop?.name ?? t('shopWorkspace.details')} subtitle={location || undefined} />
+      {shop?.name ? <Text style={styles.heading}>{shop.name}</Text> : null}
+      {location ? <Text style={styles.location}>{location}</Text> : null}
       <ErrorBanner error={shops.error || null} />
       {shop ? (
         <>
@@ -116,7 +116,7 @@ export default function ShopDetailsScreen() {
                     />
                     <Button
                       label={t('shopWorkspace.deleteShop')}
-                      variant="danger"
+                      variant="dangerSolid"
                       accessibilityLabel={t('shopWorkspace.deleteConfirmTitle')}
                       loading={shops.saving}
                       onPress={() => void confirmDelete()}
@@ -147,6 +147,8 @@ export default function ShopDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+  heading: { ...typography.title, textAlign: 'right' },
+  location: { ...typography.body, color: colors.textMuted, textAlign: 'right' },
   overview: { gap: space[3] },
   body: { ...typography.body, textAlign: 'right', lineHeight: 24 },
   metaRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: space[3] },
