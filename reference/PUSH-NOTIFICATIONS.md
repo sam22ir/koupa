@@ -108,3 +108,27 @@ supabase link --project-ref zhdwaizroczkqzwrvfxf
 ## Cleanup
 
 Retired `appointment-transitions` Edge Function was undeployed from staging and production on 2026-08-18 after cron run proof. Transitions remain DB-only per `BOOKING-OPERATIONS.md`.
+
+## Setting up an environment (staging or production)
+
+The dispatch job only works when all four of these exist in the same project. The cron job and the vault secret are created by hand, not by a migration, so check them whenever a project is created or restored.
+
+1. **`pg_net` extension** — installed by migration `20260930000300_enable_pg_net.sql`. Without it the job fails every minute with `schema "net" does not exist`.
+2. **Edge secret `NOTIFICATION_DISPATCH_SECRET`** and **vault secret `koupa_notification_dispatch_secret`** — the two must hold the *same* value. Generate one random value per environment and set both. Never reuse it across environments, and never commit it.
+3. **The cron job** `koupa-notification-dispatch` (`* * * * *`) that calls `net.http_post` on `<project-url>/functions/v1/dispatch-notifications` with the `x-notification-dispatch-secret` header read from the vault.
+4. **The deployed function** `dispatch-notifications`.
+
+The function reads the secret once when it starts, so after changing it the job may get `401` for a minute or two until a fresh worker starts.
+
+Verify (run against the project you changed):
+
+```sql
+select status, return_message, start_time
+from cron.job_run_details d join cron.job j using (jobid)
+where j.jobname = 'koupa-notification-dispatch'
+order by start_time desc limit 5;
+
+select status_code, content, created from net._http_response order by created desc limit 5;
+```
+
+Healthy output is `succeeded` runs and HTTP `200` with `{"processed":…,"delivered":…,"failed":…}`. A `401` means the two secrets differ; `schema "net" does not exist` means step 1 is missing.
