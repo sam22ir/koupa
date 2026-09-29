@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect, router } from 'expo-router';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { Alert } from '@/src/utils/alert';
 
 import { BackButton, Button, Card, CustomerStageHeader, EmptyState, ErrorBanner, Screen } from '@/src/components/ui';
 import { t } from '@/src/i18n';

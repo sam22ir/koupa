@@ -1,4 +1,6 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { Alert } from '@/src/utils/alert';
 import { useState } from 'react';
 
 import { BackButton } from '@/src/components/ui/BackButton';

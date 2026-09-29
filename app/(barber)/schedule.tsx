@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { Alert } from '@/src/utils/alert';
 
 import { ErrorBanner, Icon, Screen } from '@/src/components/ui';
 import { applySchedulePreset, applyServiceExample } from '@/src/data/onboarding';

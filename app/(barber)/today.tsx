@@ -4,7 +4,6 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Pressable,
@@ -12,6 +11,8 @@ import {
   Text,
   View,
 } from 'react-native';
+
+import { Alert } from '@/src/utils/alert';
 
 import {
   formatBookingTime,

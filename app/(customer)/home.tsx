@@ -1,6 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert as RNAlert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { Alert as RNAlert } from '@/src/utils/alert';
 import { Alert } from 'heroui-native/alert';
 import { Button } from 'heroui-native/button';
 import { Card } from 'heroui-native/card';
