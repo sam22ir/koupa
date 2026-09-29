@@ -9,12 +9,17 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(() => ({})),
 }));
 
+const mockStartGuestBrowsing = jest.fn();
+jest.mock('@/src/providers/SessionProvider', () => ({
+  useAppSession: () => ({ startGuestBrowsing: mockStartGuestBrowsing }),
+}));
+
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 16, left: 0 }),
   SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 
-const mockRouter = router as unknown as { push: jest.Mock };
+const mockRouter = router as unknown as { push: jest.Mock; replace: jest.Mock };
 
 describe('WelcomeScreen', () => {
   beforeEach(() => {
@@ -24,51 +29,50 @@ describe('WelcomeScreen', () => {
   it('asks only for the path choice', async () => {
     const view = await render(<WelcomeScreen />);
 
-    expect(view.getByText('اختر نوع الحساب')).toBeTruthy();
-    expect(view.getByText('اختيارك دائم ولا يمكن تغييره لاحقاً.')).toBeTruthy();
+    expect(view.getByText('كيف ستستخدم كوپا؟')).toBeTruthy();
     expect(view.getByTestId('welcome-door-customer')).toBeTruthy();
     expect(view.getByTestId('welcome-door-barber')).toBeTruthy();
   });
 
-  it('shows the customer door what they will actually get', async () => {
+  it('tells the customer they can browse without an account', async () => {
     const view = await render(<WelcomeScreen />);
-    const door = view.getByTestId('welcome-door-customer');
+    const inside = within(view.getByTestId('welcome-door-customer'));
 
-    const inside = within(door);
-    expect(inside.getByText('صالون النخبة')).toBeTruthy();
-    expect(inside.getByText('اليوم · 16:30')).toBeTruthy();
-    expect(inside.getByText('حلاقة وتصفيف')).toBeTruthy();
-    expect(inside.getByText('1,200 دج')).toBeTruthy();
-    expect(inside.getByText('هكذا يظهر موعدك بعد الحجز مباشرة.')).toBeTruthy();
+    expect(inside.getByText('تصفح الحلاقين')).toBeTruthy();
+    expect(inside.getByText('اطّلع على الحلاقين والأسعار والمواعيد المتاحة بدون حساب.')).toBeTruthy();
+    expect(inside.getByText('تحتاج إلى حساب فقط عند تأكيد الحجز.')).toBeTruthy();
   });
 
-  it('keeps the barber door lighter than the customer door', async () => {
+  it('states the permanent account type only on the barber door', async () => {
     const view = await render(<WelcomeScreen />);
-    const barber = view.getByTestId('welcome-door-barber');
+    const barber = within(view.getByTestId('welcome-door-barber'));
+    const customer = within(view.getByTestId('welcome-door-customer'));
 
-    const inside = within(barber);
-    expect(inside.getByText('أنا حلاق')).toBeTruthy();
-    expect(inside.getByText('أدير جدولي وأستقبل الحجوزات')).toBeTruthy();
-    // The preview belongs to the majority path only; equal doors read as a
-    // feature grid instead of a choice.
-    expect(inside.queryByText('صالون النخبة')).toBeNull();
+    expect(barber.getByText('أنا حلاق')).toBeTruthy();
+    expect(barber.getByText('تحدد خدماتك وساعات عملك وتتابع الحجوزات.')).toBeTruthy();
+    expect(barber.getByText('لا يمكن تغيير نوع الحساب بعد إنشاء الحساب.')).toBeTruthy();
+    expect(customer.queryByText('لا يمكن تغيير نوع الحساب بعد إنشاء الحساب.')).toBeNull();
   });
 
-  it('routes each door to its own role explanation', async () => {
+  it('lets a customer browse as a guest without opening signup', async () => {
     const view = await render(<WelcomeScreen />);
 
-    await fireEvent.press(view.getByLabelText('أنا زبون'));
-    await fireEvent.press(view.getByLabelText('أنا حلاق'));
+    await fireEvent.press(view.getByTestId('welcome-door-customer'));
 
-    await waitFor(() => {
-      expect(mockRouter.push).toHaveBeenNthCalledWith(1, {
-        pathname: '/(auth)/role-intro',
-        params: { role: 'customer' },
-      });
-      expect(mockRouter.push).toHaveBeenNthCalledWith(2, {
-        pathname: '/(auth)/role-intro',
-        params: { role: 'barber' },
-      });
+    expect(mockStartGuestBrowsing).toHaveBeenCalledTimes(1);
+    expect(mockRouter.replace).toHaveBeenCalledWith('/');
+    expect(mockRouter.push).not.toHaveBeenCalled();
+  });
+
+  it('sends a barber to barber signup', async () => {
+    const view = await render(<WelcomeScreen />);
+
+    await fireEvent.press(view.getByTestId('welcome-door-barber'));
+
+    expect(mockStartGuestBrowsing).not.toHaveBeenCalled();
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      pathname: '/(auth)/sign-up',
+      params: { role: 'barber' },
     });
   });
 
@@ -89,7 +93,7 @@ describe('WelcomeScreen', () => {
     const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
     const view = await render(<WelcomeScreen />);
 
-    expect(view.getByText('بالمتابعة أنت توافق على الشروط وسياسة الخصوصية.')).toBeTruthy();
+    expect(view.getByText('قبل إنشاء الحساب، ستراجع الشروط وسياسة الخصوصية وتوافق عليهما.')).toBeTruthy();
 
     await fireEvent.press(view.getByLabelText('الشروط'));
     await fireEvent.press(view.getByLabelText('الخصوصية'));

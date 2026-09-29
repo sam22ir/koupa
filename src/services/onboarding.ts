@@ -59,7 +59,12 @@ export async function createCustomerProfile(
   throw toAppError(error);
 }
 
-export async function publishBarberProfile(draft: BarberDraft): Promise<void> {
+/**
+ * Phase one of barber setup: a real but unpublished account, created as soon
+ * as identity and location are known. Services and working hours become
+ * in-app tasks afterwards, so quitting here no longer loses the account.
+ */
+export async function createBarberProfile(draft: BarberDraft): Promise<void> {
   const payload = {
     name: draft.name,
     phone: draft.phone,
@@ -72,6 +77,63 @@ export async function publishBarberProfile(draft: BarberDraft): Promise<void> {
     maps_url: draft.mapsUrl,
     latitude: draft.latitude,
     longitude: draft.longitude,
+  };
+
+  const { error } = await supabase.rpc('create_barber_profile', {
+    payload: payload as unknown as Json,
+  });
+  if (error) throw toAppError(error);
+}
+
+/**
+ * Release a phone number held by an unverified, unused account so the real
+ * owner is not locked out. Returns true when the number was freed.
+ */
+export async function claimUnverifiedPhone(phone: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('claim_unverified_phone', {
+    target_phone: phone,
+  });
+  if (error) throw toAppError(error);
+  return data === true;
+}
+
+/**
+ * Phase two: publish an existing unpublished barber. Identity, workplace type
+ * and location come from the stored row, so this payload carries only what
+ * publication itself needs.
+ */
+export interface BarberPublishReadiness {
+  readonly hasServices: boolean;
+  readonly hasWorkingHours: boolean;
+}
+
+/** What still blocks publication, read from what the barber has actually saved. */
+export async function loadBarberPublishReadiness(userId: string): Promise<BarberPublishReadiness> {
+  const [servicesResult, schedulesResult] = await Promise.all([
+    supabase.from('services').select('id').eq('barber_id', userId).eq('is_active', true).limit(1),
+    supabase.from('weekly_schedules').select('id').eq('barber_id', userId).limit(1),
+  ]);
+  if (servicesResult.error) throw toAppError(servicesResult.error);
+  if (schedulesResult.error) throw toAppError(schedulesResult.error);
+  return {
+    hasServices: (servicesResult.data ?? []).length > 0,
+    hasWorkingHours: (schedulesResult.data ?? []).length > 0,
+  };
+}
+
+/** Publish what the barber already saved in the app. */
+export async function publishExistingBarberProfile(): Promise<void> {
+  const { error } = await supabase.rpc('publish_barber_profile', {
+    payload: {} as unknown as Json,
+  });
+  if (error) throw toAppError(error);
+}
+
+export async function publishBarberProfile(draft: BarberDraft): Promise<void> {
+  const payload = {
+    bio: draft.bio,
+    shop_name: draft.workplaceType === 'owner' ? draft.shopName : null,
+    shop_bio: draft.workplaceType === 'owner' ? draft.shopBio : null,
     interval_minutes: draft.intervalMinutes,
     services: draft.services
       .filter((service) => service.name && service.priceDzd && service.durationMinutes)

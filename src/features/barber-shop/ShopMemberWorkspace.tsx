@@ -2,6 +2,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useState } from 'react';
 
 import { BackButton } from '@/src/components/ui/BackButton';
+import { CustomerStageHeader } from '@/src/components/ui/CustomerStageHeader';
 import { ErrorBanner } from '@/src/components/ui/ErrorBanner';
 import { BookingRulesEditor } from '@/src/features/barber-schedule/BookingRulesEditor';
 import { ExceptionEditor } from '@/src/features/barber-schedule/ExceptionEditor';
@@ -13,7 +14,7 @@ import { ShopActivityList, type ShopActivityItem } from '@/src/features/barber-s
 import { ShopMemberSummary } from '@/src/features/barber-shop/ShopMemberSummary';
 import { t } from '@/src/i18n';
 import type { ShopMembership } from '@/src/shops';
-import { colors, radii, space, typography } from '@/src/theme';
+import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
 
 type WorkspaceSettings = {
   readonly loaded: unknown;
@@ -63,15 +64,11 @@ export function ShopMemberWorkspace({ member, activity, settings, onRemove, onBa
 
   return (
     <View style={styles.root}>
-      <View style={styles.header}>
-        {onBack ? (
-          <BackButton fallback="/(barber)/shop" onPress={onBack} />
-        ) : null}
-        <View style={styles.titleCopy}>
-          <Text style={styles.eyebrow}>{t('shopWorkspace.ownerWorkspace')}</Text>
-          <Text style={styles.subtitle}>{member.barber_name ?? member.barber_id}</Text>
-        </View>
-      </View>
+      <CustomerStageHeader
+        title={member.barber_name ?? t('shopWorkspace.members')}
+        context={t('auth.roleBarber')}
+        trailing={onBack ? <BackButton fallback="/(barber)/shop" onPress={onBack} /> : undefined}
+      />
 
       <View style={styles.tabs} accessibilityRole="tablist">
         {[
@@ -164,28 +161,13 @@ export function ShopMemberWorkspace({ member, activity, settings, onRemove, onBa
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background, gap: space[3] },
-  header: {
-    minHeight: 76,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space[3],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: space[4],
-    paddingVertical: space[3],
-  },
-  titleCopy: { flex: 1, alignItems: 'flex-end', gap: space[1] },
-  eyebrow: { ...typography.label, color: colors.text, textAlign: 'right' },
-  subtitle: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
-  tabs: { flexDirection: 'row-reverse', marginHorizontal: space[4], padding: space[1], borderRadius: radii.md, backgroundColor: colors.surfaceMuted },
-  tab: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.sm },
-  selectedTab: { backgroundColor: colors.surface },
+  tabs: { flexDirection: 'row-reverse', marginHorizontal: layout.screenPaddingX, padding: space[1], borderRadius: radii.pill, backgroundColor: colors.surfaceMuted },
+  tab: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radii.pill },
+  selectedTab: { backgroundColor: colors.surface, ...elevation.card },
   tabText: { ...typography.label, color: colors.textMuted, textAlign: 'center' },
-  selectedTabText: { color: colors.primary },
-  scrollContent: { gap: space[4], padding: space[4], paddingBottom: space[10] },
-  editorContent: { gap: space[4], padding: space[4], paddingBottom: space[8] },
-  editorSurface: { gap: space[6], borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surface, padding: space[4] },
-  divider: { height: 1, backgroundColor: colors.border },
+  selectedTabText: { color: colors.primarySoftText },
+  scrollContent: { gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingVertical: space[4], paddingBottom: space[10] },
+  editorContent: { gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingVertical: space[4], paddingBottom: space[8] },
+  editorSurface: { gap: space[6], borderRadius: radii.lg, backgroundColor: colors.surface, padding: space[4], ...elevation.card },
+  divider: { height: 1, backgroundColor: colors.borderSubtle },
 });

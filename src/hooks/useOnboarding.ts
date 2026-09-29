@@ -5,12 +5,14 @@ import * as onboardingService from '@/src/services/onboarding';
 export interface UseOnboardingProps {
   readonly userId?: string;
   readonly initialPhone?: string;
+  readonly initialName?: string;
 }
 
-export function useOnboarding({ userId, initialPhone }: UseOnboardingProps) {
+export function useOnboarding({ userId, initialPhone, initialName }: UseOnboardingProps) {
   const [draft, setDraft] = useState<BarberDraft>(() => ({
     ...defaultBarberDraft,
     phone: initialPhone ?? '',
+    name: initialName ?? '',
   }));
   const [draftStep, setDraftStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -40,7 +42,13 @@ export function useOnboarding({ userId, initialPhone }: UseOnboardingProps) {
           const loaded = await onboardingService.loadOnboardingDraft(userId);
           if (!active) return;
           if (loaded.draft) {
-            setDraft({ ...defaultBarberDraft, phone: initialPhone ?? '', ...loaded.draft });
+            setDraft({
+              ...defaultBarberDraft,
+              phone: initialPhone ?? '',
+              ...loaded.draft,
+              // A saved draft with no name yet should still start from the signup name.
+              name: loaded.draft.name || initialName || '',
+            });
           }
           setDraftStep(loaded.step);
           hydratedUserRef.current = userId;
@@ -55,7 +63,7 @@ export function useOnboarding({ userId, initialPhone }: UseOnboardingProps) {
       active = false;
       clearTimeout(timeout);
     };
-  }, [initialPhone, retryToken, userId]);
+  }, [initialName, initialPhone, retryToken, userId]);
 
   const retryLoad = useCallback(async () => {
     setRetryToken((value) => value + 1);
@@ -98,6 +106,11 @@ export function useOnboarding({ userId, initialPhone }: UseOnboardingProps) {
     await onboardingService.createCustomerProfile(userId, name, phone);
   }, [userId]);
 
+  const createBarber = useCallback(async (nextDraft: BarberDraft) => {
+    if (!userId) throw new Error('No active session');
+    await onboardingService.createBarberProfile(nextDraft);
+  }, [userId]);
+
   const publishBarber = useCallback(async (nextDraft: BarberDraft) => {
     if (!userId) throw new Error('No active session');
     await onboardingService.publishBarberProfile(nextDraft);
@@ -115,6 +128,7 @@ export function useOnboarding({ userId, initialPhone }: UseOnboardingProps) {
     retrySave,
     saveDraft,
     createCustomer,
+    createBarber,
     publishBarber,
   };
 }

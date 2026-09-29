@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Avatar } from '@/src/components/ui/Avatar';
 import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
-import { Chip } from '@/src/components/ui/Chip';
+import { StatusBadge } from '@/src/components/ui/StatusBadge';
 import { t } from '@/src/i18n';
 import { formatMembershipActivity, membershipStatusLabel, type ShopMembership } from '@/src/shops';
 import { colors, space, typography } from '@/src/theme';
@@ -30,7 +30,7 @@ export function ShopMemberSummary({ member, onRemove, saving }: Props) {
           <Avatar initials={initials(member.barber_name ?? member.barber_id)} size={58} />
         </View>
         <View style={styles.statusRow}>
-          <Chip label={membershipStatusLabel(member.status)} tone="primary" />
+          <StatusBadge label={membershipStatusLabel(member.status)} tone={member.status === 'active' ? 'success' : member.status === 'pending' ? 'warning' : 'danger'} />
           <Text style={styles.meta}>{t('shopWorkspace.active')}</Text>
         </View>
         <Text style={styles.activity}>{formatMembershipActivity(member)}</Text>

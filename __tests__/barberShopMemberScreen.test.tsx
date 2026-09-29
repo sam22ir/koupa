@@ -23,7 +23,10 @@ const mockNavigation = {
   dispatch: (...args: unknown[]) => mockDispatch(...args),
 };
 
+const mockNavigate = jest.fn();
+
 jest.mock('expo-router', () => ({
+  router: { navigate: (...args: unknown[]) => mockNavigate(...args), back: jest.fn(), canGoBack: () => false },
   useRouter: () => ({
     dismissTo: (...args: unknown[]) => mockDismissTo(...args),
     replace: (...args: unknown[]) => mockReplace(...args),
@@ -121,7 +124,7 @@ describe('owner member screen routing', () => {
     await act(async () => mockWorkspaceOnBack?.());
 
     await waitFor(() => expect(mockSettings.save).toHaveBeenCalledTimes(1));
-    expect(mockDismissTo).toHaveBeenCalledWith('/(barber)/shop');
+    expect(mockNavigate).toHaveBeenCalledWith('/(barber)/shop');
     expect(mockReplace).not.toHaveBeenCalled();
     alert.mockRestore();
   });
@@ -137,7 +140,7 @@ describe('owner member screen routing', () => {
     await act(async () => mockWorkspaceOnBack?.());
 
     await waitFor(() => expect(mockSettings.save).toHaveBeenCalledTimes(1));
-    expect(mockDismissTo).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
     expect(mockSettings.reset).not.toHaveBeenCalled();
     alert.mockRestore();
   });

@@ -6,6 +6,7 @@ const mockSearchBarbers = jest.fn();
 const mockSearchShops = jest.fn();
 const mockSearchNearbyShops = jest.fn();
 const mockRequestLocation = jest.fn();
+const mockConsumeCity = jest.fn();
 let mockBookingError = '';
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -19,6 +20,15 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 
 jest.mock('@/src/services', () => ({
   SEARCH_PAGE_SIZE: 20,
+}));
+
+let mockGuestBrowsing = false;
+jest.mock('@/src/providers/SessionProvider', () => ({
+  useAppSession: () => ({ guestBrowsing: mockGuestBrowsing }),
+}));
+
+jest.mock('@/src/navigation/customerFindPreference', () => ({
+  consumeCustomerFindCityPreference: () => mockConsumeCity(),
 }));
 
 jest.mock('expo-router', () => ({
@@ -63,6 +73,8 @@ describe('customer find directory', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockBookingError = '';
+    mockGuestBrowsing = false;
+    mockConsumeCity.mockResolvedValue(null);
     mockRequestLocation.mockResolvedValue({ latitude: 36.7538, longitude: 3.0588 });
   });
 
@@ -70,6 +82,17 @@ describe('customer find directory', () => {
     await render(<FindScreen />);
 
     expect(screen.queryByText('تعذّر تنفيذ هذه العملية. تحقق من البيانات أو الاتصال ثم حاول مرة أخرى.')).toBeNull();
+  });
+
+  it('shows guests only the barber directory, without shops or near-me', async () => {
+    mockGuestBrowsing = true;
+    mockSearchBarbers.mockResolvedValue([]);
+    await render(<FindScreen />);
+
+    await waitFor(() => expect(mockSearchBarbers).toHaveBeenCalledWith('', '', 0));
+    expect(screen.queryByRole('button', { name: 'المحلات القريبة مني' })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'محلات' })).toBeNull();
+    expect(mockSearchNearbyShops).not.toHaveBeenCalled();
   });
 
   it('shows a booking error from the automatic directory load', async () => {
@@ -170,5 +193,58 @@ describe('customer find directory', () => {
 
     expect(screen.getByText('أمين')).toBeTruthy();
     expect(screen.queryByText('سمير')).toBeNull();
+  });
+
+  it('falls back to every barber when the saved city has no published barbers', async () => {
+    mockConsumeCity.mockResolvedValue('تبسة');
+    mockSearchBarbers.mockImplementation((_query: string, city: string) => Promise.resolve(
+      city
+        ? []
+        : [{
+          id: 'barber-1',
+          name: 'سمير',
+          bio: null,
+          city: 'الشريعة',
+          neighborhood: 'طريق الضلعة',
+          maps_url: null,
+          phone: '0555000000',
+          average_rating: 0,
+          rating_count: 0,
+          starting_price_dzd: 800,
+          service_count: 1,
+        }],
+    ));
+
+    await render(<FindScreen />);
+
+    expect(await screen.findByText('سمير')).toBeTruthy();
+    expect(mockSearchBarbers).toHaveBeenNthCalledWith(1, 'تبسة', 'تبسة', 0);
+    expect(mockSearchBarbers).toHaveBeenNthCalledWith(2, '', '', 0);
+    expect(screen.getByText('لا يوجد حلاقون في مدينتك بعد. نعرض كل الحلاقين المتاحين.')).toBeTruthy();
+  });
+
+  it('widens the search to every shop when nothing sits inside the radius', async () => {
+    mockSearchNearbyShops.mockResolvedValue([]);
+    mockSearchShops.mockResolvedValue([
+      {
+        id: 'shop-far',
+        name: 'محل بعيد',
+        bio: null,
+        maps_url: null,
+        city: 'الشريعة',
+        neighborhood: 'طريق الضلعة',
+        average_rating: 0,
+        rating_count: 0,
+        owner_name: 'سمير',
+      },
+    ]);
+
+    await render(<FindScreen />);
+    await fireEvent.press(screen.getByRole('button', { name: 'المحلات القريبة مني' }));
+
+    await waitFor(() => expect(mockSearchNearbyShops).toHaveBeenCalledWith(36.7538, 3.0588, '', 0));
+    expect(await screen.findByText('محل بعيد')).toBeTruthy();
+    expect(mockSearchShops).toHaveBeenCalledWith('', 0);
+    expect(screen.getByText('لا توجد محلات ضمن 25 كم. نعرض كل المحلات.')).toBeTruthy();
   });
 });

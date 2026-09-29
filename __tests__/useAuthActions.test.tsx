@@ -2,11 +2,20 @@ import { act, renderHook } from '@testing-library/react-native';
 
 const mockSignInWithPassword = jest.fn();
 const mockSignInWithPhone = jest.fn();
+const mockSignInWithGoogle = jest.fn();
+const mockGetSession = jest.fn();
+const mockSetPendingRoleStorage = jest.fn();
+const mockUpdateUserRole = jest.fn();
+const mockClearPendingRoleStorage = jest.fn();
 
 jest.mock('@/src/services/auth', () => ({
   signInWithPassword: (...args: unknown[]) => mockSignInWithPassword(...args),
   signInWithPhone: (...args: unknown[]) => mockSignInWithPhone(...args),
-  clearPendingRoleStorage: jest.fn(),
+  signInWithGoogle: (...args: unknown[]) => mockSignInWithGoogle(...args),
+  getSession: (...args: unknown[]) => mockGetSession(...args),
+  setPendingRoleStorage: (...args: unknown[]) => mockSetPendingRoleStorage(...args),
+  updateUserRole: (...args: unknown[]) => mockUpdateUserRole(...args),
+  clearPendingRoleStorage: (...args: unknown[]) => mockClearPendingRoleStorage(...args),
 }));
 
 jest.mock('@/src/services/sessionCache', () => ({
@@ -18,6 +27,7 @@ import { useAuthActions } from '@/src/hooks/useAuthActions';
 describe('useAuthActions email authentication', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetSession.mockResolvedValue(null);
   });
 
   it('restores signup confirmation state after email-password sign in', async () => {
@@ -67,5 +77,47 @@ describe('useAuthActions email authentication', () => {
     });
 
     expect(mockSignInWithPhone).toHaveBeenCalledWith('+213555000000', 'password123');
+  });
+
+  it('clears the provisional role when Google sign-up fails before establishing a session', async () => {
+    mockSignInWithGoogle.mockRejectedValueOnce(new Error('OAuth failed'));
+    const onPendingRole = jest.fn();
+    const { result } = await renderHook(() =>
+      useAuthActions({
+        hasSession: false,
+        pendingConfirmationType: 'signup',
+        onPendingRole,
+        onPendingConfirmation: jest.fn(),
+        onSignedOut: jest.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await expect(result.current.signInWithGoogle('barber')).rejects.toThrow('OAuth failed');
+    });
+
+    expect(mockClearPendingRoleStorage).toHaveBeenCalledTimes(1);
+    expect(onPendingRole).toHaveBeenLastCalledWith(null);
+  });
+
+  it('persists a recovered role and signup consent for a confirmed profileless account', async () => {
+    const onPendingRole = jest.fn();
+    const { result } = await renderHook(() =>
+      useAuthActions({
+        hasSession: true,
+        pendingConfirmationType: 'signup',
+        onPendingRole,
+        onPendingConfirmation: jest.fn(),
+        onSignedOut: jest.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.confirmProfilelessRole('customer');
+    });
+
+    expect(mockUpdateUserRole).toHaveBeenCalledWith('customer', true);
+    expect(mockSetPendingRoleStorage).toHaveBeenCalledWith('customer');
+    expect(onPendingRole).toHaveBeenCalledWith('customer');
   });
 });

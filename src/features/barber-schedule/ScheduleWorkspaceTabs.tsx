@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, space, typography } from '@/src/theme';
+import { colors, elevation, radii, space, typography } from '@/src/theme';
 
 export type WorkspaceTab = 'schedule' | 'services' | 'rules';
 
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   wrap: {
     minHeight: 48,
     flexDirection: 'row-reverse',
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     backgroundColor: colors.surfaceMuted,
     padding: space[1],
   },
@@ -57,17 +57,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: space[1],
-    borderRadius: radii.sm,
+    borderRadius: radii.pill,
   },
   selected: {
     backgroundColor: colors.surface,
+    ...elevation.card,
   },
   label: {
     ...typography.label,
     color: colors.textMuted,
   },
   selectedLabel: {
-    color: colors.primary,
+    color: colors.primarySoftText,
   },
   errorDot: {
     width: 7,

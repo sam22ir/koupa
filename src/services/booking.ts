@@ -14,6 +14,7 @@ import { SEARCH_PAGE_SIZE } from '@/src/services/mappers/schedule';
 import { AppError, toAppError } from '@/src/services/errors';
 import { parseCheckInResult, type CheckInResult } from '@/src/qr';
 import type { Json } from '@/src/types/database';
+import { excludeBlocked, isUserBlocked } from '@/src/services/ugcModeration';
 
 function asServices(value: Json): readonly BarberService[] {
   if (!Array.isArray(value)) return [];
@@ -72,7 +73,7 @@ export async function searchBarbers(query: string, city = '', page = 0): Promise
       page_number: page,
     }),
   );
-  return (data ?? []).map((item) => ({
+  return excludeBlocked((data ?? []).map((item) => ({
     id: item.id,
     name: item.name,
     bio: item.bio,
@@ -84,12 +85,12 @@ export async function searchBarbers(query: string, city = '', page = 0): Promise
     rating_count: item.rating_count ?? 0,
     starting_price_dzd: item.starting_price_dzd ?? 0,
     service_count: item.service_count ?? 0,
-  }));
+  })));
 }
 
 export async function getBarber(barberId: string): Promise<readonly BarberProfile[]> {
   const data = await rpcData(() => supabase.rpc('get_public_barber_profile', { barber_id: barberId }));
-  return (data ?? []).map((item) => {
+  return excludeBlocked((data ?? []).map((item) => {
     const services = asServices(item.services);
     return {
       id: item.id,
@@ -110,10 +111,11 @@ export async function getBarber(barberId: string): Promise<readonly BarberProfil
       weekly_hours: asWeeklyHours(item.weekly_hours),
       shop: asShop(item.shop),
     };
-  });
+  }));
 }
 
 export async function getSlots(barberId: string, serviceId: string, localDate: string): Promise<readonly BookingSlot[]> {
+  if (await isUserBlocked(barberId)) return [];
   const data = await rpcData(() =>
     supabase.rpc('available_booking_slots', {
       barber_id: barberId,

@@ -13,170 +13,209 @@
   --font-normal: 'IBMPlexSansArabic-Regular';
   --font-medium: 'IBMPlexSansArabic-Medium';
   --font-semibold: 'IBMPlexSansArabic-SemiBold';
+
+  /* Fields: 14px corners with a visible 1px outline. */
+  --field-radius: 14px;
+  --field-border-width: 1px;
 }
 
-/* ── Koupa brand palette (DESIGN.md) ────────────────────────────────────
-   Paper   #F3F5F7 → background
-   Charcoal #323E4B → foreground
-   Teal    #1A7A78 → accent
-   Gold    #E1A553 → warning
+/* ── Koupa Teal palette (DESIGN.md, src/theme/colors.ts) ────────────────
+   Teal 600 #1A7A78 → accent (the logo teal)   Ink 50 #F4F7F7 → background
+   Ink 900  #152121 → foreground               Ink 200 #D6DFDF → border
+   Green 700 success · Amber 400 warning · Red 600 danger
+   The app is pinned to light (app/_layout.tsx); dark is kept coherent for later.
    ──────────────────────────────────────────────────────────────────────── */
 @layer theme {
   @variant light {
-    --background: oklch(0.9692 0.0034 247.9);
-    --foreground: oklch(0.3585 0.0276 250.7);
-
-    --surface: oklch(1 0 0);
-    --surface-foreground: oklch(0.3585 0.0276 250.7);
-    --surface-secondary: oklch(0.94 0.003 247.9);
-    --surface-secondary-foreground: oklch(0.45 0.02 250.7);
-    --surface-tertiary: oklch(0.9 0.005 247.9);
-    --surface-tertiary-foreground: oklch(0.55 0.015 250.7);
-
-    --overlay: oklch(1 0 0);
-    --overlay-foreground: oklch(0.3585 0.0276 250.7);
-    --backdrop: oklch(0% 0 0 / 20%);
-
-    --muted: oklch(0.55 0.015 250.7);
-
-    --default: oklch(0.92 0.003 247.9);
-    --default-foreground: oklch(0.4 0.02 250.7);
-
+    --background: oklch(0.9739 0.0032 197.1);
+    --foreground: oklch(0.2365 0.0168 196.1);
+    --surface: oklch(1.0000 0 0);
+    --surface-foreground: oklch(0.2365 0.0168 196.1);
+    --surface-secondary: oklch(0.9739 0.0032 197.1);
+    --surface-secondary-foreground: oklch(0.3676 0.0169 196.4);
+    --surface-tertiary: oklch(0.9416 0.0064 197.0);
+    --surface-tertiary-foreground: oklch(0.4520 0.0174 196.6);
+    --overlay: oklch(1.0000 0 0);
+    --overlay-foreground: oklch(0.2365 0.0168 196.1);
+    --backdrop: oklch(0.186 0.0147 196 / 48%);
+    --muted: oklch(0.5258 0.0181 196.6);
+    --default: oklch(0.9416 0.0064 197.0);
+    --default-foreground: oklch(0.2365 0.0168 196.1);
     --accent: oklch(0.5272 0.0836 192.8);
     --accent-foreground: oklch(1 0 0);
-
     --field-background: oklch(1 0 0);
-    --field-foreground: oklch(0.3585 0.0276 250.7);
-    --field-placeholder: oklch(0.55 0.015 250.7);
-    --field-border: transparent;
-
-    --success: oklch(0.55 0.08 192);
+    --field-foreground: oklch(0.2365 0.0168 196.1);
+    --field-placeholder: oklch(0.6808 0.0171 196.8);
+    --field-border: oklch(0.8968 0.0097 197.0);
+    --success: oklch(0.5041 0.1124 157.4);
     --success-foreground: oklch(1 0 0);
-
-    --warning: oklch(0.763 0.1215 72.7);
-    --warning-foreground: oklch(1 0 0);
-
-    --danger: oklch(0.6532 0.2328 25.74);
+    --warning: oklch(0.8095 0.1491 80.6);
+    --warning-foreground: oklch(0.2365 0.0168 196.1);
+    --danger: oklch(0.5606 0.1812 27.8);
     --danger-foreground: oklch(1 0 0);
-
     --segment: oklch(1 0 0);
-    --segment-foreground: oklch(0.3585 0.0276 250.7);
-
-    --border: oklch(0.88 0.005 248);
-    --separator: oklch(0.9 0.003 248);
+    --segment-foreground: oklch(0.2365 0.0168 196.1);
+    --border: oklch(0.8968 0.0097 197.0);
+    --separator: oklch(0.9416 0.0064 197.0);
     --focus: var(--accent);
     --link: var(--accent);
 
-    /* Calculated hover/soft/field vars (overriden from color-mix → concrete hsl/alpha
-       so HeroUI's internal color-kit can parse them without falling back to black). */
-    --color-surface-hover: hsl(211, 10%, 94%);
-    --color-background-secondary: hsl(210, 12%, 93%);
-    --color-background-tertiary: hsl(210, 10%, 90%);
-    --color-default-hover: hsl(208, 5%, 90%);
-    --color-accent-hover: hsl(179, 55%, 37%);
-    --color-success-hover: hsl(179, 55%, 42%);
-    --color-warning-hover: hsl(35, 62%, 64%);
-    --color-danger-hover: hsl(7, 58%, 52%);
-    --color-field-hover: hsl(0, 0%, 98%);
-    --color-field-border-hover: hsl(210, 8%, 82%);
-    --color-field-border-focus: hsl(210, 10%, 74%);
-    --color-default-soft: hsla(208, 5%, 93%, 0.5);
-    --color-default-soft-hover: hsla(208, 5%, 93%, 0.6);
-    --color-accent-soft: hsla(179, 65%, 29%, 0.15);
-    --color-accent-soft-hover: hsla(179, 65%, 29%, 0.22);
-    --color-accent-soft-foreground: hsl(179, 50%, 26%);
-    --color-danger-soft: hsla(7, 64%, 46%, 0.15);
-    --color-danger-soft-hover: hsla(7, 64%, 46%, 0.22);
-    --color-danger-soft-foreground: hsl(7, 55%, 40%);
-    --color-warning-soft: hsla(35, 70%, 60%, 0.15);
-    --color-warning-soft-hover: hsla(35, 70%, 60%, 0.22);
-    --color-warning-soft-foreground: hsl(35, 55%, 49%);
-    --color-success-soft: hsla(179, 65%, 35%, 0.15);
-    --color-success-soft-hover: hsla(179, 65%, 35%, 0.22);
-    --color-success-soft-foreground: hsl(179, 50%, 30%);
-    --color-separator-secondary: hsl(210, 8%, 89%);
-    --color-separator-tertiary: hsl(210, 8%, 86%);
-    --color-border-secondary: hsl(210, 8%, 84%);
-    --color-border-tertiary: hsl(210, 8%, 76%);
+    /* Hover/soft variants as concrete hsl, not color-mix(), so HeroUI's
+       color-kit parses them without falling back to black. */
+    --color-surface-hover: hsl(180, 17%, 98%);
+    --color-background-secondary: hsl(180, 17%, 94%);
+    --color-background-tertiary: hsl(180, 14%, 92%);
+    --color-default-hover: hsl(180, 13%, 88%);
+    --color-accent-hover: hsl(178, 66%, 24%);
+    --color-success-hover: hsl(153, 71%, 23%);
+    --color-warning-hover: hsl(39, 85%, 48%);
+    --color-danger-hover: hsl(3, 62%, 44%);
+    --color-field-hover: hsl(180, 17%, 98%);
+    --color-field-border-hover: hsl(180, 9%, 75%);
+    --color-field-border-focus: hsl(179, 65%, 29%);
+    --color-default-soft: hsla(180, 14%, 92%, 0.6);
+    --color-default-soft-hover: hsla(180, 13%, 88%, 0.7);
+    --color-accent-soft: hsl(174, 38%, 95%);
+    --color-accent-soft-hover: hsl(176, 44%, 88%);
+    --color-accent-soft-foreground: hsl(178, 66%, 24%);
+    --color-danger-soft: hsl(7, 81%, 96%);
+    --color-danger-soft-hover: hsl(7, 77%, 91%);
+    --color-danger-soft-foreground: hsl(3, 62%, 44%);
+    --color-warning-soft: hsl(39, 93%, 94%);
+    --color-warning-soft-hover: hsl(39, 90%, 88%);
+    --color-warning-soft-foreground: hsl(37, 93%, 28%);
+    --color-success-soft: hsl(146, 44%, 94%);
+    --color-success-soft-hover: hsl(148, 45%, 88%);
+    --color-success-soft-foreground: hsl(153, 71%, 27%);
+    --color-separator-secondary: hsl(180, 14%, 92%);
+    --color-separator-tertiary: hsl(180, 13%, 88%);
+    --color-border-secondary: hsl(180, 12%, 86%);
+    --color-border-tertiary: hsl(180, 9%, 75%);
 
-    --surface-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      0 0 1px 0 rgba(0, 0, 0, 0.06);
-    --overlay-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.02), 0 -6px 12px 0 rgba(0, 0, 0, 0.01),
-      0 14px 28px 0 rgba(0, 0, 0, 0.03);
-    --field-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
-      0 0 1px 0 rgba(0, 0, 0, 0.06);
+    --surface-shadow: 0 1px 2px 0 rgba(11, 21, 21, 0.04), 0 6px 16px -4px rgba(11, 21, 21, 0.08);
+    --overlay-shadow: 0 14px 32px -10px rgba(7, 40, 39, 0.28);
+    --field-shadow: 0 0 0 0 transparent;
   }
 
   @variant dark {
-    --background: oklch(0.28 0.02 250.7);
-    --foreground: oklch(0.93 0.01 250.7);
-    --surface: oklch(0.33 0.02 250.7);
-    --surface-foreground: oklch(0.93 0.01 250.7);
-    --surface-secondary: oklch(0.37 0.02 250.7);
-    --surface-secondary-foreground: oklch(0.90 0.01 250.7);
-    --surface-tertiary: oklch(0.41 0.02 250.7);
-    --surface-tertiary-foreground: oklch(0.88 0.01 250.7);
-    --overlay: oklch(0.36 0.02 250.7);
-    --overlay-foreground: oklch(0.93 0.01 250.7);
-    --backdrop: oklch(0% 0 0 / 40%);
-    --muted: oklch(0.65 0.02 250.7);
-    --default: oklch(0.35 0.02 250.7);
-    --default-foreground: oklch(0.90 0.01 250.7);
-    --accent: oklch(0.7 0.1 192.8);
-    --accent-foreground: oklch(0.15 0.01 250.7);
+    --background: oklch(0.1860 0.0147 196.0);
+    --foreground: oklch(0.9416 0.0064 197.0);
+    --surface: oklch(0.2365 0.0168 196.1);
+    --surface-foreground: oklch(0.9416 0.0064 197.0);
+    --surface-secondary: oklch(0.2649 0.0178 196.1);
+    --surface-secondary-foreground: oklch(0.8968 0.0097 197.0);
+    --surface-tertiary: oklch(0.2942 0.0163 196.3);
+    --surface-tertiary-foreground: oklch(0.8142 0.0132 196.9);
+    --overlay: oklch(0.2649 0.0178 196.1);
+    --overlay-foreground: oklch(0.9416 0.0064 197.0);
+    --backdrop: oklch(0 0 0 / 55%);
+    --muted: oklch(0.6808 0.0171 196.8);
+    --default: oklch(0.2942 0.0163 196.3);
+    --default-foreground: oklch(0.9416 0.0064 197.0);
+    --accent: oklch(0.6651 0.0940 191.5);
+    --accent-foreground: oklch(0.2531 0.0374 192.2);
     --field-background: var(--default);
     --field-foreground: var(--foreground);
     --field-placeholder: var(--muted);
-    --field-border: transparent;
-    --success: oklch(0.7 0.1 192);
-    --success-foreground: oklch(0.15 0.01 250.7);
-    --warning: oklch(0.8 0.12 72.7);
-    --warning-foreground: oklch(0.15 0.01 250.7);
-    --danger: oklch(0.65 0.23 25.74);
-    --danger-foreground: oklch(0.95 0.005 250.7);
-    --segment: oklch(0.38 0.02 250.7);
-    --segment-foreground: oklch(0.90 0.01 250.7);
-    --border: oklch(0.42 0.02 250.7);
-    --separator: oklch(0.38 0.02 250.7);
+    --field-border: oklch(0.3676 0.0169 196.4);
+    --success: oklch(0.6071 0.1382 156.0);
+    --success-foreground: oklch(1 0 0);
+    --warning: oklch(0.8095 0.1491 80.6);
+    --warning-foreground: oklch(0.2365 0.0168 196.1);
+    --danger: oklch(0.6349 0.1730 26.9);
+    --danger-foreground: oklch(1 0 0);
+    --segment: oklch(0.3251 0.0173 196.3);
+    --segment-foreground: oklch(0.9416 0.0064 197.0);
+    --border: oklch(0.3676 0.0169 196.4);
+    --separator: oklch(0.2942 0.0163 196.3);
     --focus: var(--accent);
     --link: var(--accent);
 
-    /* Calculated hover/soft/field vars — same keys as light (concrete hsl/alpha
-       so color-kit parses them; no color-mix()). */
-    --color-surface-hover: hsl(211, 8%, 22%);
-    --color-background-secondary: hsl(211, 8%, 18%);
-    --color-background-tertiary: hsl(211, 8%, 21%);
-    --color-default-hover: hsl(211, 8%, 24%);
-    --color-accent-hover: hsl(179, 50%, 46%);
-    --color-success-hover: hsl(179, 50%, 46%);
-    --color-warning-hover: hsl(35, 60%, 64%);
-    --color-danger-hover: hsl(7, 58%, 52%);
-    --color-field-hover: hsl(211, 8%, 22%);
-    --color-field-border-hover: hsl(211, 8%, 30%);
-    --color-field-border-focus: hsl(179, 55%, 46%);
-    --color-default-soft: hsla(211, 8%, 20%, 0.5);
-    --color-default-soft-hover: hsla(211, 8%, 20%, 0.6);
-    --color-accent-soft: hsla(179, 55%, 40%, 0.22);
-    --color-accent-soft-hover: hsla(179, 55%, 40%, 0.3);
-    --color-accent-soft-foreground: hsl(179, 45%, 60%);
-    --color-danger-soft: hsla(7, 64%, 46%, 0.22);
-    --color-danger-soft-hover: hsla(7, 64%, 46%, 0.3);
-    --color-danger-soft-foreground: hsl(7, 55%, 70%);
-    --color-warning-soft: hsla(35, 70%, 60%, 0.2);
-    --color-warning-soft-hover: hsla(35, 70%, 60%, 0.28);
-    --color-warning-soft-foreground: hsl(35, 55%, 70%);
-    --color-success-soft: hsla(179, 55%, 40%, 0.22);
-    --color-success-soft-hover: hsla(179, 55%, 40%, 0.3);
-    --color-success-soft-foreground: hsl(179, 45%, 60%);
-    --color-separator-secondary: hsl(211, 8%, 26%);
-    --color-separator-tertiary: hsl(211, 8%, 29%);
-    --color-border-secondary: hsl(211, 8%, 28%);
-    --color-border-tertiary: hsl(211, 8%, 34%);
+    /* Hover/soft variants as concrete hsl, not color-mix(), so HeroUI's
+       color-kit parses them without falling back to black. */
+    --color-surface-hover: hsl(180, 19%, 13%);
+    --color-background-secondary: hsl(180, 26%, 8%);
+    --color-background-tertiary: hsl(180, 22%, 11%);
+    --color-default-hover: hsl(180, 13%, 19%);
+    --color-accent-hover: hsl(177, 40%, 61%);
+    --color-success-hover: hsl(150, 64%, 42%);
+    --color-warning-hover: hsl(40, 88%, 67%);
+    --color-danger-hover: hsl(4, 73%, 66%);
+    --color-field-hover: hsl(180, 13%, 19%);
+    --color-field-border-hover: hsl(180, 9%, 32%);
+    --color-field-border-focus: hsl(178, 45%, 45%);
+    --color-default-soft: hsla(180, 15%, 16%, 0.6);
+    --color-default-soft-hover: hsla(180, 13%, 19%, 0.7);
+    --color-accent-soft: hsla(178, 45%, 45%, 0.18);
+    --color-accent-soft-hover: hsla(178, 45%, 45%, 0.26);
+    --color-accent-soft-foreground: hsl(177, 40%, 61%);
+    --color-danger-soft: hsla(4, 70%, 59%, 0.18);
+    --color-danger-soft-hover: hsla(4, 70%, 59%, 0.26);
+    --color-danger-soft-foreground: hsl(4, 75%, 76%);
+    --color-warning-soft: hsla(40, 88%, 59%, 0.16);
+    --color-warning-soft-hover: hsla(40, 88%, 59%, 0.24);
+    --color-warning-soft-foreground: hsl(40, 88%, 67%);
+    --color-success-soft: hsla(151, 67%, 36%, 0.18);
+    --color-success-soft-hover: hsla(151, 67%, 36%, 0.26);
+    --color-success-soft-foreground: hsl(149, 51%, 58%);
+    --color-separator-secondary: hsl(180, 13%, 19%);
+    --color-separator-tertiary: hsl(180, 11%, 23%);
+    --color-border-secondary: hsl(180, 11%, 23%);
+    --color-border-tertiary: hsl(180, 9%, 32%);
 
     --surface-shadow: 0 0 0 0 transparent inset;
     --overlay-shadow: 0 0 1px 0 rgba(255, 255, 255, 0.2) inset;
     --field-shadow: 0 0 0 0 transparent inset;
   }
+}
+
+/* ── Koupa Teal shapes ───────────────────────────────────────────────────
+   HeroUI derives every radius from one --radius, which would make buttons
+   pills and cards 24px. Koupa sets them per part instead: 14px buttons and
+   fields (52px tall), 18px cards, pill chips. Unlayered so they outrank the
+   library's component rules.
+   ──────────────────────────────────────────────────────────────────────── */
+.button__root--size-sm,
+.button__background--size-sm {
+  border-radius: 12px;
+}
+.button__root--size-sm {
+  height: 40px;
+}
+.button__root--size-md,
+.button__background--size-md {
+  border-radius: 14px;
+}
+.button__root--size-md {
+  height: 52px;
+  padding-inline: 20px;
+}
+.button__root--size-lg,
+.button__background--size-lg {
+  border-radius: 16px;
+}
+.button__label {
+  font-family: var(--font-semibold);
+}
+/* Secondary buttons sit on soft teal, not gray. */
+.button__root--variant-secondary {
+  background-color: var(--color-accent-soft);
+}
+
+.surface__root,
+.surface__background {
+  border-radius: 18px;
+}
+
+.input__input {
+  min-height: 52px;
+  padding-inline: 14px;
+}
+
+.chip__root--size-md {
+  min-height: 36px;
+  padding-inline: 14px;
+  border-radius: 9999px;
 }
 
 /* ── Arabic-first correction ────────────────────────────────────────────

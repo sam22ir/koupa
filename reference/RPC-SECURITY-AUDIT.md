@@ -10,13 +10,31 @@ Scope: public SQL functions created by repo migrations, grants, and dispatch pos
 3. Spot-check ownership / `auth.uid()` guards on write paths.
 4. Review push dispatch secret handling.
 
+## Callable by signed-out (anon) clients
+
+Guest browsing reads three RPCs, and only these three are granted to `anon`
+(migrations `20260929000100` and `20260929000200`). Signed-out callers get an empty
+`phone`; every write RPC below stays authenticated-only.
+
+| Function | Guest guard |
+|---|---|
+| `search_published_barbers` | Published barbers only; `phone` blank when `auth.uid()` is null |
+| `get_public_barber_profile` | Bookable published barber; `phone` blank when signed out |
+| `available_booking_slots` | Bookable published barber; read-only slot math |
+
+Supabase grants new functions to `anon` by default, and a `PUBLIC` grant reaches it too.
+`20260929000200` revoked both from every non-extension `public` function (restoring each
+function's existing `authenticated`/`service_role` access) and removed the default for
+new functions. Any new RPC must be opted in to `anon` explicitly; verify with
+`has_function_privilege('anon', oid, 'execute')`.
+
 ## Callable by authenticated clients
 
 | Function | Guards | Grants |
 |---|---|---|
-| `search_published_barbers` | Independent published filter | authenticated |
-| `get_public_barber_profile` | Bookable published barber | authenticated |
-| `available_booking_slots` | Bookable + schedule math | authenticated |
+| `search_published_barbers` | Independent published filter | anon + authenticated |
+| `get_public_barber_profile` | Bookable published barber | anon + authenticated |
+| `available_booking_slots` | Bookable + schedule math | anon + authenticated |
 | `book_appointment` | Customer role, active appointment, slot availability | authenticated |
 | `reschedule_appointment` | Customer owns appointment, status booked | authenticated |
 | `cancel_customer_appointment` | Customer owns appointment | authenticated |

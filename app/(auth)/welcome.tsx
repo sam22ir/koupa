@@ -1,108 +1,109 @@
+import { useState } from 'react';
 import { router } from 'expo-router';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Typography } from 'heroui-native/text';
 
-import { BrandLogo, Card, Chip, Icon } from '@/src/components/ui';
+import { BrandLogo, Icon, type IconName } from '@/src/components/ui';
 import { PRIVACY_URL, TERMS_URL } from '@/src/config/legal';
 import { t } from '@/src/i18n';
-import { colors, layout, radii, space, typography } from '@/src/theme';
+import { useAppSession } from '@/src/providers/SessionProvider';
+import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
 
 /**
  * Choose your path.
  *
- * The two doors are deliberately unequal. Most people arriving here are
- * customers, so the customer door carries the weight and answers the question
- * the chooser is actually asking ("what do I get?") by showing a real booking
- * card built from the same HeroUI components Home ships. The barber door is a
- * quiet row under one hairline. Two identical cards would have said "we have
- * two features"; this says "this is probably you, and this is them".
+ * Two full-width role choices with matching card treatments. Their copy and
+ * trust cues explain each path; the permanent role commitment is stated before
+ * either option can be selected.
  */
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
+  const { startGuestBrowsing } = useAppSession();
+  const [customerHovered, setCustomerHovered] = useState(false);
+  const [barberHovered, setBarberHovered] = useState(false);
 
-  const openRoleIntro = (role: 'customer' | 'barber') => {
-    router.push({ pathname: '/(auth)/role-intro', params: { role } });
+  const openBarberSignup = () => {
+    router.push({ pathname: '/(auth)/sign-up', params: { role: 'barber' } });
+  };
+
+  // Customers need no account to look around; signup waits for the first booking.
+  const browseAsGuest = () => {
+    startGuestBrowsing();
+    router.replace('/');
   };
 
   return (
     <View testID="welcome-canvas" style={styles.root}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: Math.max(insets.top + space[4], layout.screenPaddingTop + space[3]),
-            paddingBottom: Math.max(insets.bottom + space[5], space[8]),
-          },
-        ]}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + space[5], space[8]) }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.brand}>
-          <BrandLogo height={44} />
+        <View style={[styles.hero, { paddingTop: Math.max(insets.top, space[3]) + space[6] }]}>
+          <View style={styles.heroInner}>
+            <BrandLogo height={84} imageStyle={{ tintColor: colors.onPrimary }} />
+            <Text accessibilityRole="header" style={styles.heroTitle}>{t('auth.chooseRole')}</Text>
+          </View>
         </View>
 
-        <View style={styles.heading}>
-          <Typography type="h3" align="end">{t('auth.chooseRole')}</Typography>
-          <Typography type="body" color="muted" align="end">{t('auth.roleHint')}</Typography>
+        <View style={[styles.content, Platform.OS === 'web' && styles.contentWeb]}>
+        <View style={styles.choices}>
+          <Pressable
+            testID="welcome-door-customer"
+            accessibilityRole="button"
+            accessibilityLabel={`${t('auth.welcomeBrowseTitle')}. ${t('auth.welcomeBrowseSub')}`}
+            onPress={browseAsGuest}
+            onHoverIn={() => setCustomerHovered(true)}
+            onHoverOut={() => setCustomerHovered(false)}
+            style={({ pressed }) => [
+              styles.roleChoice,
+              customerHovered && styles.roleChoiceHovered,
+              pressed && styles.doorPressed,
+            ]}
+          >
+            <RoleKicker icon="search-outline" label={t('auth.welcomeBenefitCustomer')} />
+
+            <View style={styles.doorTitleRow}>
+              <Text style={styles.doorTitle}>{t('auth.welcomeBrowseTitle')}</Text>
+              <View style={styles.chevronBadge}>
+                <Icon name="chevron-back" size={16} color={colors.primary} />
+              </View>
+            </View>
+            <Text style={styles.doorSub}>{t('auth.welcomeBrowseSub')}</Text>
+            <View style={styles.customerProof}>
+              <Icon name="checkmark-circle" size={16} color={colors.primary} />
+              <Text style={styles.customerProofText}>{t('auth.welcomeBrowseFoot')}</Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            testID="welcome-door-barber"
+            accessibilityRole="button"
+            accessibilityLabel={`${t('auth.welcomeDoorBarber')}. ${t('auth.welcomeDoorBarberSub')}`}
+            onPress={openBarberSignup}
+            onHoverIn={() => setBarberHovered(true)}
+            onHoverOut={() => setBarberHovered(false)}
+            style={({ pressed }) => [
+              styles.roleChoice,
+              barberHovered && styles.roleChoiceHovered,
+              pressed && styles.doorPressed,
+            ]}
+          >
+            <RoleKicker icon="cut-outline" label={t('auth.welcomeBenefitBarber')} />
+            <View style={styles.doorTitleRow}>
+              <Text style={styles.doorTitle}>{t('auth.welcomeDoorBarber')}</Text>
+              <View style={styles.chevronBadge}>
+                <Icon name="chevron-back" size={16} color={colors.primary} />
+              </View>
+            </View>
+            <Text style={styles.doorSub}>{t('auth.welcomeDoorBarberSub')}</Text>
+            <View style={styles.customerProof}>
+              <Icon name="checkmark-circle" size={16} color={colors.primary} />
+              <Text style={styles.customerProofText}>{t('auth.welcomeBarberFoot')}</Text>
+            </View>
+            <Text style={styles.roleHint}>{t('auth.roleHint')}</Text>
+          </Pressable>
         </View>
-
-        {/* Customer door - the majority path, shown at full weight. */}
-        <Pressable
-          testID="welcome-door-customer"
-          accessibilityRole="button"
-          accessibilityLabel={t('auth.welcomeDoorCustomer')}
-          onPress={() => openRoleIntro('customer')}
-          style={({ pressed }) => [styles.door, pressed && styles.doorPressed]}
-        >
-          <Text style={[styles.kicker, { color: colors.primary }]}>
-            {t('auth.welcomeBenefitCustomer')}
-          </Text>
-
-          <View style={styles.doorTitleRow}>
-            <Text style={styles.doorTitle}>{t('auth.welcomeDoorCustomer')}</Text>
-            <Icon name="chevron-back" size={22} color={colors.primary} />
-          </View>
-          <Text style={styles.doorSub}>{t('auth.welcomeDoorCustomerSub')}</Text>
-
-          {/* Real component preview, not a mock: same Card and Chip as Home. */}
-          <Card style={styles.preview} elevated>
-            <View style={styles.previewTop}>
-              <Typography type="body" weight="semibold" align="end" numberOfLines={1}>
-                {t('auth.welcomePreviewShop')}
-              </Typography>
-              <Chip label={t('auth.welcomePreviewConfirmed')} tone="primary" />
-            </View>
-            <Text style={styles.previewMeta}>{t('auth.welcomePreviewCustomerMeta')}</Text>
-            <View style={styles.previewRule} />
-            <View style={styles.previewBottom}>
-              <Text style={styles.previewService}>{t('auth.welcomePreviewCustomerService')}</Text>
-              <Text style={styles.previewPrice}>{t('auth.welcomePreviewCustomerPrice')}</Text>
-            </View>
-          </Card>
-
-          <Text style={styles.previewFoot}>{t('auth.welcomeCustomerFoot')}</Text>
-        </Pressable>
-
-        <View style={styles.hairline} />
-
-        {/* Barber door - same affordance, less volume. */}
-        <Pressable
-          testID="welcome-door-barber"
-          accessibilityRole="button"
-          accessibilityLabel={t('auth.welcomeDoorBarber')}
-          onPress={() => openRoleIntro('barber')}
-          style={({ pressed }) => [styles.door, styles.barberDoor, pressed && styles.doorPressed]}
-        >
-          <Text style={[styles.kicker, styles.kickerBarber]}>
-            {t('auth.welcomeBenefitBarber')}
-          </Text>
-          <View style={styles.doorTitleRow}>
-            <Text style={styles.doorTitle}>{t('auth.welcomeDoorBarber')}</Text>
-            <Icon name="chevron-back" size={22} color={colors.accentText} />
-          </View>
-          <Text style={styles.doorSub}>{t('auth.welcomeDoorBarberSub')}</Text>
-        </Pressable>
 
         {/* Existing account bridge */}
         <View style={styles.footer}>
@@ -139,7 +140,19 @@ export default function WelcomeScreen() {
             </View>
           </View>
         </View>
+        </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function RoleKicker({ icon, label }: { readonly icon: IconName; readonly label: string }) {
+  return (
+    <View style={styles.kickerRow}>
+      <View style={styles.kickerIcon}>
+        <Icon name={icon} size={18} color={colors.primarySoftText} />
+      </View>
+      <Text style={styles.kicker}>{label}</Text>
     </View>
   );
 }
@@ -152,34 +165,68 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  hero: {
+    paddingHorizontal: layout.screenPaddingX,
+    paddingBottom: space[6] - layout.stageBodyOverlap,
+    backgroundColor: colors.stage,
+    borderBottomLeftRadius: radii['3xl'],
+    borderBottomRightRadius: radii['3xl'],
+  },
+  heroInner: {
+    alignItems: 'center',
+    gap: space[5],
+  },
+  heroTitle: {
+    ...typography.title,
+    color: colors.onPrimary,
+    textAlign: 'center',
+  },
   content: {
     paddingHorizontal: layout.screenPaddingX,
   },
-  brand: {
-    alignSelf: 'flex-end',
+  choices: {
+    gap: space[3],
+    marginTop: layout.stageBodyOverlap,
   },
-  heading: {
-    marginTop: space[9],
-    gap: space[1],
-    alignItems: 'flex-end',
+  roleChoice: {
+    gap: space[2],
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: radii.lg,
+    padding: space[5],
+    ...elevation.float,
   },
-  door: {
-    marginTop: space[7],
+  kickerRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
     gap: space[2],
   },
-  doorPressed: {
-    opacity: 0.6,
+  kickerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
   },
-  barberDoor: {
-    marginTop: space[6],
-    marginBottom: space[2],
+  roleChoiceHovered: {
+    borderColor: colors.primary,
+  },
+  doorPressed: {
+    opacity: 0.76,
+  },
+  chevronBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
   },
   kicker: {
     ...typography.label,
-    fontSize: 12.5,
-  },
-  kickerBarber: {
-    color: colors.accentText,
+    color: colors.primarySoftText,
   },
   doorTitleRow: {
     flexDirection: 'row-reverse',
@@ -187,73 +234,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   doorTitle: {
-    fontFamily: typography.display.fontFamily,
-    fontSize: 26,
-    lineHeight: 38,
-    color: colors.text,
+    ...typography.title,
     textAlign: 'right',
   },
   doorSub: {
-    ...typography.body,
-    fontSize: 15,
-    lineHeight: 24,
+    ...typography.caption,
+    fontSize: 14,
+    lineHeight: 22,
     color: colors.textMuted,
     textAlign: 'right',
   },
-  preview: {
-    marginTop: space[4],
-    backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    gap: space[2],
-  },
-  previewTop: {
+  customerProof: {
     flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: space[3],
+    gap: space[2],
+    marginTop: space[1],
   },
-  previewMeta: {
+  customerProofText: {
     ...typography.caption,
+    flex: 1,
     fontSize: 13,
     color: colors.textMuted,
     textAlign: 'right',
   },
-  previewRule: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: space[1],
-  },
-  previewBottom: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    gap: space[3],
-  },
-  previewService: {
-    ...typography.body,
-    color: colors.text,
-    textAlign: 'right',
-  },
-  previewPrice: {
-    fontFamily: typography.label.fontFamily,
-    fontSize: 17,
-    color: colors.primary,
-    textAlign: 'left',
-  },
-  previewFoot: {
+  roleHint: {
     ...typography.caption,
-    fontSize: 12.5,
+    fontSize: 13,
+    lineHeight: 20,
     color: colors.textMuted,
     textAlign: 'right',
-    marginTop: space[2],
   },
-  hairline: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginTop: space[8],
+  contentWeb: {
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
   },
   footer: {
-    marginTop: space[9],
+    marginTop: space[6],
     gap: space[4],
   },
   signIn: {
@@ -292,10 +309,9 @@ const styles = StyleSheet.create({
     gap: space[2],
   },
   legalAnchor: {
-    ...typography.caption,
+    ...typography.label,
     fontSize: 11.5,
-    color: colors.primary,
-    fontWeight: '600',
+    color: colors.primarySoftText,
   },
   legalSep: {
     ...typography.caption,

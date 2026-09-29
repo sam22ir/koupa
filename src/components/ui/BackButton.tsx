@@ -45,8 +45,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: 0,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.32)',
-    borderRadius: radii.lg,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderColor: colors.stageBorder,
+    borderRadius: radii.md,
+    backgroundColor: colors.stageOverlay,
   },
 });

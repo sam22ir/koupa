@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { CredentialMethod } from '@/src/auth';
-import { colors, space, typography } from '@/src/theme';
+import { colors, elevation, radii, space, typography } from '@/src/theme';
 
 type Props = {
   readonly value: CredentialMethod;
@@ -38,23 +38,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     gap: space[1],
     padding: space[1],
-    borderRadius: 14,
+    borderRadius: radii.pill,
     backgroundColor: colors.surfaceMuted,
   },
   tab: {
     flex: 1,
-    paddingVertical: space[3],
-    borderRadius: 11,
+    minHeight: 40,
+    justifyContent: 'center',
+    borderRadius: radii.pill,
     alignItems: 'center',
   },
   tabActive: {
     backgroundColor: colors.surface,
+    ...elevation.card,
   },
   label: {
     ...typography.label,
     color: colors.textMuted,
   },
   labelActive: {
-    color: colors.primary,
+    color: colors.primarySoftText,
   },
 });

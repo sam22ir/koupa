@@ -10,6 +10,9 @@ export type AppErrorCode =
   | 'LOCATION_REQUIRED'
   | 'INVALID_TIME'
   | 'LEGAL_SAVE_FAILED'
+  | 'EMAIL_RATE_LIMIT'
+  | 'EMAIL_NOT_CONFIRMED'
+  | 'PHONE_ALREADY_IN_USE'
   | 'INVITATION_NOT_ALLOWED'
   | 'UNAUTHORIZED'
   | 'NETWORK'
@@ -40,6 +43,8 @@ function messageOf(error: unknown): string {
 export function mapRpcMessage(error: unknown): AppErrorCode {
   const message = messageOf(error);
   if (!message) return 'UNKNOWN';
+  // Must precede the generic 'required' => VALIDATION rule below.
+  if (/confirmed email is required/i.test(message)) return 'EMAIL_NOT_CONFIRMED';
   if (message.includes('unavailable')) return 'SLOT_UNAVAILABLE';
   if (message.includes('active appointment')) return 'ACTIVE_APPOINTMENT';
   if (message.includes('cannot be cancelled')) return 'CANCEL_NOT_ALLOWED';
@@ -48,6 +53,10 @@ export function mapRpcMessage(error: unknown): AppErrorCode {
   if (message.includes('cannot be edited')) return 'RATING_EDIT_WINDOW';
   if (message.includes('cannot be submitted') || message.includes('Rating')) return 'RATING_NOT_ALLOWED';
   if (message.includes('location is required') || message.includes('locationRequired')) return 'LOCATION_REQUIRED';
+  if (message.includes('over_email_send_rate_limit') || message.includes('email rate limit exceeded')) {
+    return 'EMAIL_RATE_LIMIT';
+  }
+  if (message.includes('profiles_phone_unique')) return 'PHONE_ALREADY_IN_USE';
   if (message.includes('Invitation cannot be sent')) return 'INVITATION_NOT_ALLOWED';
   if (message.includes('Invalid login credentials') || message.includes('Email not confirmed')) return 'UNAUTHORIZED';
   if (message.includes('Invalid schedule') || message.includes('invalidTime') || message.includes('working day')) {
@@ -98,6 +107,8 @@ export function bookingErrorMessage(error: unknown): string {
       return 'الوقت المدخل غير صالح.';
     case 'LOCATION_REQUIRED':
       return 'الموقع مطلوب.';
+    case 'EMAIL_NOT_CONFIRMED':
+      return 'أكد بريدك الإلكتروني لإتمام الحجز.';
     case 'UNAUTHORIZED':
       return 'يلزم تسجيل الدخول.';
     case 'NETWORK':

@@ -1,10 +1,11 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Avatar } from 'heroui-native/avatar';
 import { Card } from 'heroui-native/card';
 import { Typography } from 'heroui-native/text';
 
 import { algeriaDate, formatBookingDate } from '@/src/booking';
+import { Avatar } from '@/src/components/ui/Avatar';
 import { Icon } from '@/src/components/ui/Icon';
+import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { t } from '@/src/i18n';
 import type { RecentBarber } from '@/src/customerHome';
 import { colors, space } from '@/src/theme';
@@ -26,14 +27,7 @@ export function RecentBarbers({ items, onSelect }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.headingRow}>
-        <Typography type="body" weight="semibold" align="end">
-          {t('home.recentBarbers')}
-        </Typography>
-        <Typography type="body-xs" color="muted" align="start" className="flex-shrink-1">
-          {t('home.recentBarbersHint')}
-        </Typography>
-      </View>
+      <SectionHeader title={t('home.recentBarbers')} hint={t('home.recentBarbersHint')} />
       <Card className="p-0 overflow-hidden">
         {items.map((item, index) => (
           <View key={item.barberId}>
@@ -44,9 +38,7 @@ export function RecentBarbers({ items, onSelect }: Props) {
               onPress={() => onSelect(item.barberId)}
               style={({ pressed }) => [styles.row, pressed && styles.pressed]}
             >
-              <Avatar size="md" color="accent">
-                <Avatar.Fallback>{initialsFromName(item.barberName)}</Avatar.Fallback>
-              </Avatar>
+              <Avatar initials={initialsFromName(item.barberName)} size={44} />
               <View style={styles.copy}>
                 <Typography type="body" weight="semibold" align="end">
                   {item.barberName}
@@ -56,10 +48,7 @@ export function RecentBarbers({ items, onSelect }: Props) {
                 </Typography>
               </View>
               <View style={styles.action}>
-                <Typography type="body-sm" align="end" style={{ color: colors.primary }}>
-                  {t('home.viewProfile')}
-                </Typography>
-                <Icon name="chevron-back" size={18} color={colors.textMuted} />
+                <Icon name="chevron-back" size={18} color={colors.textSubtle} />
               </View>
             </Pressable>
           </View>
@@ -71,10 +60,9 @@ export function RecentBarbers({ items, onSelect }: Props) {
 
 const styles = StyleSheet.create({
   wrap: { gap: space[3] },
-  headingRow: { flexDirection: 'row-reverse', alignItems: 'baseline', justifyContent: 'space-between', gap: space[3] },
-  row: { minHeight: 68, flexDirection: 'row-reverse', alignItems: 'center', gap: space[3], padding: space[3] },
+  row: { minHeight: 72, flexDirection: 'row-reverse', alignItems: 'center', gap: space[3], paddingHorizontal: space[4], paddingVertical: space[3] },
   pressed: { backgroundColor: colors.background },
   copy: { flex: 1, alignItems: 'flex-end', gap: space[1] },
   action: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[1] },
-  divider: { height: 1, backgroundColor: colors.border, marginHorizontal: space[3] },
+  divider: { height: 1, backgroundColor: colors.borderSubtle, marginHorizontal: space[4] },
 });

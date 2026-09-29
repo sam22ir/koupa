@@ -2,25 +2,48 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { BarberProfile, BarberService } from '@/src/booking';
-import { BackButton, Button, Card, Chip, CustomerStageHeader, EmptyState, ErrorBanner, Icon, Screen } from '@/src/components/ui';
+import type { BarberProfile } from '@/src/booking';
+import {
+  Avatar,
+  BackButton,
+  Button,
+  Card,
+  CustomerStageHeader,
+  EmptyState,
+  ErrorBanner,
+  Icon,
+  OptionCard,
+  Screen,
+  SectionHeader,
+} from '@/src/components/ui';
+import { initialsFromName } from '@/src/utils/initials';
 import { useBooking } from '@/src/hooks/useBooking';
+import { UgcModerationActions } from '@/src/features/moderation/UgcModerationActions';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { t } from '@/src/i18n';
 import { publicProfileReturnHref } from '@/src/navigation/bookingNavigation';
 import { setPendingIntentFromPath } from '@/src/navigation/pendingIntent';
-import { colors, layout, radii, space, typography } from '@/src/theme';
+import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
+import { isUserBlocked } from '@/src/services/ugcModeration';
 
 export default function BarberProfilePublicScreen() {
   const { id, returnTo } = useLocalSearchParams<{ id: string; returnTo?: string }>();
   const { getBarber, loading, error } = useBooking();
-  const { profile } = useAppSession();
+  const { profile, guestBrowsing } = useAppSession();
   const [barber, setBarber] = useState<BarberProfile | null>(null);
+  const [blocked, setBlocked] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const fallback = publicProfileReturnHref(returnTo, profile?.role);
+  const fallback = publicProfileReturnHref(returnTo, guestBrowsing ? 'customer' : profile?.role);
 
   const load = useCallback(async () => {
     if (!id) return;
+    const isBlocked = await isUserBlocked(id).catch(() => false);
+    setBlocked(isBlocked);
+    if (isBlocked) {
+      setBarber(null);
+      setSelectedServiceId(null);
+      return;
+    }
     const rows = await getBarber(id);
     setBarber(rows?.[0] ?? null);
     setSelectedServiceId(null);
@@ -36,7 +59,7 @@ export default function BarberProfilePublicScreen() {
 
   const startBooking = (barberId: string, serviceId: string) => {
     const returnPath = `/barber/${barberId}`;
-    if (profile?.role === 'customer') {
+    if (profile?.role === 'customer' || guestBrowsing) {
       router.push({
         pathname: '/book/[barberId]',
         params: { barberId, serviceId, returnTo: returnPath },
@@ -45,33 +68,86 @@ export default function BarberProfilePublicScreen() {
     }
     if (profile?.role !== 'barber') {
       setPendingIntentFromPath(`/book/${barberId}`, { serviceId, returnTo: returnPath });
-      router.push('/(auth)/sign-in');
+      router.push({ pathname: '/(auth)/sign-up', params: { role: 'customer' } });
     }
   };
 
   const selectedService = barber?.services.find((service) => service.id === selectedServiceId) ?? null;
   const canBook = profile?.role !== 'barber' && Boolean(selectedService);
+  const showBook = Boolean(barber && !blocked && profile?.role !== 'barber' && barber.services.length);
 
   return (
-    <Screen padded={false} scroll>
+    <Screen
+      padded={false}
+      scroll
+      footer={showBook && barber ? (
+        <View style={styles.footerRow}>
+          {selectedService ? (
+            <View style={styles.footerSummary}>
+              <Text numberOfLines={1} style={styles.footerCaption}>{selectedService.name}</Text>
+              <Text style={styles.footerPrice}>{`${selectedService.price_dzd} ${t('common.dzd')}`}</Text>
+            </View>
+          ) : (
+            <Text style={[styles.footerCaption, styles.footerHint]}>{t('booking.chooseService')}</Text>
+          )}
+          <Button
+            label={t('booking.book')}
+            disabled={!canBook}
+            style={styles.footerButton}
+            onPress={() => {
+              if (selectedService) startBooking(barber.id, selectedService.id);
+            }}
+          />
+        </View>
+      ) : undefined}
+    >
       <CustomerStageHeader
         title={t('find.barberProfileTitle')}
         subtitle={t('find.barberProfileSubtitle')}
+        context={profile?.role === 'barber' ? t('auth.roleBarber') : t('auth.roleCustomer')}
         trailing={<BackButton fallback={fallback} />}
       />
       <View style={styles.body}>
         {loading && !barber ? <BarberProfileSkeleton /> : null}
         {error && barber ? <ErrorBanner error={error} /> : null}
-        {barber ? (
+        {blocked ? (
+          <Card style={styles.moderationCard}>
+            <Text style={styles.bio}>{t('moderation.blockedProfile')}</Text>
+            <UgcModerationActions
+              targetKind="profile"
+              targetId={id}
+              targetName={t('find.barberProfileTitle')}
+              blockTargetId={id}
+              blocked
+              onBlockChange={(next) => {
+                setBlocked(next);
+                if (!next) void load();
+              }}
+            />
+          </Card>
+        ) : barber ? (
           <>
-            <Card style={styles.identityCard}>
-              <Text style={styles.identityName}>{barber.name}</Text>
-              <Text style={styles.identityLocation}>{[barber.neighborhood, barber.city].filter(Boolean).join('، ')}</Text>
-              <Text style={styles.rating}>
-                {barber.rating_count ? `★ ${barber.average_rating.toFixed(1)} (${barber.rating_count})` : t('find.noRatings')}
-              </Text>
+            <Card elevated style={styles.identityCard}>
+              <View style={styles.identityRow}>
+                <Avatar initials={initialsFromName(barber.name)} size={64} />
+                <View style={styles.identityCopy}>
+                  <Text style={styles.identityName}>{barber.name}</Text>
+                  <View style={styles.metaRow}>
+                    <Icon name="location-outline" size={14} color={colors.textMuted} />
+                    <Text style={styles.identityLocation}>{[barber.neighborhood, barber.city].filter(Boolean).join('، ')}</Text>
+                  </View>
+                  <View style={styles.ratingPill}>
+                    {barber.rating_count ? <Icon name="star" size={13} color={colors.accent} /> : null}
+                    <Text style={styles.rating}>
+                      {barber.rating_count ? `${barber.average_rating.toFixed(1)} (${barber.rating_count})` : t('find.noRatings')}
+                    </Text>
+                  </View>
+                </View>
+              </View>
               {barber.bio ? <Text style={styles.bio}>{barber.bio}</Text> : null}
-              <Text style={styles.phone}>{t('find.phoneLabel')}: {barber.phone}</Text>
+              {barber.phone ? (
+                <Text style={styles.phone}>{t('find.phoneLabel')}: {`\u200E${barber.phone}`}</Text>
+              ) : null}
               {barber.maps_url ? (
                 <Pressable
                   accessibilityRole="button"
@@ -85,15 +161,38 @@ export default function BarberProfilePublicScreen() {
               ) : null}
             </Card>
 
-            <Text style={styles.section}>{t('booking.services')}</Text>
-            {barber.services.length ? barber.services.map((service) => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                selected={selectedServiceId === service.id}
-                onSelect={() => setSelectedServiceId(service.id)}
-              />
-            )) : <EmptyState title={t('booking.noServicesAvailable')} />}
+            {profile?.id && profile.id !== barber.id ? (
+              <Card style={styles.moderationCard}>
+                <UgcModerationActions
+                  targetKind="profile"
+                  targetId={barber.id}
+                  targetName={barber.name}
+                  blockTargetId={barber.id}
+                  additionalReportTarget={{ kind: 'ratings', label: t('moderation.reportRatings') }}
+                  onBlockChange={(next) => {
+                    setBlocked(next);
+                    if (next) setBarber(null);
+                  }}
+                />
+              </Card>
+            ) : null}
+
+            <SectionHeader title={t('booking.services')} />
+            {barber.services.length ? (
+              <View accessibilityRole="radiogroup" style={styles.services}>
+                {barber.services.map((service) => (
+                  <OptionCard
+                    key={service.id}
+                    title={service.name}
+                    subtitle={`${service.duration_minutes} ${t('common.minutes')}`}
+                    value={`${service.price_dzd} ${t('common.dzd')}`}
+                    accessibilityLabel={service.name}
+                    selected={selectedServiceId === service.id}
+                    onPress={() => setSelectedServiceId(service.id)}
+                  />
+                ))}
+              </View>
+            ) : <EmptyState title={t('booking.noServicesAvailable')} />}
 
             {barber.shop ? (
               <Pressable
@@ -110,21 +209,15 @@ export default function BarberProfilePublicScreen() {
                   <Icon name="chevron-back" size={18} color={colors.primary} />
                 </View>
                 <View style={styles.shopFooter}>
-                  <Text style={styles.rating}>★ {barber.shop.average_rating.toFixed(1)} ({barber.shop.rating_count})</Text>
+                  <View style={styles.ratingPill}>
+                    <Icon name="star" size={13} color={colors.accent} />
+                    <Text style={styles.rating}>{barber.shop.average_rating.toFixed(1)} ({barber.shop.rating_count})</Text>
+                  </View>
                   <Text style={styles.shopAction}>{t('find.viewShop')}</Text>
                 </View>
               </Pressable>
             ) : null}
 
-            {profile?.role !== 'barber' && barber.services.length ? (
-              <Button
-                label={t('booking.book')}
-                disabled={!canBook}
-                onPress={() => {
-                  if (selectedService) startBooking(barber.id, selectedService.id);
-                }}
-              />
-            ) : null}
           </>
         ) : !loading ? (
           <View style={styles.errorCard}>
@@ -135,31 +228,6 @@ export default function BarberProfilePublicScreen() {
         ) : null}
       </View>
     </Screen>
-  );
-}
-
-function ServiceCard({ service, selected, onSelect }: { readonly service: BarberService; readonly selected: boolean; readonly onSelect: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityLabel={service.name}
-      accessibilityState={{ selected }}
-      onPress={onSelect}
-      style={({ pressed }) => [styles.serviceCard, selected && styles.serviceCardSelected, pressed && styles.serviceCardPressed]}
-    >
-      <View style={styles.serviceTop}>
-        <Text style={styles.serviceName}>{service.name}</Text>
-        {selected ? <Icon name="checkmark-circle" size={20} color={colors.primary} /> : null}
-      </View>
-      <View style={styles.chips}>
-        <Chip label={`${service.duration_minutes} ${t('common.minutes')}`} />
-        <Chip label={`${service.price_dzd} ${t('common.dzd')}`} />
-      </View>
-      <View style={styles.serviceAction}>
-        <Text style={styles.serviceActionText}>{t('booking.book')}</Text>
-        <Icon name="chevron-back" size={16} color={colors.primary} />
-      </View>
-    </Pressable>
   );
 }
 
@@ -175,36 +243,39 @@ function BarberProfileSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  body: { gap: space[3], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[10] },
-  identityCard: { gap: space[2] },
+  body: { gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[6] },
+  identityCard: { gap: space[3] },
+  identityRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[4] },
+  identityCopy: { flex: 1, minWidth: 0, alignItems: 'flex-end', gap: space[1] },
+  metaRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[1] },
+  moderationCard: { gap: space[2] },
   identityName: { ...typography.title, textAlign: 'right' },
-  identityLocation: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
-  rating: { ...typography.caption, color: colors.accentText, textAlign: 'right' },
-  bio: { ...typography.body, color: colors.textMuted, textAlign: 'right', lineHeight: 24 },
+  identityLocation: { ...typography.caption, textAlign: 'right' },
+  ratingPill: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[1], alignSelf: 'flex-end', paddingHorizontal: space[2], minHeight: 24, borderRadius: radii.pill, backgroundColor: colors.accentSoft },
+  rating: { ...typography.label, fontSize: 12, lineHeight: 18, color: colors.accentText, textAlign: 'right' },
+  bio: { ...typography.body, color: colors.textMuted, textAlign: 'right' },
   phone: { ...typography.caption, color: colors.text, textAlign: 'right' },
-  outlineAction: { minHeight: 44, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: space[2], borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg },
+  outlineAction: { minHeight: 44, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: space[2], borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   outlineActionPressed: { backgroundColor: colors.primarySoft },
-  outlineActionText: { ...typography.label, color: colors.primary },
-  section: { ...typography.titleSm, textAlign: 'right' },
-  serviceCard: { gap: space[3], padding: layout.cardPadding, borderWidth: 1, borderColor: colors.border, borderRadius: radii.xl, backgroundColor: colors.surface },
-  serviceCardSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  serviceCardPressed: { opacity: 0.84 },
-  serviceTop: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
-  serviceName: { ...typography.bodyStrong, textAlign: 'right' },
-  chips: { flexDirection: 'row-reverse', gap: space[2] },
-  serviceAction: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'flex-start', gap: space[1], borderTopWidth: 1, borderTopColor: colors.border, paddingTop: space[2] },
-  serviceActionText: { ...typography.label, color: colors.primary },
-  shopCard: { gap: space[3], padding: layout.cardPadding, borderWidth: 1, borderColor: colors.border, borderRadius: radii.xl, backgroundColor: colors.surface },
+  outlineActionText: { ...typography.label, color: colors.primarySoftText },
+  services: { gap: space[2] },
+  shopCard: { gap: space[3], padding: space[4], borderRadius: radii.lg, backgroundColor: colors.surface, ...elevation.card },
   shopCardPressed: { backgroundColor: colors.primarySoft },
   shopHeader: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[2] },
   shopCopy: { flex: 1, alignItems: 'flex-end', gap: space[1] },
   shopName: { ...typography.bodyStrong, textAlign: 'right' },
-  shopLocation: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
-  shopFooter: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: space[2] },
-  shopAction: { ...typography.label, color: colors.primary },
-  errorCard: { gap: space[3], padding: layout.cardPadding, borderWidth: 1, borderColor: colors.border, borderRadius: radii.xl, backgroundColor: colors.surface },
+  shopLocation: { ...typography.caption, textAlign: 'right' },
+  shopFooter: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.borderSubtle, paddingTop: space[3] },
+  shopAction: { ...typography.label, color: colors.primarySoftText },
+  errorCard: { gap: space[3], padding: layout.cardPadding, borderRadius: radii.lg, backgroundColor: colors.surface, ...elevation.card },
+  footerRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[4] },
+  footerSummary: { flexShrink: 1, alignItems: 'flex-end' },
+  footerCaption: { ...typography.caption, textAlign: 'right' },
+  footerHint: { flexShrink: 1 },
+  footerPrice: { ...typography.numeric, fontSize: 17, lineHeight: 24, textAlign: 'right' },
+  footerButton: { flex: 1 },
   skeleton: { gap: space[3] },
-  skeletonIdentity: { height: 160, borderRadius: radii['2xl'], backgroundColor: colors.surfaceMuted },
+  skeletonIdentity: { height: 160, borderRadius: radii.lg, backgroundColor: colors.surfaceMuted },
   skeletonHeading: { width: '35%', height: 24, alignSelf: 'flex-end', borderRadius: radii.sm, backgroundColor: colors.surfaceMuted },
-  skeletonService: { height: 130, borderRadius: radii.xl, backgroundColor: colors.surfaceMuted },
+  skeletonService: { height: 64, borderRadius: radii.lg, backgroundColor: colors.surfaceMuted },
 });

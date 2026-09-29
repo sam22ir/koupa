@@ -20,6 +20,7 @@ import {
   toWorkspaceRpcPayload,
 } from '@/src/services/mappers/schedule';
 import { AppError, toAppError } from '@/src/services/errors';
+import { excludeBlocked, loadBlockedUserIds } from '@/src/services/ugcModeration';
 
 type MembershipRow = {
   readonly id: string;
@@ -64,6 +65,7 @@ type PublicShopOwnerRow = {
 
 type PublicShopRow = {
   readonly id: string;
+  readonly owner_id: string;
   readonly name: string;
   readonly bio: string | null;
   readonly maps_url: string | null;
@@ -114,14 +116,15 @@ async function searchNearbyPublicRows(
 ): Promise<readonly ShopSummary[]> {
   const { data, error } = await supabase
     .from('shops')
-    .select('id,name,bio,maps_url,latitude,longitude,average_rating,rating_count,owner:profiles!shops_owner_id_fkey(name,city,neighborhood,role,is_published,latitude,longitude,maps_url)');
+    .select('id,owner_id,name,bio,maps_url,latitude,longitude,average_rating,rating_count,owner:profiles!shops_owner_id_fkey(name,city,neighborhood,role,is_published,latitude,longitude,maps_url)');
   if (error) throw toAppError(error);
 
   const safeRadius = Math.min(Math.max(Number.isFinite(radiusKm) ? radiusKm : 25, 1), 100);
+  const blocked = new Set(await loadBlockedUserIds());
   const rows = (data ?? []) as unknown as readonly PublicShopRow[];
   const matches = rows.flatMap((row) => {
     const owner = oneRelation(row.owner);
-    if (!owner || owner.role !== 'barber' || !owner.is_published || !matchesNearbyQuery(row, owner, query)) return [];
+    if (!owner || blocked.has(row.owner_id) || owner.role !== 'barber' || !owner.is_published || !matchesNearbyQuery(row, owner, query)) return [];
 
     const location = parseGeoPoint(row.latitude, row.longitude)
       ?? parseGeoPoint(owner.latitude, owner.longitude)
@@ -275,12 +278,12 @@ export async function searchShopBarberCandidates(query: string, page = 0): Promi
     page_number: page,
   });
   if (error) throw toAppError(error);
-  return (data ?? []).map((item) => ({
+  return excludeBlocked((data ?? []).map((item) => ({
     id: item.id,
     name: item.name,
     city: item.city,
     neighborhood: item.neighborhood,
-  }));
+  })));
 }
 
 export async function inviteBarberToShop(shopId: string, barberId: string): Promise<void> {
@@ -324,7 +327,7 @@ export async function searchShops(query: string, page = 0): Promise<readonly Sho
     throw toAppError(versioned.error);
   }
 
-  return rows.map((item) => ({
+  return filterBlockedShopOwners(rows.map((item) => ({
     id: item.id,
     name: item.name,
     bio: item.bio,
@@ -337,7 +340,7 @@ export async function searchShops(query: string, page = 0): Promise<readonly Sho
     latitude: item.latitude ?? null,
     longitude: item.longitude ?? null,
     distance_km: item.distance_km ?? null,
-  }));
+  })));
 }
 
 export async function searchNearbyShops(
@@ -361,7 +364,7 @@ export async function searchNearbyShops(
     }
     throw toAppError(error);
   }
-  return (data ?? []).map((item) => ({
+  return filterBlockedShopOwners((data ?? []).map((item) => ({
     id: item.id,
     name: item.name,
     bio: item.bio,
@@ -374,7 +377,20 @@ export async function searchNearbyShops(
     latitude: item.latitude ?? null,
     longitude: item.longitude ?? null,
     distance_km: item.distance_km ?? null,
-  }));
+  })));
+}
+
+async function filterBlockedShopOwners<T extends { readonly id: string }>(shops: readonly T[]): Promise<readonly T[]> {
+  if (!shops.length) return shops;
+  const blocked = new Set(await loadBlockedUserIds());
+  if (!blocked.size) return shops;
+  const { data, error } = await supabase
+    .from('shops')
+    .select('id,owner_id')
+    .in('id', shops.map((shop) => shop.id));
+  if (error) throw toAppError(error);
+  const hidden = new Set((data ?? []).filter((row) => blocked.has(row.owner_id)).map((row) => row.id));
+  return shops.filter((shop) => !hidden.has(shop.id));
 }
 
 export async function getShop(shopId: string): Promise<ShopProfile | null> {
@@ -388,6 +404,14 @@ export async function getShop(shopId: string): Promise<ShopProfile | null> {
   }
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) return null;
+  const blocked = new Set(await loadBlockedUserIds());
+  const { data: owner, error: ownerError } = await supabase
+    .from('shops')
+    .select('owner_id')
+    .eq('id', shopId)
+    .maybeSingle();
+  if (ownerError) throw toAppError(ownerError);
+  if (!owner || blocked.has(owner.owner_id)) return null;
   return {
     id: row.id,
     name: row.name,
@@ -398,11 +422,12 @@ export async function getShop(shopId: string): Promise<ShopProfile | null> {
     average_rating: Number(row.average_rating ?? 0),
     rating_count: row.rating_count ?? 0,
     owner_name: row.owner_name,
+    owner_id: owner.owner_id,
     barbers: Array.isArray(row.barbers)
       ? row.barbers.flatMap((item) => {
           if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
           const barber = item as Record<string, unknown>;
-          if (typeof barber.id !== 'string' || typeof barber.name !== 'string') return [];
+          if (typeof barber.id !== 'string' || typeof barber.name !== 'string' || blocked.has(barber.id)) return [];
           return [{
             id: barber.id,
             name: barber.name,
@@ -412,6 +437,12 @@ export async function getShop(shopId: string): Promise<ShopProfile | null> {
         })
       : [],
   };
+}
+
+export async function getShopOwnerId(shopId: string): Promise<string | null> {
+  const { data, error } = await supabase.from('shops').select('owner_id').eq('id', shopId).maybeSingle();
+  if (error) throw toAppError(error);
+  return data?.owner_id ?? null;
 }
 
 export async function removeShopMember(membershipId: string): Promise<void> {

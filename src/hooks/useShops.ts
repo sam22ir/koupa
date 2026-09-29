@@ -10,6 +10,9 @@ import type {
 import { classifyShopRelationship, emptyShopDraft } from '@/src/shops';
 import * as shopsService from '@/src/services/shops';
 import { errorCode } from '@/src/services/errors';
+import { withTimeout } from '@/src/utils/withTimeout';
+
+const SHOP_STATE_LOAD_TIMEOUT_MS = 12_000;
 
 function toUiError(error: unknown): string {
   const code = errorCode(error);
@@ -35,8 +38,11 @@ export function useShops(userId?: string) {
   const searchRequestRef = useRef(0);
   const detailRequestRef = useRef(0);
 
-  useEffect(() => () => {
-    activeRef.current = false;
+  useEffect(() => {
+    activeRef.current = true;
+    return () => {
+      activeRef.current = false;
+    };
   }, []);
 
   const load = useCallback(async () => {
@@ -47,7 +53,10 @@ export function useShops(userId?: string) {
     setLoading(true);
     setError('');
     try {
-      const next = await shopsService.loadBarberShopState(userId);
+      const next = await withTimeout(
+        shopsService.loadBarberShopState(userId),
+        SHOP_STATE_LOAD_TIMEOUT_MS,
+      );
       if (activeRef.current) setState(next);
     } catch {
       if (activeRef.current) setError('failed');

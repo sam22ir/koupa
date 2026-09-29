@@ -35,6 +35,7 @@ const validDraft = {
 
 const mockSaveDraft = jest.fn();
 const mockPublishBarber = jest.fn();
+const mockCreateBarber = jest.fn();
 let mockHookValue: Record<string, unknown>;
 
 jest.mock('@/src/hooks/useOnboarding', () => ({
@@ -48,6 +49,7 @@ describe('BarberOnboardingScreen', () => {
     jest.clearAllMocks();
     mockSaveDraft.mockResolvedValue(undefined);
     mockPublishBarber.mockResolvedValue(undefined);
+    mockCreateBarber.mockResolvedValue(undefined);
     mockSession.refreshProfile.mockResolvedValue(undefined);
     mockHookValue = {
       draft: validDraft,
@@ -57,17 +59,18 @@ describe('BarberOnboardingScreen', () => {
       hydrating: false,
       saveDraft: mockSaveDraft,
       publishBarber: mockPublishBarber,
+      createBarber: mockCreateBarber,
     };
   });
 
-  it('resumes at the asynchronously hydrated saved step', async () => {
+  it('clamps a draft saved by the previous five-step wizard to the last setup step', async () => {
     mockHookValue = { ...mockHookValue, hydrating: true, draftStep: 0 };
     const view = await render(<BarberOnboardingScreen />);
 
     mockHookValue = { ...mockHookValue, hydrating: false, draftStep: 3 };
     await view.rerender(<BarberOnboardingScreen />);
 
-    await waitFor(() => expect(screen.getByText(/4\/5/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/2\/2/)).toBeTruthy());
   });
 
   it('blocks the next step when basic information is invalid', async () => {
@@ -120,32 +123,6 @@ describe('BarberOnboardingScreen', () => {
     expect(screen.getByLabelText('الحي')).toBeTruthy();
   });
 
-  it('shows service add actions', async () => {
-    mockHookValue = {
-      ...mockHookValue,
-      draftStep: 2,
-      draft: { ...validDraft, services: [{ name: '', priceDzd: '', durationMinutes: '30' }] },
-    };
-    await render(<BarberOnboardingScreen />);
-    expect(screen.getByRole('button', { name: 'إضافة خدمة' })).toBeTruthy();
-  });
-
-  it('allows direct review edits', async () => {
-    mockHookValue = { ...mockHookValue, draftStep: 4 };
-    await render(<BarberOnboardingScreen />);
-
-    await fireEvent.press(screen.getByRole('button', { name: 'تعديل الملف' }));
-    await waitFor(() => expect(screen.getByText(/1\/5/)).toBeTruthy());
-  });
-
-  it('renders weekly hours and constrained intervals in the working-hours step', async () => {
-    mockHookValue = { ...mockHookValue, draftStep: 3 };
-    await render(<BarberOnboardingScreen />);
-
-    expect(screen.getByText('ساعات العمل الأسبوعية')).toBeTruthy();
-    expect(screen.getByRole('radio', { name: '30 دقيقة' })).toBeSelected();
-  });
-
   it('keeps the current step and shows a save error', async () => {
     mockSaveDraft.mockRejectedValueOnce(new Error('Network request failed'));
     await render(<BarberOnboardingScreen />);
@@ -163,12 +140,12 @@ describe('BarberOnboardingScreen', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'رجوع' }));
 
-    expect(screen.getByText(/1\/5/)).toBeTruthy();
+    expect(screen.getByText(/1\/2/)).toBeTruthy();
     expect(mockSaveDraft).not.toHaveBeenCalled();
   });
 
   it('offers account exit on every onboarding step and reports sign-out failures', async () => {
-    mockHookValue = { ...mockHookValue, draftStep: 2 };
+    mockHookValue = { ...mockHookValue, draftStep: 1 };
     mockSession.signOut.mockRejectedValueOnce(new Error('Network request failed'));
     await render(<BarberOnboardingScreen />);
 
@@ -178,23 +155,32 @@ describe('BarberOnboardingScreen', () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
-  it('publishes into the Today tab after a successful review', async () => {
-    mockHookValue = { ...mockHookValue, draft: validDraft, draftStep: 4 };
+
+  it('creates the account from the location step and lands in the workspace', async () => {
+    mockHookValue = { ...mockHookValue, draftStep: 1, draft: validDraft };
     await render(<BarberOnboardingScreen />);
 
-    await fireEvent.press(screen.getByRole('button', { name: 'نشر الملف' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'إنشاء الملف' }));
 
     await waitFor(() => {
-      expect(mockPublishBarber).toHaveBeenCalled();
+      expect(mockCreateBarber).toHaveBeenCalled();
       expect(router.replace).toHaveBeenCalledWith('/(barber)/today');
     });
+    // Publishing is a separate, later action taken from the workspace.
+    expect(mockPublishBarber).not.toHaveBeenCalled();
   });
 
-  it('exposes schedule presets on the hours step', async () => {
-    mockHookValue = { ...mockHookValue, draftStep: 3 };
+  it('does not create the account while the location step is incomplete', async () => {
+    mockHookValue = {
+      ...mockHookValue,
+      draftStep: 1,
+      draft: { ...validDraft, city: '', neighborhood: '', mapsUrl: '', latitude: '', longitude: '' },
+    };
     await render(<BarberOnboardingScreen />);
 
-    expect(screen.getByRole('button', { name: 'الأحد-الخميس 9-18' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'إعادة الافتراضي' })).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'إنشاء الملف' }));
+
+    expect(await screen.findByText('أدخل المدينة والحي ورابط Google Maps صالحا.')).toBeTruthy();
+    expect(mockCreateBarber).not.toHaveBeenCalled();
   });
 });

@@ -3,24 +3,23 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
-  appointmentStatusLabel,
   canCancelCustomerAppointment,
   formatAppointmentWhen,
   type Appointment,
 } from '@/src/booking';
 import { splitAppointments, type AppointmentGroups } from '@/src/customerAppointments';
 import {
+  AppointmentStatusBadge,
   Button,
-  Chip,
-  CustomerStageHeader,
   EmptyState,
+  Icon,
   ErrorBanner,
   Screen,
 } from '@/src/components/ui';
 import { UpcomingAppointmentCard } from '@/src/features/customer-home/UpcomingAppointmentCard';
 import { loadCustomerAppointments, useBooking } from '@/src/hooks/useBooking';
 import { t } from '@/src/i18n';
-import { colors, radii, space, typography } from '@/src/theme';
+import { colors, elevation, radii, space, typography } from '@/src/theme';
 
 type AppointmentTab = 'upcoming' | 'past';
 
@@ -98,8 +97,8 @@ export default function AppointmentsScreen() {
 
   return (
     <Screen padded={false}>
-      <CustomerStageHeader title={t('appointments.title')} tone="paper" />
       <View style={styles.body}>
+        <Text accessibilityRole="header" style={styles.title}>{t('tabs.appointments')}</Text>
         <View style={styles.tabs} accessibilityRole="tablist">
           {tabs.map((tab) => {
             const selected = activeTab === tab;
@@ -189,23 +188,27 @@ function AppointmentCard({
   }
 
   return (
-    <View style={styles.card}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${item.service_name}، ${t('appointments.openDetails')}`}
-        onPress={openDetails}
-        style={({ pressed }) => [styles.cardMain, pressed && styles.cardPressed]}
-      >
-        <View style={styles.cardTop}>
-          <Chip label={appointmentStatusLabel(item.status)} tone={item.status === 'booked' ? 'accent' : 'neutral'} />
-          <Text style={styles.service}>{item.service_name}</Text>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${item.service_name}، ${t('appointments.openDetails')}`}
+      onPress={openDetails}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+    >
+      <View style={styles.cardTop}>
+        <Text style={styles.service} numberOfLines={2}>{item.service_name}</Text>
+        <AppointmentStatusBadge status={item.status} />
+      </View>
+      <Text style={styles.meta} numberOfLines={1}>
+        {[item.barber_name ?? '—', item.shop_name].filter(Boolean).join(' · ')}
+      </Text>
+      <View style={styles.whenRow}>
+        <View style={styles.when}>
+          <Icon name="calendar-outline" size={15} color={colors.textMuted} />
+          <Text style={styles.whenText}>{formatAppointmentWhen(item.starts_at)}</Text>
         </View>
-        <Text style={styles.meta}>{item.barber_name ?? '—'}</Text>
-        {item.shop_name ? <Text style={styles.meta}>{item.shop_name}</Text> : null}
-        <Text style={styles.meta}>{formatAppointmentWhen(item.starts_at)}</Text>
-      </Pressable>
-      <Button label={t('appointments.openDetails')} variant="secondary" onPress={openDetails} />
-    </View>
+        <Icon name="chevron-back" size={18} color={colors.textSubtle} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -213,32 +216,34 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     paddingHorizontal: space[5],
+    paddingTop: space[2],
     gap: space[3],
   },
+  title: { ...typography.title, textAlign: 'right' },
   tabs: {
     flexDirection: 'row-reverse',
-    gap: space[2],
+    gap: space[1],
     backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.lg,
+    borderRadius: radii.pill,
     padding: space[1],
   },
   tab: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
   },
   tabSelected: {
     backgroundColor: colors.surface,
-    elevation: 1,
+    ...elevation.card,
   },
   tabText: {
     ...typography.label,
     color: colors.textMuted,
   },
   tabTextSelected: {
-    color: colors.primary,
+    color: colors.primarySoftText,
   },
   retryWrap: {
     gap: space[2],
@@ -251,27 +256,23 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: space[3],
+    paddingTop: space[1],
     paddingBottom: space[8],
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radii.lg,
     padding: space[4],
-    gap: space[3],
-  },
-  cardMain: {
     gap: space[2],
-    borderRadius: radii.md,
+    ...elevation.card,
   },
   cardPressed: {
-    opacity: 0.78,
+    backgroundColor: colors.primarySoft,
   },
   cardTop: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: space[2],
   },
   service: {
@@ -283,4 +284,15 @@ const styles = StyleSheet.create({
     ...typography.caption,
     textAlign: 'right',
   },
+  whenRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: space[1],
+    paddingTop: space[2],
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  when: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[1] },
+  whenText: { ...typography.label, color: colors.text },
 });

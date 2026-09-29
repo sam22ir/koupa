@@ -23,6 +23,7 @@ export interface ShopBarber {
 }
 
 export interface ShopProfile extends ShopSummary {
+  readonly owner_id?: string;
   readonly barbers: readonly ShopBarber[];
 }
 

@@ -16,6 +16,9 @@ function TabLabel({ label, focused }: { label: string; focused: boolean }) {
 export default function BarberLayout() {
   return (
     <Tabs
+      // Shop sub-screens are hidden tabs; history lets Back return to the
+      // screen the barber came from instead of the first tab.
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar } from '@/src/components/ui/Avatar';
 import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
-import { Chip } from '@/src/components/ui/Chip';
+import { StatusBadge } from '@/src/components/ui/StatusBadge';
 import { Icon } from '@/src/components/ui/Icon';
 import { t } from '@/src/i18n';
 import { formatMembershipActivity, membershipStatusLabel, type ShopMembership } from '@/src/shops';
@@ -45,7 +45,7 @@ function MemberRow({
         {secondary ? <Text style={styles.meta}>{secondary}</Text> : null}
       </View>
       <View style={styles.rowTail}>
-        <Chip label={membershipStatusLabel(member.status)} tone={member.status === 'active' ? 'primary' : 'accent'} />
+        <StatusBadge label={membershipStatusLabel(member.status)} tone={member.status === 'active' ? 'success' : member.status === 'pending' ? 'warning' : 'danger'} />
         {onPress ? <Icon name="chevron-back" size={18} color={colors.textMuted} /> : null}
       </View>
     </View>
@@ -81,6 +81,7 @@ export function ShopMemberList({
         {onInvite ? (
           <Button
             label={t('shopWorkspace.invite')}
+            variant="secondary"
             loading={inviteLoading}
             onPress={onInvite}
             style={styles.inviteButton}
@@ -148,7 +149,7 @@ const styles = StyleSheet.create({
   wrap: { gap: space[3] },
   sectionHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: space[3] },
   sectionTitle: { ...typography.bodyStrong, textAlign: 'right' },
-  inviteButton: { minHeight: 44, minWidth: 118, paddingHorizontal: space[3] },
+  inviteButton: { height: 40, minHeight: 40, paddingHorizontal: space[4] },
   listCard: { padding: 0, overflow: 'hidden' },
   row: { minHeight: 68, flexDirection: 'row-reverse', alignItems: 'center', gap: space[3], padding: space[3] },
   pressable: { borderRadius: radii.md },

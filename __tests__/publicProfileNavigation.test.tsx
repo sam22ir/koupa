@@ -1,6 +1,18 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 
+// These screens pull in the moderation actions, which import the real Supabase
+// client at module load. Rendering a screen must not require credentials.
+jest.mock('@/lib/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
+    },
+    rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
+    from: jest.fn(),
+  },
+}));
+
 import BarberProfileScreen from '@/app/barber/[id]';
 import ShopProfileScreen from '@/app/shop/[id]';
 
@@ -9,6 +21,7 @@ const mockDismissTo = jest.fn();
 const mockSetPendingIntent = jest.fn();
 let mockParams: Record<string, string> = { id: 'barber-1' };
 let mockProfile: { role: 'customer' | 'barber' } | null = null;
+let mockGuestBrowsing = false;
 let mockBarber = {
   id: 'barber-1',
   name: 'سمير',
@@ -44,7 +57,7 @@ jest.mock('@/src/navigation/pendingIntent', () => ({
 }));
 
 jest.mock('@/src/providers/SessionProvider', () => ({
-  useAppSession: () => ({ profile: mockProfile }),
+  useAppSession: () => ({ profile: mockProfile, guestBrowsing: mockGuestBrowsing }),
 }));
 
 jest.mock('@/src/hooks/useBooking', () => ({
@@ -80,6 +93,7 @@ describe('public profile role navigation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockProfile = null;
+    mockGuestBrowsing = false;
     mockParams = { id: 'barber-1' };
     mockBarber = { ...mockBarber, services: [{ id: 'cut', name: 'حلاقة', price_dzd: 800, duration_minutes: 30 }] };
   });
@@ -92,7 +106,25 @@ describe('public profile role navigation', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'احجز' }));
 
     expect(mockSetPendingIntent).toHaveBeenCalledWith('/book/barber-1', { serviceId: 'cut', returnTo: '/barber/barber-1' });
-    expect(mockPush).toHaveBeenCalledWith('/(auth)/sign-in');
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(auth)/sign-up',
+      params: { role: 'customer' },
+    });
+  });
+
+  it('opens the booking page directly for a browsing guest', async () => {
+    mockGuestBrowsing = true;
+    await render(<BarberProfileScreen />);
+    await screen.findByText('سمير');
+
+    await fireEvent.press(screen.getByRole('radio', { name: 'حلاقة' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'احجز' }));
+
+    expect(mockSetPendingIntent).not.toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/book/[barberId]',
+      params: { barberId: 'barber-1', serviceId: 'cut', returnTo: '/barber/barber-1' },
+    });
   });
 
   it('does not expose Customer booking to Barber accounts', async () => {

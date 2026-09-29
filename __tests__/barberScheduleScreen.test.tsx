@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 
 import BarberScheduleScreen from '../app/(barber)/schedule';
 import { emptyBarberSettingsDraft } from '../src/barberSettings';
+import { applySchedulePreset, serviceExamples } from '../src/data/onboarding';
 
 function elementChildren<T extends { props: Record<string, unknown> }>(
   node: { children: ReadonlyArray<string | T> },
@@ -28,8 +29,15 @@ jest.mock('react-native-safe-area-context', () => ({
 
 jest.mock('@react-native-community/datetimepicker', () => () => null);
 
+const mockLoadReadiness = jest.fn();
+let mockProfile: Record<string, unknown> = { id: 'barber-1' };
+
+jest.mock('../src/services/onboarding', () => ({
+  loadBarberPublishReadiness: (...args: unknown[]) => mockLoadReadiness(...args),
+}));
+
 jest.mock('../src/providers/SessionProvider', () => ({
-  useAppSession: () => ({ session: { user: { id: 'barber-1' } }, profile: { id: 'barber-1' } }),
+  useAppSession: () => ({ session: { user: { id: 'barber-1' } }, profile: mockProfile }),
 }));
 
 const activeService = {
@@ -67,6 +75,8 @@ describe('BarberScheduleScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAddListener.mockReturnValue(jest.fn());
+    mockProfile = { id: 'barber-1' };
+    mockLoadReadiness.mockResolvedValue({ hasServices: true, hasWorkingHours: true });
     mockHookValue = {
       draft: {
         ...workspaceSettings,
@@ -87,15 +97,43 @@ describe('BarberScheduleScreen', () => {
     };
   });
 
-  it('renders the branded workspace, positive booking status, tabs, and sticky Save', async () => {
+  it('renders booking status and tabs without a screen masthead', async () => {
     await render(<BarberScheduleScreen />);
 
-    expect(screen.getByText('الجدول والخدمات')).toBeTruthy();
+    expect(screen.queryByText('الجدول والخدمات')).toBeNull();
+    expect(screen.getByText('ساعات العمل الأسبوعية')).toBeTruthy();
     expect(screen.getByRole('switch', { name: 'استقبال الحجوزات' })).toBeChecked();
     expect(screen.getByRole('tab', { name: 'الجدول' })).toBeSelected();
     expect(screen.getByRole('tab', { name: 'الخدمات' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'الإعدادات' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'حفظ التغييرات' })).toBeNull();
+  });
+
+  it('offers one-tap starters to an unpublished barber with nothing saved', async () => {
+    mockProfile = { id: 'barber-1', role: 'barber', is_published: false };
+    mockLoadReadiness.mockResolvedValue({ hasServices: false, hasWorkingHours: false });
+    await render(<BarberScheduleScreen />);
+
+    await fireEvent.press(await screen.findByTestId('starter-week-918'));
+    expect(mockSetDraft).toHaveBeenLastCalledWith(expect.objectContaining({
+      settings: expect.objectContaining({ schedules: applySchedulePreset('weekdays918') }),
+    }));
+
+    await fireEvent.press(screen.getByTestId(`starter-service-${serviceExamples[0].name}`));
+    expect(mockSetDraft).toHaveBeenLastCalledWith(expect.objectContaining({
+      settings: expect.objectContaining({
+        services: expect.arrayContaining([expect.objectContaining({ name: serviceExamples[0].name })]),
+      }),
+    }));
+  });
+
+  it('shows no starters to a published barber', async () => {
+    mockProfile = { id: 'barber-1', role: 'barber', is_published: true };
+    mockLoadReadiness.mockResolvedValue({ hasServices: false, hasWorkingHours: false });
+    await render(<BarberScheduleScreen />);
+
+    expect(screen.queryByTestId('starter-setup')).toBeNull();
+    expect(mockLoadReadiness).not.toHaveBeenCalled();
   });
 
   it('edits weekly hours, breaks, and date exceptions from the Schedule tab', async () => {

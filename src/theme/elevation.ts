@@ -1,17 +1,26 @@
 import { Platform, type ViewStyle } from 'react-native';
 
-import { colors } from './colors';
+import { ink, teal } from './colors';
 
-const nativeCard: ViewStyle = {
-  shadowColor: colors.text,
-  shadowOpacity: 0.08,
-  shadowRadius: 18,
-  shadowOffset: { width: 0, height: 8 },
-  elevation: 4,
-};
+function shadow(color: string, opacity: number, radius: number, y: number, androidElevation: number): ViewStyle {
+  if (Platform.OS === 'web') return {};
+  return {
+    shadowColor: color,
+    shadowOpacity: opacity,
+    shadowRadius: radius,
+    shadowOffset: { width: 0, height: y },
+    elevation: androidElevation,
+  };
+}
 
-/** Floating card elevation used when content overlaps the teal stage. */
+/**
+ * Three depth levels:
+ * - `card`: default raised surface (barber cards, summaries).
+ * - `float`: content lifted over the teal stage, sticky bars, sheets.
+ * Flat surfaces use a 1px `colors.border` outline instead of a shadow.
+ */
 export const elevation = {
   none: {} as ViewStyle,
-  card: Platform.OS === 'web' ? ({} as ViewStyle) : nativeCard,
+  card: shadow(ink[950], 0.08, 16, 6, 3),
+  float: shadow(teal[950], 0.22, 28, 12, 8),
 } as const;

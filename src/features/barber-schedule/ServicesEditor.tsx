@@ -52,6 +52,7 @@ export function ServicesEditor({
       <View testID="services-overview-header" style={styles.overviewHeader}>
         <Button
           label="إضافة خدمة"
+          variant="secondary"
           onPress={() => setEditor({ index: null, value: { ...emptyService } })}
           style={styles.addButton}
         />
@@ -78,19 +79,15 @@ export function ServicesEditor({
             onPress={() => setEditor({ index, value: { ...service } })}
             style={({ pressed }) => [styles.row, pressed && styles.pressed]}
           >
+            <View style={styles.rowIcon}>
+              <Icon name="cut-outline" size={18} color={colors.primarySoftText} />
+            </View>
             <View style={styles.rowCopy}>
               <Text style={styles.serviceName}>{service.name || 'خدمة بدون اسم'}</Text>
-              <View style={styles.serviceFacts}>
-                <View style={styles.serviceFact}>
-                  <Text style={styles.serviceFactValue}>{service.priceDzd || '0'} دج</Text>
-                  <Text style={styles.serviceFactLabel}>السعر</Text>
-                </View>
-                <View style={styles.serviceFact}>
-                  <Text style={styles.serviceFactValue}>{service.durationMinutes || '0'} دقيقة</Text>
-                  <Text style={styles.serviceFactLabel}>المدة</Text>
-                </View>
-              </View>
+              <Text style={styles.serviceDuration}>{service.durationMinutes || '0'} دقيقة</Text>
             </View>
+            <Text style={styles.servicePrice}>{service.priceDzd || '0'} دج</Text>
+            <Icon name="chevron-back" size={17} color={colors.textSubtle} />
           </Pressable>
         ))}
         {!active.length ? <Text style={styles.empty}>أضف خدمتك الأولى لتظهر للحجز.</Text> : null}
@@ -163,7 +160,7 @@ export function ServicesEditor({
                   <Text style={styles.archiveConfirmBody}>لن تظهر للحجوزات الجديدة، وستبقى محفوظة في المواعيد السابقة.</Text>
                   <View style={styles.archiveConfirmActions}>
                     <Button label="إلغاء" variant="secondary" onPress={() => setConfirmArchive(false)} style={styles.action} />
-                    <Button label="تأكيد الأرشفة" variant="danger" onPress={archive} style={styles.action} />
+                    <Button label="تأكيد الأرشفة" variant="dangerSolid" onPress={archive} style={styles.action} />
                   </View>
                 </View>
               ) : null}
@@ -185,18 +182,21 @@ const styles = StyleSheet.create({
   titleCopy: { flex: 1, gap: space[1] },
   title: { ...typography.titleSm, textAlign: 'right' },
   helper: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
-  addButton: { minHeight: 44, minWidth: 118, paddingHorizontal: space[3] },
+  addButton: { height: 40, minHeight: 40, paddingHorizontal: space[4] },
   error: { ...typography.caption, color: colors.danger, textAlign: 'right' },
   list: { gap: space[2] },
-  row: { minHeight: 82, flexDirection: 'row-reverse', alignItems: 'center', gap: space[3], borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surface, padding: space[3] },
-  rowCopy: { flex: 1, gap: space[2], alignItems: 'flex-end' },
+  row: { minHeight: 64, flexDirection: 'row-reverse', alignItems: 'center', gap: space[3], borderWidth: 1, borderColor: colors.borderSubtle, borderRadius: radii.md, backgroundColor: colors.surface, paddingHorizontal: space[3], paddingVertical: space[2] },
+  rowIcon: { width: 36, height: 36, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft },
+  rowCopy: { flex: 1, minWidth: 0, gap: 2, alignItems: 'flex-end' },
+  serviceDuration: { ...typography.caption, textAlign: 'right' },
+  servicePrice: { ...typography.numeric, textAlign: 'left' },
   serviceName: { ...typography.bodyStrong, textAlign: 'right' },
   serviceFacts: { flexDirection: 'row-reverse', gap: space[2] },
   serviceFact: { minWidth: 78, gap: 2, borderRadius: radii.sm, backgroundColor: colors.primarySoft, paddingHorizontal: space[2], paddingVertical: space[1], alignItems: 'center' },
   serviceFactValue: { ...typography.label, color: colors.primary, textAlign: 'center', fontVariant: ['tabular-nums'] },
   serviceFactLabel: { ...typography.caption, color: colors.primary, textAlign: 'center' },
   empty: { ...typography.caption, color: colors.textMuted, textAlign: 'right', paddingVertical: space[3] },
-  pressed: { opacity: 0.7, borderColor: colors.primary },
+  pressed: { backgroundColor: colors.background },
   archivedSection: { borderTopWidth: 1, borderTopColor: colors.border },
   archivedHeader: { minHeight: 54, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
   archivedTitleRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[2] },
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   archivedFactValue: { ...typography.label, color: colors.text, textAlign: 'center', fontVariant: ['tabular-nums'] },
   archivedFactLabel: { ...typography.caption, color: colors.textMuted, textAlign: 'center' },
   restore: { minHeight: 40, minWidth: 82, paddingHorizontal: space[3] },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,30,38,0.42)' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.scrim },
   modalSheet: { gap: space[4], borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, backgroundColor: colors.surface, padding: space[5] },
   modalHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
   modalTitle: { ...typography.titleSm, textAlign: 'right' },

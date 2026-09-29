@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Linking, Text } from 'react-native';
 
 import ConfirmScreen from '../app/(auth)/confirm';
+import CompleteAccountScreen from '../app/(auth)/complete-account';
 import LegalErrorScreen from '../app/(auth)/legal-error';
 import LegalConsentScreen from '../app/(auth)/legal-consent';
 import ResetPasswordScreen from '../app/(auth)/reset-password';
@@ -36,6 +37,7 @@ const mockSession = {
   busy: false,
   pendingRole: 'customer' as 'customer' | 'barber' | null,
   setPendingRole: jest.fn(),
+  confirmProfilelessRole: jest.fn(),
   signInWithGoogle: jest.fn(),
   linkGoogleIdentity: jest.fn(),
   signInWithPassword: jest.fn(),
@@ -54,10 +56,22 @@ const mockSession = {
   retrySession: jest.fn(),
   bootstrapError: null as unknown,
   updatePassword: jest.fn(),
+  refreshProfile: jest.fn(),
 };
 
 jest.mock('../src/providers/SessionProvider', () => ({
   useAppSession: () => mockSession,
+}));
+
+const mockGetSession = jest.fn();
+const mockCreateCustomerProfile = jest.fn();
+
+jest.mock('../src/services/auth', () => ({
+  getSession: (...args: unknown[]) => mockGetSession(...args),
+}));
+
+jest.mock('../src/services/onboarding', () => ({
+  createCustomerProfile: (...args: unknown[]) => mockCreateCustomerProfile(...args),
 }));
 
 const mockLoadLegalDocuments = jest.fn();
@@ -218,6 +232,7 @@ describe('SignUpScreen', () => {
 
     expect(screen.getByText('أنشئ حسابك ببريدك وأضف رقم هاتف للتواصل وابدأ تجهيز ملفك المهني.')).toBeTruthy();
     expect(screen.getByText('حلاق')).toBeTruthy();
+    expect(screen.queryByLabelText('اسم المحل')).toBeNull();
   });
 
   it('returns a direct signup URL to welcome when no signup intent exists', async () => {
@@ -245,10 +260,13 @@ describe('SignUpScreen', () => {
     expect(screen.getByDisplayValue('secret123')).toBeTruthy();
   });
 
-  it('submits the email account and normalized contact phone together', async () => {
+  it('creates a customer account and profile from one form', async () => {
     mockSession.signUpWithPassword.mockResolvedValueOnce('signup');
+    mockGetSession.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    mockCreateCustomerProfile.mockResolvedValueOnce(undefined);
     await render(<SignUpScreen />);
 
+    await fireEvent.changeText(screen.getByLabelText('الاسم'), 'سارة');
     await fireEvent.changeText(screen.getByLabelText('البريد الإلكتروني'), 'customer@example.com');
     await fireEvent.changeText(screen.getByLabelText('رقم الهاتف للتواصل'), '0555123456');
     await fireEvent.changeText(screen.getByLabelText('كلمة المرور'), 'secret123');
@@ -257,11 +275,85 @@ describe('SignUpScreen', () => {
     await waitFor(() => {
       expect(mockSession.signUpWithPassword).toHaveBeenCalledWith({
         email: 'customer@example.com',
+        name: 'سارة',
         phone: '+213555123456',
         password: 'secret123',
         role: 'customer',
       });
-      expect(mockRouter.replace).toHaveBeenCalledWith('/(auth)/confirm');
+      expect(mockCreateCustomerProfile).toHaveBeenCalledWith('user-1', 'سارة', '+213555123456');
+      expect(mockSession.refreshProfile).toHaveBeenCalledWith('user-1');
+      expect(mockRouter.replace).toHaveBeenCalledWith('/');
+    });
+  });
+
+  it('needs no consent checkbox, only a notice with the legal links', async () => {
+    await render(<SignUpScreen />);
+
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getByText('الشروط')).toBeTruthy();
+    expect(screen.getByText('الخصوصية')).toBeTruthy();
+  });
+
+  it('requires a name for customers', async () => {
+    await render(<SignUpScreen />);
+
+    await fireEvent.changeText(screen.getByLabelText('البريد الإلكتروني'), 'customer@example.com');
+    await fireEvent.changeText(screen.getByLabelText('رقم الهاتف للتواصل'), '0555123456');
+    await fireEvent.changeText(screen.getByLabelText('كلمة المرور'), 'secret123');
+    await fireEvent.press(screen.getByRole('button', { name: 'إنشاء حساب' }));
+
+    expect(await screen.findByText('أدخل اسمك.')).toBeTruthy();
+    expect(mockSession.signUpWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('falls back to customer setup when profile creation fails after signup', async () => {
+    mockSession.signUpWithPassword.mockResolvedValueOnce('signup');
+    mockGetSession.mockResolvedValueOnce({ user: { id: 'user-1' } });
+    mockCreateCustomerProfile.mockRejectedValueOnce(new Error('network'));
+    await render(<SignUpScreen />);
+
+    await fireEvent.changeText(screen.getByLabelText('الاسم'), 'سارة');
+    await fireEvent.changeText(screen.getByLabelText('البريد الإلكتروني'), 'customer@example.com');
+    await fireEvent.changeText(screen.getByLabelText('رقم الهاتف للتواصل'), '0555123456');
+    await fireEvent.changeText(screen.getByLabelText('كلمة المرور'), 'secret123');
+    await fireEvent.press(screen.getByRole('button', { name: 'إنشاء حساب' }));
+
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/'));
+    expect(mockSession.refreshProfile).not.toHaveBeenCalled();
+  });
+
+  it('asks a barber for their name at signup but creates no customer profile', async () => {
+    mockSearchParams.mockReturnValue({ role: 'barber' });
+    mockSession.pendingRole = 'barber';
+    mockSession.signUpWithPassword.mockResolvedValueOnce('signup');
+    await render(<SignUpScreen />);
+
+    await fireEvent.changeText(screen.getByLabelText('الاسم'), 'سمير');
+    await fireEvent.changeText(screen.getByLabelText('البريد الإلكتروني'), 'barber@example.com');
+    await fireEvent.changeText(screen.getByLabelText('رقم الهاتف للتواصل'), '0555123456');
+    await fireEvent.changeText(screen.getByLabelText('كلمة المرور'), 'secret123');
+    await fireEvent.press(screen.getByRole('button', { name: 'إنشاء حساب' }));
+
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/'));
+    expect(mockSession.signUpWithPassword).toHaveBeenCalledWith({
+      email: 'barber@example.com',
+      name: 'سمير',
+      phone: '+213555123456',
+      password: 'secret123',
+      role: 'barber',
+    });
+    expect(mockCreateCustomerProfile).not.toHaveBeenCalled();
+  });
+
+  it('offers Google first without a consent step', async () => {
+    mockSession.signInWithGoogle.mockResolvedValueOnce({ kind: 'session' });
+    await render(<SignUpScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'المتابعة مع Google' }));
+
+    await waitFor(() => {
+      expect(mockSession.signInWithGoogle).toHaveBeenCalledWith('customer');
+      expect(mockRouter.replace).toHaveBeenCalledWith('/');
     });
   });
 
@@ -272,11 +364,78 @@ describe('SignUpScreen', () => {
     expect(mockRouter.push).toHaveBeenCalledWith('/(auth)/sign-in');
   });
 
-  it('returns to role intro from role-specific sign up', async () => {
+  it('returns directly to welcome from role-specific sign up', async () => {
     await render(<SignUpScreen />);
 
     await fireEvent.press(screen.getByRole('button', { name: 'رجوع' }));
-    expect(mockRouter.dismissTo).toHaveBeenCalledWith('/(auth)/role-intro');
+    expect(mockRouter.dismissTo).toHaveBeenCalledWith('/(auth)/welcome');
+  });
+});
+
+describe('CompleteAccountScreen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSession.pendingRole = null;
+    mockSession.legalDocuments = [
+      { key: 'terms', version: '2026-07-29', url: 'https://example.test/terms' },
+      { key: 'privacy', version: '2026-07-29', url: 'https://example.test/privacy' },
+    ];
+  });
+
+  it('requires a role and explicit legal consent before completing a profileless account', async () => {
+    mockSession.acceptCurrentLegalDocuments.mockResolvedValueOnce(undefined);
+    mockSession.confirmProfilelessRole.mockResolvedValueOnce(undefined);
+    await render(<CompleteAccountScreen />);
+
+    const continueButton = screen.getByRole('button', { name: 'حفظ ومتابعة' });
+    expect(continueButton.props.accessibilityState?.disabled).toBe(true);
+
+    await fireEvent.press(screen.getByRole('radio', { name: /زبون/ }));
+    expect(continueButton.props.accessibilityState?.disabled).toBe(true);
+
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'أوافق على الشروط والأحكام وسياسة الخصوصية الخاصة بتطبيق كوپا.' }));
+    await fireEvent.press(continueButton);
+
+    await waitFor(() => {
+      expect(mockSession.acceptCurrentLegalDocuments).toHaveBeenCalledTimes(1);
+      expect(mockSession.confirmProfilelessRole).toHaveBeenCalledWith('customer');
+      expect(mockRouter.replace).toHaveBeenCalledWith('/');
+    });
+  });
+});
+
+describe('CompleteAccountScreen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSession.pendingRole = null;
+    mockSession.legalDocuments = [
+      { key: 'terms', version: '2026-07-29', url: 'https://example.test/terms' },
+      { key: 'privacy', version: '2026-07-29', url: 'https://example.test/privacy' },
+    ];
+  });
+
+  it('requires an explicit role and consent before continuing', async () => {
+    await render(<CompleteAccountScreen />);
+
+    const continueButton = screen.getByRole('button', { name: 'حفظ ومتابعة' });
+    await fireEvent.press(continueButton);
+    expect(mockSession.acceptCurrentLegalDocuments).not.toHaveBeenCalled();
+    expect(mockSession.confirmProfilelessRole).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByRole('radio', { name: /زبون/ }));
+    await fireEvent.press(continueButton);
+    expect(mockSession.acceptCurrentLegalDocuments).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByRole('checkbox', {
+      name: 'أوافق على الشروط والأحكام وسياسة الخصوصية الخاصة بتطبيق كوپا.',
+    }));
+    await fireEvent.press(continueButton);
+
+    await waitFor(() => {
+      expect(mockSession.acceptCurrentLegalDocuments).toHaveBeenCalledTimes(1);
+      expect(mockSession.confirmProfilelessRole).toHaveBeenCalledWith('customer');
+      expect(mockRouter.replace).toHaveBeenCalledWith('/');
+    });
   });
 });
 

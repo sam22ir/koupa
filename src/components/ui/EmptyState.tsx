@@ -40,9 +40,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[4],
   },
   iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
+    width: 60,
+    height: 60,
+    borderRadius: 20,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',

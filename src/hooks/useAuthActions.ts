@@ -33,6 +33,17 @@ export function useAuthActions({
     onPendingRole(null);
   }, [onPendingRole]);
 
+  const confirmProfilelessRole = useCallback(async (role: UserRole) => {
+    setBusy(true);
+    try {
+      await authService.updateUserRole(role, true);
+      await authService.setPendingRoleStorage(role);
+      onPendingRole(role);
+    } finally {
+      setBusy(false);
+    }
+  }, [onPendingRole]);
+
   const completeAuthCallback = useCallback(async (url: string, role?: UserRole): Promise<AuthCallbackResult> => {
     try {
       const result = await authService.completeAuthCallback(url, role);
@@ -71,6 +82,16 @@ export function useAuthActions({
         onPendingRole(null);
       }
       return result;
+    } catch (error) {
+      // Keep the role only if OAuth established a session that still needs
+      // profile completion. Failed/cancelled sign-ins must not leak a role
+      // choice into another account on this device.
+      const currentSession = await authService.getSession().catch(() => null);
+      if (!currentSession) {
+        await authService.clearPendingRoleStorage();
+        onPendingRole(null);
+      }
+      throw error;
     } finally {
       setBusy(false);
     }
@@ -87,6 +108,7 @@ export function useAuthActions({
 
   const signUpWithPassword = useCallback(async (input: {
     readonly email: string;
+    readonly name?: string;
     readonly phone: string;
     readonly password: string;
     readonly role: UserRole;
@@ -170,6 +192,7 @@ export function useAuthActions({
     busy,
     setPendingRole,
     clearPendingRole,
+    confirmProfilelessRole,
     completeAuthCallback,
     signInWithGoogle,
     linkGoogleIdentity,

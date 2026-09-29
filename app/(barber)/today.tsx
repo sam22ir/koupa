@@ -14,25 +14,30 @@ import {
 } from 'react-native';
 
 import {
-  appointmentStatusLabel,
   formatBookingTime,
   type TodayAppointment,
 } from '@/src/booking';
+import {
+  loadBarberPublishReadiness,
+  publishExistingBarberProfile,
+  type BarberPublishReadiness,
+} from '@/src/services/onboarding';
 import {
   getCustomerInitials,
   getTodayDashboard,
   getTodayDurationMinutes,
 } from '@/src/barberToday';
 import {
+  AppointmentStatusBadge,
   Avatar,
   Button,
-  Chip,
-  CustomerStageHeader,
   EmptyState,
   ErrorBanner,
   Icon,
   Screen,
+  BrandLogo,
 } from '@/src/components/ui';
+import { RoleHomeHeader } from '@/src/components/ui/RoleHomeHeader';
 import { QrCodeMatrix } from '@/src/components/QrCodeMatrix';
 import { useBooking } from '@/src/hooks/useBooking';
 import { t } from '@/src/i18n';
@@ -42,6 +47,7 @@ import {
   type BarberActivationWorkplace,
 } from '@/src/navigation/barberActivation';
 import { buildBarberCheckInPayload } from '@/src/qr';
+import { EmailConfirmationRow, needsEmailConfirmation } from '@/src/features/barber-activation/EmailConfirmationRow';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
 
@@ -51,12 +57,6 @@ const todayFormatter = new Intl.DateTimeFormat('ar-DZ', {
   day: 'numeric',
   month: 'long',
 });
-
-function statusTone(status: TodayAppointment['status']): 'primary' | 'accent' | 'neutral' {
-  if (status === 'booked') return 'primary';
-  if (status === 'present') return 'accent';
-  return 'neutral';
-}
 
 function Counter({ label, value }: { readonly label: string; readonly value: number }) {
   return (
@@ -72,7 +72,8 @@ function Counter({ label, value }: { readonly label: string; readonly value: num
 }
 
 export default function BarberTodayScreen() {
-  const { profile, legalError, retryLegalAcceptance } = useAppSession();
+  const { profile, legalError, retryLegalAcceptance, refreshProfile, session, emailConfirmed } = useAppSession();
+  const emailPending = needsEmailConfirmation({ hasSession: Boolean(session), emailConfirmed: Boolean(emailConfirmed) });
   const { today, markPresent, cancelBarber, undoQrCheckIn, error } = useBooking();
   const [items, setItems] = useState<readonly TodayAppointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +82,11 @@ export default function BarberTodayScreen() {
   const [selectedAppointment, setSelectedAppointment] = useState<TodayAppointment | null>(null);
   const [sharingQr, setSharingQr] = useState(false);
   const [activationWorkplace, setActivationWorkplace] = useState<BarberActivationWorkplace | null>(null);
+  const [readiness, setReadiness] = useState<BarberPublishReadiness | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<unknown>(null);
+  const profileId = profile?.id;
+  const isUnpublished = Boolean(profile && profile.role === 'barber' && !profile.is_published);
   const qrCardRef = useRef<View | null>(null);
 
   const dashboard = useMemo(() => getTodayDashboard(items), [items]);
@@ -99,8 +105,27 @@ export default function BarberTodayScreen() {
     useCallback(() => {
       void refresh();
       void readBarberOnboardingHints().then(setActivationWorkplace);
-    }, [refresh]),
+      // Re-read on focus so finishing services or hours in the Schedule tab
+      // ticks the checklist off as soon as the barber comes back. Depend on the
+      // id rather than the profile object, which is not identity-stable.
+      if (isUnpublished && profileId) {
+        void loadBarberPublishReadiness(profileId).then(setReadiness).catch(() => setReadiness(null));
+      }
+    }, [isUnpublished, profileId, refresh]),
   );
+
+  const publishProfile = async () => {
+    setPublishing(true);
+    setPublishError(null);
+    try {
+      await publishExistingBarberProfile();
+      await refreshProfile();
+    } catch (caught) {
+      setPublishError(caught);
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   const dismissActivationTips = async () => {
     await clearBarberOnboardingHints();
@@ -204,17 +229,36 @@ export default function BarberTodayScreen() {
           <Button label={t('common.retry')} variant="secondary" onPress={() => void retryLegalAcceptance()} />
         </View>
       ) : null}
-      <View style={styles.counterRow}>
-        <Counter label={t('barber.upcoming')} value={dashboard.counts.upcoming} />
-        <View style={styles.counterDivider} />
-        <Counter label={t('barber.present')} value={dashboard.counts.present} />
-        <View style={styles.counterDivider} />
-        <Counter label={t('barber.completed')} value={dashboard.counts.completed} />
-      </View>
 
       <ErrorBanner error={error} />
 
-      {activationWorkplace ? (
+      {isUnpublished ? (
+        <View style={styles.activationCard} accessibilityLabel={t('barber.publishChecklistTitle')}>
+          <Text style={styles.activationTitle}>{t('barber.publishChecklistTitle')}</Text>
+          <Text style={styles.activationLine}>{t('barber.publishChecklistBody')}</Text>
+          <Text style={styles.activationLine}>
+            {`${readiness?.hasServices ? '✓' : '•'} ${t('barber.publishNeedsServices')}`}
+          </Text>
+          <Text style={styles.activationLine}>
+            {`${readiness?.hasWorkingHours ? '✓' : '•'} ${t('barber.publishNeedsHours')}`}
+          </Text>
+          <EmailConfirmationRow />
+          <ErrorBanner error={publishError} />
+          <Button
+            label={t('barber.stepServices')}
+            variant="secondary"
+            onPress={() => router.push('/(barber)/schedule')}
+          />
+          <Button
+            label={t('barber.publish')}
+            loading={publishing}
+            disabled={!readiness?.hasServices || !readiness?.hasWorkingHours || emailPending}
+            onPress={() => void publishProfile()}
+          />
+        </View>
+      ) : null}
+
+      {activationWorkplace && !isUnpublished ? (
         <View style={styles.activationCard} accessibilityLabel={t('barber.activationTitle')}>
           <Text style={styles.activationTitle}>{t('barber.activationTitle')}</Text>
           <Text style={styles.activationLine}>{t('barber.activationQr')}</Text>
@@ -232,30 +276,27 @@ export default function BarberTodayScreen() {
         </View>
       ) : null}
 
-      <Pressable
-        style={({ pressed }) => [styles.qrAction, pressed && styles.pressed]}
-        onPress={showQr}
-        accessibilityRole="button"
-        accessibilityLabel={t('barber.showQr')}
-        disabled={!profile?.id}
-      >
-        <View style={styles.qrActionCopy}>
-          <Icon name="qr-code-outline" size={21} color={colors.primary} />
-          <Text style={styles.qrActionText}>{t('barber.showQr')}</Text>
-        </View>
-        <Icon name="chevron-back" size={18} color={colors.textMuted} />
-      </Pressable>
     </View>
   );
 
   return (
-    <Screen padded={false} style={styles.screen}>
-      <CustomerStageHeader
-        tone="stage"
-        title={t('barber.todayTitle')}
-        subtitle={todayFormatter.format(new Date())}
-      />
-
+    <Screen padded={false} bleedTop style={styles.screen}>
+      <RoleHomeHeader
+        greeting={t('home.greeting')}
+        name={profile?.name ?? t('profile.accountNameFallback')}
+        profileLabel={t('tabs.profile')}
+        notificationsLabel={t('profile.notifications')}
+        onProfile={() => router.push('/(barber)/profile')}
+        onNotifications={() => router.push('/notifications')}
+        quickAction={profile?.id ? { label: t('barber.showQr'), icon: 'qr-code-outline', onPress: showQr } : undefined}
+      >
+        <Text style={styles.date}>{todayFormatter.format(new Date())}</Text>
+        <View style={styles.counterRow}>
+          <Counter label={t('barber.upcoming')} value={dashboard.counts.upcoming} />
+          <Counter label={t('barber.present')} value={dashboard.counts.present} />
+          <Counter label={t('barber.completed')} value={dashboard.counts.completed} />
+        </View>
+      </RoleHomeHeader>
       <View style={styles.body}>
         {listHeader}
         <FlatList
@@ -280,47 +321,49 @@ export default function BarberTodayScreen() {
               />
             )
           }
-          renderItem={({ item }) => (
-            <Pressable
-              testID="today-appointment-row"
-              style={({ pressed }) => [
-                styles.appointmentRow,
-                pressed && styles.appointmentRowPressed,
-                (item.status === 'completed' ||
-                  item.status === 'cancelled' ||
-                  item.status === 'absent') &&
-                  styles.appointmentRowQuiet,
-              ]}
-              onPress={() => setSelectedAppointment(item)}
-              accessibilityRole="button"
-              accessibilityLabel={`${t('barber.appointmentDetails')}، ${item.customer_name}، ${formatBookingTime(item.starts_at)}`}
-            >
-              <View style={styles.appointmentHeader}>
-                <Text style={styles.time}>{formatBookingTime(item.starts_at)}</Text>
-                <Chip label={appointmentStatusLabel(item.status)} tone={statusTone(item.status)} />
-              </View>
-
-              <View style={styles.customerRow}>
-                <Avatar initials={getCustomerInitials(item.customer_name)} size={44} />
-                <View style={styles.appointmentCopy}>
-                  <Text style={styles.customerName}>{item.customer_name}</Text>
-                  <Text style={styles.serviceMeta}>
-                    {item.service_name} · {getTodayDurationMinutes(item)}{' '}
-                    {t('barber.durationMinutes')}
+          renderItem={({ item }) => {
+            const quiet = item.status === 'completed' || item.status === 'cancelled' || item.status === 'absent';
+            return (
+              <View style={[styles.timelineRow, quiet && styles.appointmentRowQuiet]}>
+                <View style={styles.timeColumn}>
+                  <Text style={styles.time}>{formatBookingTime(item.starts_at)}</Text>
+                  <Text style={styles.duration}>
+                    {getTodayDurationMinutes(item)} {t('barber.durationMinutes')}
                   </Text>
                 </View>
-              </View>
+                <View
+                  testID="today-appointment-card"
+                  style={[styles.appointmentRow, item.status === 'present' && styles.appointmentRowActive]}
+                >
+                  <Pressable
+                    testID="today-appointment-row"
+                    style={({ pressed }) => [styles.appointmentMain, pressed && styles.appointmentRowPressed]}
+                    onPress={() => setSelectedAppointment(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t('barber.appointmentDetails')}، ${item.customer_name}، ${formatBookingTime(item.starts_at)}`}
+                  >
+                    <View style={styles.customerRow}>
+                      <Avatar initials={getCustomerInitials(item.customer_name)} size={40} />
+                      <View style={styles.appointmentCopy}>
+                        <Text numberOfLines={1} style={styles.customerName}>{item.customer_name}</Text>
+                        <Text numberOfLines={1} style={styles.serviceMeta}>{item.service_name}</Text>
+                      </View>
+                      <AppointmentStatusBadge status={item.status} />
+                    </View>
+                  </Pressable>
 
-              {item.status === 'booked' ? (
-                <Button
-                  label={t('barber.confirmPresent')}
-                  onPress={() => void onMarkPresent(item.id)}
-                  loading={pendingId === item.id}
-                  style={styles.rowAction}
-                />
-              ) : null}
-            </Pressable>
-          )}
+                  {item.status === 'booked' ? (
+                    <Button
+                      label={t('barber.confirmPresent')}
+                      onPress={() => void onMarkPresent(item.id)}
+                      loading={pendingId === item.id}
+                      style={styles.rowAction}
+                    />
+                  ) : null}
+                </View>
+              </View>
+            );
+          }}
         />
       </View>
 
@@ -349,7 +392,7 @@ export default function BarberTodayScreen() {
             </View>
             {qrPayload ? (
               <View ref={qrCardRef} testID="barber-qr-share-card" style={styles.qrShareCard}>
-                <Text style={styles.qrBrand}>كوپا</Text>
+                <BrandLogo height={42} />
                 <Text style={styles.qrBarberName}>{profile?.name}</Text>
                 <View style={styles.qrCodeSurface}>
                   <QrCodeMatrix
@@ -436,10 +479,7 @@ export default function BarberTodayScreen() {
                     <Icon name="cash-outline" size={20} color={colors.primary} />
                   </View>
                 </View>
-                <Chip
-                  label={appointmentStatusLabel(selectedAppointment.status)}
-                  tone={statusTone(selectedAppointment.status)}
-                />
+                <AppointmentStatusBadge status={selectedAppointment.status} />
                 {selectedAppointment.status === 'present' &&
                 selectedAppointment.qr_check_in_reversible ? (
                   <Button
@@ -475,64 +515,13 @@ export default function BarberTodayScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: colors.workspace },
-  stageTopRow: {
-    minHeight: 72,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoWrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    alignItems: 'center',
-    gap: space[2],
-  },
-  logoImage: {
-    tintColor: colors.onPrimary,
-    opacity: 0.96,
-  },
-  logoAccent: {
-    width: space[8],
-    height: 3,
-    borderRadius: radii.pill,
-    backgroundColor: colors.accent,
-  },
-  headerQrButton: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 48,
-    height: 48,
-    borderRadius: radii.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.stageOverlay,
-  },
-  headerQrPressed: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  stageTitleBlock: {
-    gap: space[1],
-    alignItems: 'flex-end',
-  },
-  title: {
-    ...typography.title,
-    color: colors.onPrimary,
-    textAlign: 'right',
-  },
-  date: {
-    ...typography.caption,
-    color: colors.onPrimaryMuted,
-    textAlign: 'right',
-  },
+  screen: { backgroundColor: colors.background },
+  date: { ...typography.label, color: colors.onPrimaryMuted, textAlign: 'right' },
   body: {
     flex: 1,
-    marginTop: layout.stageBodyOverlap,
+    paddingTop: space[4],
     gap: space[3],
     paddingHorizontal: layout.screenPaddingX,
-    backgroundColor: colors.workspace,
   },
   listView: {
     flex: 1,
@@ -549,76 +538,43 @@ const styles = StyleSheet.create({
     gap: space[2],
   },
   counterRow: {
-    minHeight: 86,
     flexDirection: 'row-reverse',
-    alignItems: 'stretch',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.xl,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-    ...elevation.card,
+    gap: space[2],
   },
   counter: {
     minWidth: 0,
     flex: 1,
-    gap: space[1],
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space[2],
-    paddingVertical: space[3],
-  },
-  counterDivider: {
-    width: 1,
-    marginVertical: space[3],
-    backgroundColor: colors.border,
+    alignItems: 'flex-end',
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+    borderRadius: radii.md,
+    backgroundColor: colors.stageOverlay,
   },
   counterValue: {
     ...typography.title,
-    color: colors.primary,
+    color: colors.onPrimary,
     fontVariant: ['tabular-nums'],
   },
   counterLabel: {
     ...typography.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
+    color: colors.onPrimaryMuted,
+    textAlign: 'right',
   },
   activationCard: {
     gap: space[2],
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: radii.xl,
-    backgroundColor: colors.primarySoft,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
     padding: space[4],
+    ...elevation.card,
   },
   activationTitle: {
-    ...typography.bodyStrong,
-    color: colors.primary,
+    ...typography.titleSm,
+    color: colors.text,
     textAlign: 'right',
   },
   activationLine: {
     ...typography.caption,
     textAlign: 'right',
-  },
-  qrAction: {
-    minHeight: 52,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    paddingHorizontal: space[4],
-  },
-  qrActionCopy: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: space[2],
-  },
-  qrActionText: {
-    ...typography.label,
-    color: colors.primary,
   },
   pressed: {
     transform: [{ scale: 0.99 }],
@@ -627,30 +583,47 @@ const styles = StyleSheet.create({
   initialLoader: {
     paddingVertical: space[8],
   },
-  appointmentRow: {
+  timelineRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
     gap: space[3],
-    borderWidth: 1,
-    borderColor: colors.border,
+  },
+  timeColumn: {
+    width: 56,
+    paddingTop: space[3],
+    alignItems: 'center',
+  },
+  duration: {
+    ...typography.caption,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  appointmentRow: {
+    flex: 1,
+    minWidth: 0,
+    gap: space[3],
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
-    padding: space[4],
+    padding: space[3],
+    ...elevation.card,
+  },
+  appointmentRowActive: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  appointmentMain: {
+    borderRadius: radii.md,
   },
   appointmentRowPressed: {
-    backgroundColor: colors.primarySoft,
+    opacity: 0.7,
   },
   appointmentRowQuiet: {
-    opacity: 0.72,
-  },
-  appointmentHeader: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    opacity: 0.6,
   },
   time: {
-    ...typography.titleSm,
-    color: colors.text,
-    fontVariant: ['tabular-nums'],
-    textAlign: 'right',
+    ...typography.numeric,
+    textAlign: 'center',
   },
   customerRow: {
     minWidth: 0,
@@ -661,7 +634,7 @@ const styles = StyleSheet.create({
   appointmentCopy: {
     minWidth: 0,
     flex: 1,
-    gap: space[1],
+    gap: 2,
     alignItems: 'flex-end',
   },
   customerName: {
@@ -670,19 +643,17 @@ const styles = StyleSheet.create({
   },
   serviceMeta: {
     ...typography.caption,
-    color: colors.textMuted,
     textAlign: 'right',
   },
   rowAction: {
-    minWidth: 132,
-    alignSelf: 'flex-end',
+    alignSelf: 'stretch',
   },
   modalBackdrop: {
     flex: 1,
     zIndex: 1000,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(15,28,34,0.58)',
+    backgroundColor: colors.scrim,
     padding: space[5],
   },
   modalCard: {
@@ -732,11 +703,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
     padding: space[4],
-  },
-  qrBrand: {
-    ...typography.title,
-    color: colors.primary,
-    textAlign: 'center',
   },
   qrBarberName: {
     ...typography.titleSm,

@@ -2,46 +2,32 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { getSignupPhone } from '@/src/auth';
-import { Button, Chip, ErrorBanner, Field, Screen } from '@/src/components/ui';
+import { getSignupName, getSignupPhone } from '@/src/auth';
+import { AuthHeader, Button, ErrorBanner, Field, Screen } from '@/src/components/ui';
 import { OnboardingLocationStep } from '@/src/components/onboarding/OnboardingLocationStep';
-import { OnboardingReview } from '@/src/components/onboarding/OnboardingReview';
-import { OnboardingServiceCard } from '@/src/components/onboarding/OnboardingServiceCard';
 import { WorkplaceChoice } from '@/src/components/onboarding/WorkplaceChoice';
-import {
-  applySchedulePreset,
-  applyServiceExample,
-  serviceExamples,
-  type SchedulePreset,
-} from '@/src/data/onboarding';
-import { AppointmentIntervalPicker } from '@/src/features/barber-schedule/AppointmentIntervalPicker';
-import { WeeklyScheduleEditor } from '@/src/features/barber-schedule/WeeklyScheduleEditor';
 import { useOnboarding } from '@/src/hooks/useOnboarding';
 import { t } from '@/src/i18n';
 import { markBarberOnboardingHintsPending } from '@/src/navigation/barberActivation';
 import {
-  firstInvalidBarberOnboardingStep,
   validateBarberOnboardingStep,
   type BarberOnboardingError,
-  type BarberOnboardingStep,
 } from '@/src/onboardingValidation';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors, radii, space, typography } from '@/src/theme';
 
-const steps = [
-  t('barber.stepBasic'),
-  t('barber.stepLocation'),
-  t('barber.stepServices'),
-  t('barber.stepHours'),
-  t('barber.stepReview'),
-] as const;
+/**
+ * Setup only collects what the account cannot exist without. Services and
+ * working hours are finished from the Schedule tab afterwards, so leaving here
+ * never discards the account.
+ */
+type SetupStep = 0 | 1;
 
-const stepBodies: Record<BarberOnboardingStep, string> = {
+const steps = [t('barber.stepBasic'), t('barber.stepLocation')] as const;
+
+const stepBodies: Record<SetupStep, string> = {
   0: t('onboarding.stepBodyBasic'),
   1: t('onboarding.stepBodyLocation'),
-  2: t('onboarding.stepBodyServices'),
-  3: t('onboarding.stepBodyHours'),
-  4: t('onboarding.stepBodyReview'),
 };
 
 const validationCopy: Record<BarberOnboardingError, string> = {
@@ -51,20 +37,15 @@ const validationCopy: Record<BarberOnboardingError, string> = {
   schedule: t('onboarding.validationSchedule'),
 };
 
-const schedulePresets: ReadonlyArray<{ readonly kind: SchedulePreset; readonly labelKey: string }> = [
-  { kind: 'weekdays918', labelKey: 'onboarding.presetWeekdays' },
-  { kind: 'longDays', labelKey: 'onboarding.presetLongDays' },
-  { kind: 'default', labelKey: 'onboarding.presetDefault' },
-];
-
 export default function BarberOnboardingScreen() {
   const { session, refreshProfile, signOut } = useAppSession();
   const onboarding = useOnboarding({
     userId: session?.user.id,
     initialPhone: getSignupPhone(session?.user ?? null) ?? session?.user.phone,
+    initialName: getSignupName(session?.user ?? null),
   });
-  const [step, setStep] = useState<BarberOnboardingStep>(
-    (onboarding.draftStep || 0) as BarberOnboardingStep,
+  const [step, setStep] = useState<SetupStep>(
+    Math.min(1, onboarding.draftStep || 0) as SetupStep,
   );
   const syncedDraftStep = useRef(false);
   const [error, setError] = useState<unknown>(null);
@@ -85,10 +66,11 @@ export default function BarberOnboardingScreen() {
     }
     if (syncedDraftStep.current) return;
     syncedDraftStep.current = true;
-    setStep(onboarding.draftStep as BarberOnboardingStep);
+    // Drafts saved by the previous five-step wizard can carry a later step.
+    setStep(Math.min(1, onboarding.draftStep) as SetupStep);
   }, [onboarding.draftStep, onboarding.hydrating]);
 
-  const persist = async (nextStep: BarberOnboardingStep) => {
+  const persist = async (nextStep: SetupStep) => {
     setError(null);
     if (nextStep > step) {
       const validation = validateBarberOnboardingStep(draft, step);
@@ -105,18 +87,23 @@ export default function BarberOnboardingScreen() {
     }
   };
 
-  const publish = async () => {
+  /**
+   * Creates the account as an unpublished barber. From here the profile is
+   * real: services, hours and publishing happen inside the app.
+   */
+  const createProfile = async () => {
     setBusy(true);
     setError(null);
     try {
-      const invalidStep = firstInvalidBarberOnboardingStep(draft);
-      if (invalidStep !== null) {
-        const validation = validateBarberOnboardingStep(draft, invalidStep);
-        setStep(invalidStep);
-        setError(validation ? validationCopy[validation] : new Error(t('errors.VALIDATION')));
-        return;
+      for (const candidate of [0, 1] as const) {
+        const validation = validateBarberOnboardingStep(draft, candidate);
+        if (validation) {
+          setStep(candidate);
+          setError(validationCopy[validation]);
+          return;
+        }
       }
-      await onboarding.publishBarber(draft);
+      await onboarding.createBarber(draft);
       await markBarberOnboardingHintsPending(draft.workplaceType);
       await refreshProfile();
       router.replace('/(barber)/today');
@@ -130,7 +117,7 @@ export default function BarberOnboardingScreen() {
   const goBack = () => {
     if (step === 0) return;
     setError(null);
-    setStep((step - 1) as BarberOnboardingStep);
+    setStep(0);
   };
 
   const exitAccount = async () => {
@@ -148,8 +135,9 @@ export default function BarberOnboardingScreen() {
 
   return (
     <Screen scroll loading={onboarding.hydrating && !onboarding.loadError}>
+      <AuthHeader showBack={false} progress={`${step + 1}/2`} />
       <View style={styles.stageHeader}>
-        <Text style={styles.stageKicker}>{t('barber.onboarding')} · {step + 1}/5</Text>
+        <Text style={styles.stageKicker}>{t('barber.onboarding')}</Text>
         <Text style={styles.stageTitle}>{title}</Text>
         <Text style={styles.stageBody}>{stageBody}</Text>
         <Pressable
@@ -219,118 +207,27 @@ export default function BarberOnboardingScreen() {
         <OnboardingLocationStep draft={draft} onChange={(next) => onboarding.setDraft({ ...draft, ...next })} />
       ) : null}
 
-      {step === 2 ? (
-        <View style={styles.block}>
-          <View style={styles.intro}>
-            <Text style={styles.introTitle}>{t('onboarding.servicesTitle')}</Text>
-            <Text style={styles.introBody}>{t('onboarding.servicesIntro')}</Text>
-          </View>
-          <Text style={styles.presetsLabel}>{t('onboarding.serviceExamples')}</Text>
-          <View style={styles.chipRow}>
-            {serviceExamples.map((example, index) => (
-              <Chip
-                key={example.name}
-                label={index === 0 ? t('onboarding.serviceExampleHaircut') : t('onboarding.serviceExampleBeard')}
-                selected={false}
-                onPress={() => onboarding.setDraft({
-                  ...draft,
-                  services: applyServiceExample(draft.services, example),
-                })}
-              />
-            ))}
-          </View>
-          {draft.services.map((service, index) => (
-            <OnboardingServiceCard
-              key={`service-${index}`}
-              service={service}
-              canRemove={draft.services.length > 1}
-              onChange={(next) => onboarding.setDraft({
-                ...draft,
-                services: draft.services.map((item, i) => (i === index ? next : item)),
-              })}
-              onRemove={() => onboarding.setDraft({
-                ...draft,
-                services: draft.services.filter((_, i) => i !== index),
-              })}
-            />
-          ))}
-          <Button
-            label={t('onboarding.addService')}
-            variant="secondary"
-            onPress={() =>
-              onboarding.setDraft({
-                ...draft,
-                services: [...draft.services, { name: '', priceDzd: '', durationMinutes: '30' }],
-              })
-            }
-          />
-        </View>
-      ) : null}
-
-      {step === 3 ? (
-        <View style={styles.block}>
-          <View style={styles.intro}>
-            <Text style={styles.introTitle}>{t('onboarding.hoursTitle')}</Text>
-            <Text style={styles.introBody}>{t('onboarding.hoursIntro')}</Text>
-          </View>
-          <Text style={styles.presetsLabel}>{t('onboarding.schedulePresets')}</Text>
-          <View style={styles.chipRow}>
-            {schedulePresets.map((preset) => (
-              <Chip
-                key={preset.kind}
-                label={t(preset.labelKey)}
-                selected={false}
-                onPress={() => onboarding.setDraft({
-                  ...draft,
-                  schedules: applySchedulePreset(preset.kind),
-                })}
-              />
-            ))}
-          </View>
-          <WeeklyScheduleEditor
-            schedules={draft.schedules}
-            onChange={(schedules) => onboarding.setDraft({ ...draft, schedules })}
-          />
-          <View style={styles.intervalBlock}>
-            <Text style={styles.intervalLabel}>{t('onboarding.interval')}</Text>
-            <AppointmentIntervalPicker
-              value={draft.intervalMinutes}
-              onChange={(intervalMinutes) => onboarding.setDraft({ ...draft, intervalMinutes })}
-            />
-          </View>
-        </View>
-      ) : null}
-
-      {step === 4 ? (
-        <View style={styles.block}>
-          <OnboardingReview
-            draft={draft}
-            onEdit={(nextStep) => {
-              setError(null);
-              setStep(nextStep);
-            }}
-          />
-          <Text style={styles.publishHint}>
-            {draft.workplaceType === 'owner'
-              ? t('onboarding.publishOwnerHint')
-              : t('onboarding.publishWorkerHint')}
-          </Text>
-          <Button label={t('barber.publish')} onPress={() => void publish()} loading={busy || onboarding.saving} />
-        </View>
-      ) : null}
+      {step === 1 ? <Text style={styles.publishHint}>{t('onboarding.createProfileHint')}</Text> : null}
 
       <View style={styles.nav}>
         {step > 0 ? (
           <Button label={t('common.back')} variant="secondary" disabled={exiting} onPress={goBack} />
         ) : null}
-        {step < 4 ? (
+        {step === 0 ? (
           <Button
             label={t('common.next')}
-            onPress={() => void persist((step + 1) as BarberOnboardingStep)}
+            onPress={() => void persist(1)}
             loading={onboarding.saving}
             disabled={exiting}
           />
-        ) : null}
+        ) : (
+          <Button
+            label={t('onboarding.createProfile')}
+            onPress={() => void createProfile()}
+            loading={busy || onboarding.saving}
+            disabled={exiting}
+          />
+        )}
       </View>
     </Screen>
   );

@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Button, ErrorBanner, Screen, ScreenTitle } from '@/src/components/ui';
+import { AuthShell, Button, ErrorBanner } from '@/src/components/ui';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { PRIVACY_URL, TERMS_URL } from '@/src/config/legal';
@@ -27,8 +27,7 @@ export default function LegalErrorScreen() {
   };
 
   return (
-    <Screen scroll>
-      <ScreenTitle title={t('auth.legalRecoveryTitle')} subtitle={t('auth.legalRecoveryBody')} />
+    <AuthShell title={t('auth.legalRecoveryTitle')} subtitle={t('auth.legalRecoveryBody')} showBack={false}>
       <View style={styles.links}>
         <Pressable accessibilityRole="link" accessibilityLabel={t('auth.openTerms')} onPress={() => void Linking.openURL(TERMS_URL).catch(() => undefined)}>
           <Text style={styles.link}>{t('auth.openTerms')}</Text>
@@ -49,7 +48,7 @@ export default function LegalErrorScreen() {
             .catch((caught) => setError(caught));
         }}
       />
-    </Screen>
+    </AuthShell>
   );
 }
 

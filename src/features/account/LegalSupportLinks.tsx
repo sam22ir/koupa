@@ -1,6 +1,6 @@
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, Text } from 'react-native';
+import { router } from 'expo-router';
 
-import { Button } from '@/src/components/ui';
 import {
   ACCOUNT_DELETION_URL,
   PRIVACY_URL,
@@ -11,49 +11,67 @@ import { t } from '@/src/i18n';
 import type { LegalDocument } from '@/src/services/legal';
 import { colors, space, typography } from '@/src/theme';
 
+import { SettingsGroup, SettingsRow } from './SettingsList';
+
 function openExternalUrl(url: string): void {
   void Linking.openURL(url).catch(() => undefined);
 }
 
-export function LegalSupportLinks({ documents }: { readonly documents: readonly LegalDocument[] }) {
+/** Help, privacy and legal rows shared by both account screens. */
+export function LegalSupportLinks({
+  documents,
+  title,
+}: {
+  readonly documents: readonly LegalDocument[];
+  readonly title?: string;
+}) {
   const terms = documents.find((document) => document.key === 'terms');
   const privacy = documents.find((document) => document.key === 'privacy');
   const legalUnavailable = !terms || !privacy;
 
   return (
-    <View style={styles.group}>
+    <>
+      <SettingsGroup title={title}>
+        <SettingsRow
+          icon="chatbubble-ellipses-outline"
+          label={t('profile.supportEmail')}
+          external
+          onPress={() => openExternalUrl(SUPPORT_EMAIL_URL)}
+        />
+        <SettingsRow
+          icon="ban-outline"
+          label={t('moderation.blockedUsers')}
+          onPress={() => router.push('/blocked-users')}
+        />
+        <SettingsRow
+          icon="document-text-outline"
+          label={t('auth.openTerms')}
+          external
+          onPress={() => openExternalUrl(TERMS_URL)}
+        />
+        <SettingsRow
+          icon="shield-checkmark-outline"
+          label={t('profile.privacyPolicy')}
+          external
+          onPress={() => openExternalUrl(PRIVACY_URL)}
+        />
+        <SettingsRow
+          icon="information-circle-outline"
+          label={t('profile.accountDeletionInfo')}
+          external
+          onPress={() => openExternalUrl(ACCOUNT_DELETION_URL)}
+        />
+      </SettingsGroup>
       {legalUnavailable ? <Text style={styles.warning}>{t('profile.legalUnavailable')}</Text> : null}
-      <Button
-        label={t('auth.openTerms')}
-        variant="ghost"
-        onPress={() => openExternalUrl(TERMS_URL)}
-      />
-      <Button
-        label={t('profile.privacyPolicy')}
-        variant="ghost"
-        onPress={() => openExternalUrl(PRIVACY_URL)}
-      />
-      <Button
-        label={t('profile.accountDeletionInfo')}
-        variant="ghost"
-        onPress={() => openExternalUrl(ACCOUNT_DELETION_URL)}
-      />
-      <Button
-        label={t('profile.supportEmail')}
-        variant="secondary"
-        onPress={() => openExternalUrl(SUPPORT_EMAIL_URL)}
-      />
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  group: {
-    gap: space[1],
-  },
   warning: {
     ...typography.caption,
     color: colors.danger,
     textAlign: 'right',
+    paddingHorizontal: space[1],
   },
 });

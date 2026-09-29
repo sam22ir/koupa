@@ -16,6 +16,13 @@ export function getSignupPhone(user: User | null): string | null {
   return typeof phone === 'string' && phone.trim() ? phone.trim() : null;
 }
 
+/** The name given at signup, or the one Google supplied, for prefilling setup. */
+export function getSignupName(user: User | null): string {
+  const meta = user?.user_metadata ?? {};
+  const value = meta.koupa_name ?? meta.full_name ?? meta.name;
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 export function isValidPassword(value: string): boolean { return value.length >= 8; }
 export function isValidSignInPassword(value: string, identifier: string, appEnvironment = process.env.EXPO_PUBLIC_APP_ENV): boolean {
   if (isValidPassword(value)) return true;

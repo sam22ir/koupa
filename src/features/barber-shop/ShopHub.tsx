@@ -7,7 +7,8 @@ import { ShopStateCard } from '@/src/features/barber-shop/ShopStateCard';
 import { useShops } from '@/src/hooks/useShops';
 import { t } from '@/src/i18n';
 import { isInvitationExpired, type ShopMembership } from '@/src/shops';
-import { colors, layout, space, typography } from '@/src/theme';
+import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
+import { SettingsGroup, SettingsRow } from '@/src/features/account/SettingsList';
 
 type ShopsFacade = ReturnType<typeof useShops>;
 
@@ -96,19 +97,22 @@ export function ShopHub({
           showMembershipActivity
           saving={shops.saving}
         />
-        {onActivity ? (
-          <Button
-            label={t('shopWorkspace.activity')}
-            onPress={() => onActivity(owned.id)}
-          />
-        ) : null}
-        {onDetails ? (
-          <Button
-            label={t('shopWorkspace.details')}
-            variant="secondary"
-            onPress={() => onDetails(owned.id)}
-          />
-        ) : null}
+        <SettingsGroup>
+          {onActivity ? (
+            <SettingsRow
+              icon="pulse-outline"
+              label={t('shopWorkspace.activity')}
+              onPress={() => onActivity(owned.id)}
+            />
+          ) : null}
+          {onDetails ? (
+            <SettingsRow
+              icon="storefront-outline"
+              label={t('shopWorkspace.details')}
+              onPress={() => onDetails(owned.id)}
+            />
+          ) : null}
+        </SettingsGroup>
       </ScrollView>
     );
   }
@@ -196,13 +200,13 @@ export function ShopHub({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.workspace },
+  root: { flex: 1, backgroundColor: colors.background },
   content: { gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingVertical: space[4], paddingBottom: space[10] },
   statusState: { minHeight: 120, alignItems: 'center', justifyContent: 'center', gap: space[3] },
   statusText: { ...typography.body, color: colors.textMuted, textAlign: 'center' },
   message: { ...typography.caption, color: colors.primary, textAlign: 'right' },
-  ownerSummaryTitle: { ...typography.titleSm, textAlign: 'right' },
-  steps: { gap: space[2], padding: layout.cardPadding, borderWidth: 1, borderColor: colors.border, borderRadius: 18, backgroundColor: colors.surface },
+  ownerSummaryTitle: { ...typography.label, color: colors.textMuted, textAlign: 'right', marginBottom: -space[2] },
+  steps: { gap: space[2], padding: layout.cardPadding, borderRadius: radii.lg, backgroundColor: colors.surface, ...elevation.card },
   stepsTitle: { ...typography.bodyStrong, textAlign: 'right' },
   step: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
   dangerSection: { gap: space[2], paddingTop: space[5], borderTopWidth: 1, borderTopColor: colors.border },

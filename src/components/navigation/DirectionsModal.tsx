@@ -155,13 +155,13 @@ export function DirectionsModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: colors.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
+    borderTopLeftRadius: radii['2xl'],
+    borderTopRightRadius: radii['2xl'],
     paddingHorizontal: layout.screenPaddingX,
     paddingTop: space[3],
     paddingBottom: space[6],
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    ...typography.title,
+    ...typography.titleSm,
     color: colors.text,
     textAlign: 'right',
   },
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.borderSubtle,
   },
   optionsList: {
     gap: space[2],
@@ -214,9 +214,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     padding: space[3],
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     backgroundColor: colors.surface,
     gap: space[3],
   },

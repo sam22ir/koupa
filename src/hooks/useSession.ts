@@ -1,6 +1,6 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getPendingRole, type UserRole } from '@/src/auth';
+import { getPendingRole, hasSignupConsent, type UserRole } from '@/src/auth';
 import { useAuthActions } from '@/src/hooks/useAuthActions';
 import { useLegalAcceptance } from '@/src/hooks/useLegalAcceptance';
 import * as authService from '@/src/services/auth';
@@ -69,6 +69,7 @@ export function useSession(_: UseSessionProps = {}) {
     () => sessionCache === undefined || (initialSession !== null && !profileCache.has(initialSession.user.id)),
   );
   const [pendingRole, setPendingRoleState] = useState<UserRole | null>(null);
+  const [guestBrowsing, setGuestBrowsing] = useState(false);
   const [pendingConfirmationEmail, setPendingConfirmationEmail] = useState('');
   const [pendingConfirmationType, setPendingConfirmationType] = useState<ConfirmationType>('signup');
   const [bootstrapError, setBootstrapError] = useState<unknown>(null);
@@ -119,7 +120,15 @@ export function useSession(_: UseSessionProps = {}) {
     if (currentUserIdRef.current !== user.id) return;
     // A persisted profile role is authoritative. Never leave a provisional
     // local role around to affect a returning account or a later OAuth flow.
-    if (nextProfile) setPendingRoleState(null);
+    if (nextProfile) {
+      setPendingRoleState(null);
+      if (getPendingRole(user) !== nextProfile.role) {
+        // The database profile is the permanent role source of truth. Heal
+        // stale auth metadata left by older OAuth callbacks without blocking
+        // session routing if this best-effort repair fails.
+        void authService.updateUserRole(nextProfile.role).catch(() => undefined);
+      }
+    }
     const metadataRole = await syncLegal(user, { canPersistSignupConsent: nextProfile === null });
     if (currentUserIdRef.current === user.id && !nextProfile && metadataRole) {
       setPendingRoleState((current) => (current === metadataRole ? current : metadataRole));
@@ -139,6 +148,7 @@ export function useSession(_: UseSessionProps = {}) {
   const onSignedOut = useCallback(() => {
     generationRef.current += 1;
     currentUserIdRef.current = null;
+    setGuestBrowsing(false);
     setProfile(null);
     setProfileError(null);
     resetLegal();
@@ -249,6 +259,9 @@ export function useSession(_: UseSessionProps = {}) {
   }, [syncUser]);
 
   const emailConfirmed = Boolean(session?.user.email_confirmed_at);
+  // The database refuses a profile insert without this, so the route gate uses
+  // it to send an unstamped account through complete-account first.
+  const signupConsent = hasSignupConsent(session?.user ?? null);
   return {
     session,
     profile,
@@ -256,6 +269,10 @@ export function useSession(_: UseSessionProps = {}) {
     bootstrapError,
     profileError,
     pendingRole,
+    guestBrowsing: guestBrowsing && !session,
+    startGuestBrowsing: () => setGuestBrowsing(true),
+    stopGuestBrowsing: () => setGuestBrowsing(false),
+    signupConsent,
     legalAccepted,
     legalConsentRequired,
     legalDocuments,
@@ -268,15 +285,19 @@ export function useSession(_: UseSessionProps = {}) {
     retryLegalAcceptance: () => (
       session ? acceptCurrentLegalDocuments(session.user.id) : Promise.resolve()
     ),
-    refreshProfile: () => {
-      if (!session) return Promise.resolve();
-      profileCache.delete(session.user.id);
-      return loadProfile(session.user.id, true);
+    refreshProfile: (userId?: string) => {
+      // Right after signup the auth listener may not have set `session` yet, so
+      // callers that just created the profile pass the user id explicitly.
+      const id = userId ?? session?.user.id;
+      if (!id) return Promise.resolve();
+      profileCache.delete(id);
+      return loadProfile(id, true);
     },
     retrySession,
     busy: auth.busy,
     signInWithGoogle: auth.signInWithGoogle,
     linkGoogleIdentity: auth.linkGoogleIdentity,
+    confirmProfilelessRole: auth.confirmProfilelessRole,
     signUpWithPassword: auth.signUpWithPassword,
     signInWithPassword: auth.signInWithPassword,
     signInWithPhone: auth.signInWithPhone,

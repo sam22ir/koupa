@@ -19,6 +19,10 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaListener: ({ children }: any) => children ?? null,
 }));
 
+jest.mock('@/src/providers/SessionProvider', () => ({
+  useAppSession: () => ({ profile: { role: 'customer' } }),
+}));
+
 jest.mock('@/src/services/notifications', () => ({
   loadNotification: jest.fn().mockResolvedValue({
     id: 'notification-1',

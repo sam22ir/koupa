@@ -3,6 +3,9 @@ const mockFrom = jest.fn();
 
 jest.mock('@/lib/supabase', () => ({
   supabase: {
+    auth: {
+      getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
+    },
     rpc: (...args: unknown[]) => mockRpc(...args),
     from: (...args: unknown[]) => mockFrom(...args),
   },
@@ -299,6 +302,8 @@ describe('barber Shop services', () => {
         }],
         error: null,
       });
+
+    mockFrom.mockReturnValueOnce(fromResult({ owner_id: 'owner-1' }));
 
     await expect(getShop('shop-1')).resolves.toEqual(expect.objectContaining({
       id: 'shop-1',

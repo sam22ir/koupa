@@ -4,16 +4,18 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/src/components/ui/Button';
 import { BackButton } from '@/src/components/ui/BackButton';
+import { CustomerStageHeader } from '@/src/components/ui/CustomerStageHeader';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { ErrorBanner } from '@/src/components/ui/ErrorBanner';
 import { Field } from '@/src/components/ui/Field';
-import { Screen, ScreenTitle } from '@/src/components/ui/Screen';
+import { Screen } from '@/src/components/ui/Screen';
 import { ShopSearchResult } from '@/src/features/barber-shop/ShopSearchResult';
 import { useShops } from '@/src/hooks/useShops';
 import { t } from '@/src/i18n';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import type { ShopBarberCandidate } from '@/src/shops';
-import { colors, radii, space, typography } from '@/src/theme';
+import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
+import { goBackFromShopScreen } from '@/src/navigation/barberShopNavigation';
 
 export default function ShopSearchScreen() {
   const router = useRouter();
@@ -47,14 +49,13 @@ export default function ShopSearchScreen() {
   };
 
   return (
-    <Screen scroll>
-      <View style={styles.header}>
-        <BackButton fallback="/(barber)/shop" onPress={() => router.replace('/shop')} />
-        <ScreenTitle
-          title={inviteMode ? t('shopWorkspace.inviteBarber') : t('shopWorkspace.search')}
-          subtitle={inviteMode ? t('shopWorkspace.inviteSearchSubtitle') : t('shopWorkspace.searchHint')}
-        />
-      </View>
+    <Screen scroll padded={false}>
+      <CustomerStageHeader
+        title={inviteMode ? t('shopWorkspace.invite') : t('shopWorkspace.search')}
+        context={t('auth.roleBarber')}
+        trailing={<BackButton fallback="/(barber)/shop" onPress={goBackFromShopScreen} />}
+      />
+      <View style={styles.body}>
       <Field
         label={inviteMode ? t('shopWorkspace.barberSearchLabel') : t('shopWorkspace.shopSearchLabel')}
         value={query}
@@ -110,16 +111,17 @@ export default function ShopSearchScreen() {
           ))}
         </View>
       )}
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row-reverse', alignItems: 'flex-start', justifyContent: 'space-between', gap: space[3] },
+  body: { gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[8] },
   list: { gap: space[3] },
-  candidate: { minHeight: 72, flexDirection: 'row-reverse', alignItems: 'center', gap: space[3], borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surface, padding: space[3] },
+  candidate: { minHeight: 72, flexDirection: 'row-reverse', alignItems: 'center', gap: space[3], borderRadius: radii.lg, backgroundColor: colors.surface, padding: space[3], ...elevation.card },
   candidateCopy: { flex: 1, alignItems: 'flex-end', gap: space[1] },
   name: { ...typography.bodyStrong, textAlign: 'right' },
   meta: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
-  success: { ...typography.caption, color: colors.primary, textAlign: 'right' },
+  success: { ...typography.label, color: colors.success, textAlign: 'right' },
 });

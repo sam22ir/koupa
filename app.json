@@ -13,6 +13,11 @@
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.koupa.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/brand/app-icon-foreground.png",
+        "monochromeImage": "./assets/brand/app-icon-foreground.png",
+        "backgroundColor": "#1A7A78"
+      },
       "predictiveBackGestureEnabled": false
     },
     "plugins": [

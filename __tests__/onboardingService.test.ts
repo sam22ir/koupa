@@ -8,7 +8,11 @@ jest.mock('@/lib/supabase', () => ({
   },
 }));
 
-import { publishBarberProfile } from '@/src/services/onboarding';
+import {
+  createBarberProfile,
+  publishBarberProfile,
+  publishExistingBarberProfile,
+} from '@/src/services/onboarding';
 
 describe('barber onboarding service', () => {
   beforeEach(() => {
@@ -16,8 +20,8 @@ describe('barber onboarding service', () => {
     mockRpc.mockResolvedValue({ error: null });
   });
 
-  it('publishes the owned shop fields with the barber profile', async () => {
-    await publishBarberProfile({
+  it('creates the profile with identity, workplace and location only', async () => {
+    await createBarberProfile({
       ...defaultBarberDraft,
       name: 'أمين',
       phone: '0555000000',
@@ -26,20 +30,24 @@ describe('barber onboarding service', () => {
       city: 'الجزائر',
       neighborhood: 'باب الوادي',
       mapsUrl: 'https://maps.app.goo.gl/example',
-      services: [{ name: 'حلاقة', priceDzd: '800', durationMinutes: '30' }],
     });
 
-    expect(mockRpc).toHaveBeenCalledWith('publish_barber_profile', {
+    expect(mockRpc).toHaveBeenCalledWith('create_barber_profile', {
       payload: expect.objectContaining({
         workplace_type: 'owner',
+        name: 'أمين',
         shop_name: 'محل النور',
-        shop_bio: 'حلاقة رجالية',
+        city: 'الجزائر',
       }),
     });
+    // Services and hours are not part of creating the account.
+    const [, args] = mockRpc.mock.calls[0] as [string, { payload: Record<string, unknown> }];
+    expect(args.payload).not.toHaveProperty('services');
+    expect(args.payload).not.toHaveProperty('schedules');
   });
 
-  it('never sends owned-shop fields for worker onboarding', async () => {
-    await publishBarberProfile({
+  it('never sends owned-shop fields when the barber works in someone elses shop', async () => {
+    await createBarberProfile({
       ...defaultBarberDraft,
       name: 'أمين',
       phone: '0555000000',
@@ -51,15 +59,39 @@ describe('barber onboarding service', () => {
       mapsUrl: '',
       latitude: '',
       longitude: '',
-      services: [{ name: 'حلاقة', priceDzd: '800', durationMinutes: '30' }],
     });
 
-    expect(mockRpc).toHaveBeenCalledWith('publish_barber_profile', {
+    expect(mockRpc).toHaveBeenCalledWith('create_barber_profile', {
       payload: expect.objectContaining({
         workplace_type: 'worker',
         shop_name: null,
         shop_bio: null,
       }),
     });
+  });
+
+  it('publishes what the barber already saved with an empty payload', async () => {
+    await publishExistingBarberProfile();
+
+    expect(mockRpc).toHaveBeenCalledWith('publish_barber_profile', { payload: {} });
+  });
+
+  it('omits identity and location from the publish payload', async () => {
+    // The stored row is authoritative for those, so publishing must not
+    // resubmit them and risk overwriting verified values.
+    await publishBarberProfile({
+      ...defaultBarberDraft,
+      name: 'أمين',
+      phone: '0555000000',
+      shopName: 'محل النور',
+      services: [{ name: 'حلاقة', priceDzd: '800', durationMinutes: '30' }],
+    });
+
+    const [, args] = mockRpc.mock.calls[0] as [string, { payload: Record<string, unknown> }];
+    expect(args.payload).toMatchObject({ shop_name: 'محل النور' });
+    expect(args.payload).not.toHaveProperty('name');
+    expect(args.payload).not.toHaveProperty('phone');
+    expect(args.payload).not.toHaveProperty('maps_url');
+    expect(args.payload).not.toHaveProperty('workplace_type');
   });
 });
