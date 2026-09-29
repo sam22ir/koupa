@@ -1,5 +1,14 @@
 import { useCallback, useMemo } from 'react';
-import type { Appointment, BarberProfile, BarberSummary, BookingSlot, TodayAppointment } from '@/src/booking';
+import type {
+  Appointment,
+  BarberProfile,
+  BarberSummary,
+  BookingSlot,
+  MapAreaBounds,
+  MapBarber,
+  NearbyBarberSummary,
+  TodayAppointment,
+} from '@/src/booking';
 import { useAsyncRunner } from '@/src/services/asyncRunner';
 import * as bookingService from '@/src/services/booking';
 import { bookingErrorMessage } from '@/src/services/errors';
@@ -10,6 +19,16 @@ export function useBooking() {
 
   const searchBarbers = useCallback(
     (query: string, city = '', page = 0) => run(() => bookingService.searchBarbers(query, city, page), mapError),
+    [mapError, run],
+  );
+  const searchNearbyBarbers = useCallback(
+    (latitude: number, longitude: number, query = '', page = 0) =>
+      run(() => bookingService.searchNearbyBarbers(latitude, longitude, query, page), mapError),
+    [mapError, run],
+  );
+  const searchBarbersInBounds = useCallback(
+    (bounds: MapAreaBounds, query = '') =>
+      run(() => bookingService.searchBarbersInBounds(bounds, query), mapError),
     [mapError, run],
   );
   const getBarber = useCallback((barberId: string) => run(() => bookingService.getBarber(barberId), mapError), [mapError, run]);
@@ -71,6 +90,16 @@ export function useBooking() {
         city?: string,
         page?: number,
       ) => Promise<readonly BarberSummary[] | null>,
+      searchBarbersInBounds: searchBarbersInBounds as (
+        bounds: MapAreaBounds,
+        query?: string,
+      ) => Promise<readonly MapBarber[] | null>,
+      searchNearbyBarbers: searchNearbyBarbers as (
+        latitude: number,
+        longitude: number,
+        query?: string,
+        page?: number,
+      ) => Promise<readonly NearbyBarberSummary[] | null>,
       getBarber: getBarber as (id: string) => Promise<readonly BarberProfile[] | null>,
       getSlots: getSlots as (
         barberId: string,
@@ -90,6 +119,8 @@ export function useBooking() {
     [
       clearError,
       searchBarbers,
+      searchNearbyBarbers,
+      searchBarbersInBounds,
       getBarber,
       getSlots,
       book,

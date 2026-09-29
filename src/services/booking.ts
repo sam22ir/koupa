@@ -5,6 +5,9 @@ import type {
   BarberProfile,
   BarberService,
   BarberSummary,
+  MapAreaBounds,
+  MapBarber,
+  NearbyBarberSummary,
   BookingSlot,
   BarberAppointmentEvent,
   TodayAppointment,
@@ -85,6 +88,64 @@ export async function searchBarbers(query: string, city = '', page = 0): Promise
     rating_count: item.rating_count ?? 0,
     starting_price_dzd: item.starting_price_dzd ?? 0,
     service_count: item.service_count ?? 0,
+  })));
+}
+
+export async function searchNearbyBarbers(
+  latitude: number,
+  longitude: number,
+  query = '',
+  page = 0,
+): Promise<readonly NearbyBarberSummary[]> {
+  const data = await rpcData(() =>
+    supabase.rpc('search_nearby_barbers', {
+      origin_latitude: latitude,
+      origin_longitude: longitude,
+      search_query: query,
+      page_number: page,
+    }),
+  );
+  return excludeBlocked((data ?? []).map((item) => ({
+    id: item.id,
+    name: item.name,
+    bio: item.bio,
+    city: item.city,
+    neighborhood: item.neighborhood,
+    maps_url: item.maps_url,
+    phone: item.phone,
+    average_rating: Number(item.average_rating ?? 0),
+    rating_count: item.rating_count ?? 0,
+    starting_price_dzd: item.starting_price_dzd ?? 0,
+    service_count: item.service_count ?? 0,
+    latitude: Number(item.latitude),
+    longitude: Number(item.longitude),
+    distance_km: Number(item.distance_km ?? 0),
+  })));
+}
+
+export async function searchBarbersInBounds(
+  bounds: MapAreaBounds,
+  query = '',
+): Promise<readonly MapBarber[]> {
+  const data = await rpcData(() =>
+    supabase.rpc('search_barbers_in_bounds', {
+      min_latitude: bounds.minLatitude,
+      min_longitude: bounds.minLongitude,
+      max_latitude: bounds.maxLatitude,
+      max_longitude: bounds.maxLongitude,
+      search_query: query,
+    }),
+  );
+  return excludeBlocked((data ?? []).map((item) => ({
+    id: item.id,
+    name: item.name,
+    city: item.city,
+    neighborhood: item.neighborhood,
+    average_rating: Number(item.average_rating ?? 0),
+    rating_count: item.rating_count ?? 0,
+    starting_price_dzd: item.starting_price_dzd ?? 0,
+    latitude: Number(item.latitude),
+    longitude: Number(item.longitude),
   })));
 }
 
