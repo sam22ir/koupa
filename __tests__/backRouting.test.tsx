@@ -8,6 +8,8 @@ import { colors, radii } from '@/src/theme';
 const mockDismissTo = jest.fn();
 const mockBack = jest.fn();
 
+jest.mock('@/src/services/account', () => ({ deleteOwnAccount: jest.fn() }));
+
 jest.mock('expo-router', () => ({
   router: {
     dismissTo: (...args: unknown[]) => mockDismissTo(...args),

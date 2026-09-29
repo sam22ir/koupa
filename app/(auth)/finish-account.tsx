@@ -6,6 +6,7 @@ import type { UserRole } from '@/src/auth';
 import { AuthShell, Button, ErrorBanner, Icon } from '@/src/components/ui';
 import { PRIVACY_URL, TERMS_URL } from '@/src/config/legal';
 import { t } from '@/src/i18n';
+import { SetupDeleteAccount } from '@/src/features/account/SetupDeleteAccount';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors, radii, space, typography } from '@/src/theme';
 
@@ -189,6 +190,7 @@ export default function FinishAccountScreen() {
         disabled={saving || busy}
         onPress={() => void changeAccount()}
       />
+      <SetupDeleteAccount disabled={saving || busy} />
     </AuthShell>
   );
 }

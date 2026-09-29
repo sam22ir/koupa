@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { BarberDraft, UserRole } from '@/src/data/onboarding';
-import { toAppError } from '@/src/services/errors';
+import { errorCode, toAppError } from '@/src/services/errors';
 import { loadProfile } from '@/src/services/profile';
 import {
   fromPersistedOnboardingStep,
@@ -34,7 +34,40 @@ export async function saveOnboardingDraft(userId: string, step: number, draft: B
   if (error) throw toAppError(error);
 }
 
-export async function createCustomerProfile(
+/**
+ * Runs a profile creation and, when the phone number is already taken, tries to
+ * free it once: a number held by an unconfirmed account with no history is
+ * released to a confirmed claimant (see claim_unverified_phone). Anything else
+ * keeps the original error, so the customer still sees "number already linked"
+ * when a real account owns it.
+ */
+export async function withPhoneRelease<T>(phone: string, action: () => Promise<T>): Promise<T> {
+  try {
+    return await action();
+  } catch (error) {
+    if (errorCode(error) !== 'PHONE_ALREADY_IN_USE') throw error;
+    let released = false;
+    try {
+      released = await claimUnverifiedPhone(phone);
+    } catch {
+      // Not confirmed yet, or the claim was refused: fall through to the original error.
+      released = false;
+    }
+    if (!released) throw error;
+    return action();
+  }
+}
+
+export function createCustomerProfile(
+  userId: string,
+  name: string,
+  phone: string,
+  city?: string,
+): Promise<void> {
+  return withPhoneRelease(phone, () => insertCustomerProfile(userId, name, phone, city));
+}
+
+async function insertCustomerProfile(
   userId: string,
   name: string,
   phone: string,
@@ -64,7 +97,11 @@ export async function createCustomerProfile(
  * as identity and location are known. Services and working hours become
  * in-app tasks afterwards, so quitting here no longer loses the account.
  */
-export async function createBarberProfile(draft: BarberDraft): Promise<void> {
+export function createBarberProfile(draft: BarberDraft): Promise<void> {
+  return withPhoneRelease(draft.phone, () => insertBarberProfile(draft));
+}
+
+async function insertBarberProfile(draft: BarberDraft): Promise<void> {
   const payload = {
     name: draft.name,
     phone: draft.phone,
