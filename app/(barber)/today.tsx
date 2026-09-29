@@ -48,6 +48,7 @@ import {
   type BarberActivationWorkplace,
 } from '@/src/navigation/barberActivation';
 import { buildBarberCheckInPayload } from '@/src/qr';
+import { BarberQueueCard } from '@/src/features/barber-queue/BarberQueueCard';
 import { EmailConfirmationRow, needsEmailConfirmation } from '@/src/features/barber-activation/EmailConfirmationRow';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
@@ -89,6 +90,14 @@ export default function BarberTodayScreen() {
   const profileId = profile?.id;
   const isUnpublished = Boolean(profile && profile.role === 'barber' && !profile.is_published);
   const qrCardRef = useRef<View | null>(null);
+  // The walk-in queue polls only while this tab is focused.
+  const [focused, setFocused] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
 
   const dashboard = useMemo(() => getTodayDashboard(items), [items]);
 
@@ -309,6 +318,11 @@ export default function BarberTodayScreen() {
           style={styles.listView}
           refreshing={loading}
           onRefresh={() => void refresh()}
+          ListHeaderComponent={
+            profile?.role === 'barber' ? (
+              <BarberQueueCard active={focused} published={Boolean(profile.is_published)} />
+            ) : null
+          }
           ListEmptyComponent={
             loading ? (
               <ActivityIndicator style={styles.initialLoader} color={colors.primary} />

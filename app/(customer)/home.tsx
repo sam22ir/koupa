@@ -25,6 +25,8 @@ import { CustomerHomeSkeleton } from '@/src/features/customer-home/CustomerHomeS
 import { RecentBarbers } from '@/src/features/customer-home/RecentBarbers';
 import { UpcomingAppointmentCard } from '@/src/features/customer-home/UpcomingAppointmentCard';
 import { loadCustomerAppointments, useBooking } from '@/src/hooks/useBooking';
+import { useMyQueueEntry } from '@/src/hooks/useQueue';
+import { MyQueueCard } from '@/src/features/customer-queue/MyQueueCard';
 import { t } from '@/src/i18n';
 import { formatAppError } from '@/src/i18n/errors';
 import { useAppSession } from '@/src/providers/SessionProvider';
@@ -100,6 +102,16 @@ function SignedInHome() {
   );
   const recentBarbers = useMemo(() => deriveRecentBarbers(appointments), [appointments]);
 
+  // The line is polled only while Home is on screen.
+  const [focused, setFocused] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+  const myQueue = useMyQueueEntry(focused);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -173,6 +185,14 @@ function SignedInHome() {
               <Button.Label>{t('common.retry')}</Button.Label>
             </Button>
           </View>
+        ) : null}
+        {myQueue.entry ? (
+          <MyQueueCard
+            entry={myQueue.entry}
+            leaving={myQueue.leaving}
+            error={myQueue.error}
+            onLeave={() => void myQueue.leave(myQueue.entry!.id)}
+          />
         ) : null}
         {loading ? <CustomerHomeSkeleton /> : showInitialError ? (
           <View style={styles.initialError}>

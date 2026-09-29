@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
 
 // These screens pull in the moderation actions, which import the real Supabase
@@ -15,6 +15,15 @@ jest.mock('@/lib/supabase', () => ({
 
 import BarberProfileScreen from '@/app/barber/[id]';
 import ShopProfileScreen from '@/app/shop/[id]';
+
+const mockJoin = jest.fn();
+const mockReplace = jest.fn();
+let mockQueueStatus: { queue_open: boolean; waiting_count: number } | null = null;
+
+jest.mock('@/src/hooks/useQueue', () => ({
+  usePublicQueueStatus: () => ({ status: mockQueueStatus, refresh: jest.fn() }),
+  useJoinQueue: () => ({ joining: false, error: '', join: (...args: unknown[]) => mockJoin(...args) }),
+}));
 
 const mockPush = jest.fn();
 const mockDismissTo = jest.fn();
@@ -48,6 +57,7 @@ let mockBarber = {
 jest.mock('expo-router', () => ({
   router: {
     push: (...args: unknown[]) => mockPush(...args),
+    replace: (...args: unknown[]) => mockReplace(...args),
     dismissTo: (...args: unknown[]) => mockDismissTo(...args),
   },
   useLocalSearchParams: () => mockParams,
@@ -95,6 +105,7 @@ describe('public profile role navigation', () => {
     jest.clearAllMocks();
     mockProfile = null;
     mockGuestBrowsing = false;
+    mockQueueStatus = null;
     mockParams = { id: 'barber-1' };
     mockBarber = { ...mockBarber, services: [{ id: 'cut', name: 'حلاقة', price_dzd: 800, duration_minutes: 30 }] };
   });
@@ -180,5 +191,72 @@ describe('public profile role navigation', () => {
     await screen.findByText('محل النور');
 
     expect(screen.queryByText('احجز')).toBeNull();
+  });
+
+  describe('walk-in queue', () => {
+    beforeEach(() => {
+      mockQueueStatus = { queue_open: true, waiting_count: 3 };
+      mockJoin.mockResolvedValue(true);
+    });
+
+    it('shows nothing when the barber has no open queue', async () => {
+      mockQueueStatus = { queue_open: false, waiting_count: 0 };
+      mockProfile = { role: 'customer' };
+      await render(<BarberProfileScreen />);
+      await screen.findByText('سمير');
+
+      expect(screen.queryByTestId('join-queue-card')).toBeNull();
+    });
+
+    it('lets a customer join once a service is chosen, then opens Home', async () => {
+      mockProfile = { id: 'customer-1', role: 'customer' } as never;
+      await render(<BarberProfileScreen />);
+      await screen.findByText('سمير');
+
+      expect(screen.getByText(`${(3).toLocaleString('ar-DZ')} في الانتظار الآن`)).toBeTruthy();
+      const join = screen.getByRole('button', { name: 'انضم إلى الطابور' });
+      expect(join).toBeDisabled();
+
+      await fireEvent.press(screen.getByRole('radio', { name: 'حلاقة' }));
+      expect(join).toBeEnabled();
+      await fireEvent.press(join);
+
+      expect(mockJoin).toHaveBeenCalledWith('barber-1', 'cut');
+      await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(customer)/home'));
+    });
+
+    it('stays on the profile when joining fails', async () => {
+      mockJoin.mockResolvedValue(false);
+      mockProfile = { id: 'customer-1', role: 'customer' } as never;
+      await render(<BarberProfileScreen />);
+      await screen.findByText('سمير');
+
+      await fireEvent.press(screen.getByRole('radio', { name: 'حلاقة' }));
+      await fireEvent.press(screen.getByRole('button', { name: 'انضم إلى الطابور' }));
+
+      await waitFor(() => expect(mockJoin).toHaveBeenCalled());
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
+
+    it('sends a guest through sign-up instead of joining', async () => {
+      mockGuestBrowsing = true;
+      await render(<BarberProfileScreen />);
+      await screen.findByText('سمير');
+
+      await fireEvent.press(screen.getByRole('button', { name: 'أنشئ حسابا للانضمام' }));
+
+      expect(mockJoin).not.toHaveBeenCalled();
+      expect(mockSetPendingIntent).toHaveBeenCalledWith('/barber/barber-1', {});
+      expect(mockPush).toHaveBeenCalledWith({ pathname: '/(auth)/sign-up', params: { role: 'customer' } });
+    });
+
+    it('tells a barber the queue is open but gives no join button', async () => {
+      mockProfile = { id: 'barber-9', role: 'barber' } as never;
+      await render(<BarberProfileScreen />);
+      await screen.findByText('سمير');
+
+      expect(screen.getByText('الطابور مفتوح لدى هذا الحلاق.')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'انضم إلى الطابور' })).toBeNull();
+    });
   });
 });

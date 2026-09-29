@@ -95,6 +95,21 @@ Firebase push notifications are sent for booking updates and every `Present`, `C
 Every in-app and push notification opens its associated event. Notification rows store a typed event destination, never an arbitrary URL: appointment events open a participant-specific appointment view; shop invitations, join requests, and membership decisions open the Shop hub or member workspace; workspace updates open the affected schedule or owner member workspace; and retained shop activity opens its activity view. If an event's underlying record has been removed or is no longer available, the recipient can still open the stored notification event record.
 
 ## Ratings, Safety, and Support
+## Walk-in Queue
+
+A published barber can keep a live line for people who arrive without a booking. It sits next to bookings and never changes them.
+
+- Each barber has a `queue open / closed` switch on Today, separate from pause-bookings. Only published barbers can open a queue. Closing it blocks new joins; people already in line are still served.
+- There are two ways in. The barber adds a walk-in with a first name and a service (no account needed). A signed-in customer with a confirmed email joins remotely from the barber's profile, choosing a service. Guests are asked to create an account, as they are for booking.
+- Bookings keep their time and walk-ins fill the gaps. The barber's queue card shows the next booked appointment, so they can see the gap. A booked customer who scans in (`Present`) is served first. The queue never reserves a slot.
+- Customers see only their position and how many are waiting, never a time estimate. Guests see only whether a queue is open and how many are waiting, never names.
+- An entry moves `waiting` -> `called` -> `serving` -> `done`, or ends as `left`, `no_show` or `removed`. Only remote customers can be called; a call sends a push notification and starts a 10-minute arrival grace period, after which the entry becomes `no_show` and the next person is told they are next. One customer is served at a time.
+- Guards: one active entry per customer across all barbers, at most 20 active entries per barber, waiting entries older than 12 hours expire, and the barber can remove anyone.
+- A finished entry is a lightweight queue record. It does not create an appointment, so walk-ins cannot be rated and do not appear in appointment history.
+- Push notifications (Arabic): "you're next" when a remote customer becomes first in line, "your turn" when called, and "removed from the queue". They open the queue status through a typed `queue` destination.
+- Deleting an account closes the barber's queue and notifies waiting customers, or removes the customer's own entry.
+- All writes go through server functions (`set_queue_open`, `add_walkin`, `join_queue`, `leave_queue`, `update_queue_entry`); the table has no direct client access.
+
 
 Customers can submit one 1-5 star rating after `Completed`. Ratings are publicly visible with average and count, including on shop profiles. Ratings can be edited within 24 hours but not deleted by the author. Before publishing profile, shop, or rating content, users must accept the active Terms and confirm that their content follows the UGC rules.
 

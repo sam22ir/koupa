@@ -35,6 +35,12 @@ export function notificationDestinationHref(
     }
   }
 
+  // Queue events open the place where the line lives: the customer's Home
+  // shows their position; the barber's Today holds the queue card.
+  if (kind === 'queue') {
+    return (recipientRole === 'barber' ? '/(barber)/today' : '/(customer)/home') as Href;
+  }
+
   if (kind === 'shop_membership' || kind === 'shop_hub') {
     return '/(barber)/shop' as Href;
   }

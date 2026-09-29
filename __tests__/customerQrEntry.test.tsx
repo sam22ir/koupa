@@ -8,6 +8,10 @@ import type { Appointment } from '../src/booking';
 const mockPush = jest.fn();
 const mockLoadAppointments = jest.fn();
 
+jest.mock('@/src/hooks/useQueue', () => ({
+  useMyQueueEntry: () => ({ entry: null, loaded: true, error: '', leaving: false, refresh: jest.fn(), leave: jest.fn() }),
+}));
+
 jest.mock('expo-router', () => {
   const ReactModule = jest.requireActual<typeof React>('react');
   return {

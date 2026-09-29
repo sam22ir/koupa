@@ -15,6 +15,7 @@ Docker is currently required for `supabase start`. Until Docker is available on 
 | `booking_invariants.sql` | Slot availability, double-book, active appointment, shop bookability |
 | `barber_publish_settings.sql` | Atomic publish + settings replace expectations |
 | `qr_check_in.sql` | QR result codes, timing boundaries, notification idempotency, undo, overdue transitions |
+| `walk_in_queue.sql` | Walk-in queue rules: roles, cap, one active entry, grace period, expiry, notifications, anon privileges. Rolls back, so it is safe on the demo seed |
 | `qr_check_in_concurrency.sh` | Two-session check-in race and duplicate-notification protection |
 
 ## Suggested local flow
