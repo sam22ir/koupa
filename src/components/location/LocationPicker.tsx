@@ -19,6 +19,7 @@ import {
   serializeGeoPoint,
   type GeoPoint,
 } from '@/src/location';
+import { MAP_BASE_URL } from '@/src/features/customer-find/barbersMap';
 import { requestDeviceCoordinates, reverseGeocode } from '@/src/services/deviceLocation';
 import { colors, radii, space, typography } from '@/src/theme';
 
@@ -190,7 +191,7 @@ export function LocationPicker({ latitude, longitude, onChange }: Props) {
               <WebView
                 ref={webViewRef}
                 originWhitelist={['*']}
-                source={{ html }}
+                source={{ html, baseUrl: MAP_BASE_URL }}
                 onMessage={(event) => {
                   try {
                     const payload = JSON.parse(event.nativeEvent.data) as GeoPoint;

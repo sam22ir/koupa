@@ -12,8 +12,8 @@ Scope: public SQL functions created by repo migrations, grants, and dispatch pos
 
 ## Callable by signed-out (anon) clients
 
-Guest browsing reads three RPCs, and only these three are granted to `anon`
-(migrations `20260929000100` and `20260929000200`). Signed-out callers get an empty
+Guest browsing reads five RPCs, and only these five are granted to `anon`
+(migrations `20260929000100`, `20260929000200`, `20260930000100`, `20260930000200`). Signed-out callers get an empty
 `phone`; every write RPC below stays authenticated-only.
 
 | Function | Guest guard |
@@ -21,6 +21,8 @@ Guest browsing reads three RPCs, and only these three are granted to `anon`
 | `search_published_barbers` | Published barbers only; `phone` blank when `auth.uid()` is null |
 | `get_public_barber_profile` | Bookable published barber; `phone` blank when signed out |
 | `available_booking_slots` | Bookable published barber; read-only slot math |
+| `search_nearby_barbers` | Independent published barbers with coordinates, within 1–100 km, closest first; `phone` blank when signed out |
+| `search_barbers_in_bounds` | Independent published barbers inside a map viewport, at most 100; never returns a phone number |
 
 Supabase grants new functions to `anon` by default, and a `PUBLIC` grant reaches it too.
 `20260929000200` revoked both from every non-extension `public` function (restoring each

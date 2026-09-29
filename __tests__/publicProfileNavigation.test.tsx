@@ -33,6 +33,7 @@ let mockBarber = {
   average_rating: 4.8,
   rating_count: 4,
   services: [{ id: 'cut', name: 'حلاقة', price_dzd: 800, duration_minutes: 30 }],
+  weekly_hours: [{ day_of_week: 0, starts_at: '09:00:00', ends_at: '18:00:00' }],
   shop: {
     id: 'shop-1',
     name: 'صالون النور',
@@ -157,6 +158,9 @@ describe('public profile role navigation', () => {
     expect(screen.getByText(/0555000000/)).toBeTruthy();
     expect(screen.getByText('صالون النور')).toBeTruthy();
     expect(screen.getByText(/4\.5/)).toBeTruthy();
+    // Weekly hours: the working day shows its span, the rest read as closed.
+    expect(screen.getByText(/09:00 - 18:00/)).toBeTruthy();
+    expect(screen.getAllByText('مغلق')).toHaveLength(6);
     await fireEvent.press(screen.getByRole('button', { name: /عرض المحل/ }));
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/shop/[id]', params: { id: 'shop-1', returnTo: '/barber/barber-1' } });
   });

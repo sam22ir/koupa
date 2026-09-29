@@ -1007,6 +1007,51 @@ export type Database = {
         Args: { accept: boolean; target_membership_id: string }
         Returns: string
       }
+      search_barbers_in_bounds: {
+        Args: {
+          max_latitude: number
+          max_longitude: number
+          min_latitude: number
+          min_longitude: number
+          search_query?: string
+        }
+        Returns: {
+          average_rating: number
+          city: string
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          neighborhood: string
+          rating_count: number
+          starting_price_dzd: number
+        }[]
+      }
+      search_nearby_barbers: {
+        Args: {
+          origin_latitude: number
+          origin_longitude: number
+          page_number?: number
+          radius_km?: number
+          search_query?: string
+        }
+        Returns: {
+          average_rating: number
+          bio: string
+          city: string
+          distance_km: number
+          id: string
+          latitude: number
+          longitude: number
+          maps_url: string
+          name: string
+          neighborhood: string
+          phone: string
+          rating_count: number
+          service_count: number
+          starting_price_dzd: number
+        }[]
+      }
       search_nearby_shops: {
         Args: {
           origin_latitude: number

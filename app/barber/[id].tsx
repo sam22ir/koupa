@@ -8,13 +8,13 @@ import {
   BackButton,
   Button,
   Card,
-  CustomerStageHeader,
   EmptyState,
   ErrorBanner,
   Icon,
   OptionCard,
   Screen,
   SectionHeader,
+  Stage,
 } from '@/src/components/ui';
 import { initialsFromName } from '@/src/utils/initials';
 import { useBooking } from '@/src/hooks/useBooking';
@@ -24,6 +24,7 @@ import { t } from '@/src/i18n';
 import { publicProfileReturnHref } from '@/src/navigation/bookingNavigation';
 import { setPendingIntentFromPath } from '@/src/navigation/pendingIntent';
 import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
+import { weeklyHoursRows } from '@/src/features/customer-find/weeklyHours';
 import { isUserBlocked } from '@/src/services/ugcModeration';
 
 export default function BarberProfilePublicScreen() {
@@ -80,6 +81,7 @@ export default function BarberProfilePublicScreen() {
     <Screen
       padded={false}
       scroll
+      bleedTop
       footer={showBook && barber ? (
         <View style={styles.footerRow}>
           {selectedService ? (
@@ -101,13 +103,34 @@ export default function BarberProfilePublicScreen() {
         </View>
       ) : undefined}
     >
-      <CustomerStageHeader
-        title={t('find.barberProfileTitle')}
-        subtitle={t('find.barberProfileSubtitle')}
-        context={profile?.role === 'barber' ? t('auth.roleBarber') : t('auth.roleCustomer')}
-        trailing={<BackButton fallback={fallback} />}
-      />
-      <View style={styles.body}>
+      <Stage overlap>
+        <View style={styles.backRow}>
+          <BackButton fallback={fallback} tone="onPrimary" />
+        </View>
+        {barber && !blocked ? (
+          <View style={styles.identityRow}>
+            <Avatar initials={initialsFromName(barber.name)} size={64} tone="stage" />
+            <View style={styles.identityCopy}>
+              <Text accessibilityRole="header" style={styles.identityName}>{barber.name}</Text>
+              {[barber.neighborhood, barber.city].filter(Boolean).length ? (
+                <View style={styles.metaRow}>
+                  <Icon name="location-outline" size={14} color={colors.onPrimaryMuted} />
+                  <Text style={styles.identityLocation}>{[barber.neighborhood, barber.city].filter(Boolean).join('، ')}</Text>
+                </View>
+              ) : null}
+              <View style={styles.ratingPill}>
+                {barber.rating_count ? <Icon name="star" size={13} color={colors.accent} /> : null}
+                <Text style={styles.rating}>
+                  {barber.rating_count ? `${barber.average_rating.toFixed(1)} (${barber.rating_count})` : t('find.noRatings')}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <Text accessibilityRole="header" style={styles.identityName}>{t('find.barberProfileTitle')}</Text>
+        )}
+      </Stage>
+      <View style={[styles.body, styles.lifted]}>
         {loading && !barber ? <BarberProfileSkeleton /> : null}
         {error && barber ? <ErrorBanner error={error} /> : null}
         {blocked ? (
@@ -128,54 +151,35 @@ export default function BarberProfilePublicScreen() {
         ) : barber ? (
           <>
             <Card elevated style={styles.identityCard}>
-              <View style={styles.identityRow}>
-                <Avatar initials={initialsFromName(barber.name)} size={64} />
-                <View style={styles.identityCopy}>
-                  <Text style={styles.identityName}>{barber.name}</Text>
-                  <View style={styles.metaRow}>
-                    <Icon name="location-outline" size={14} color={colors.textMuted} />
-                    <Text style={styles.identityLocation}>{[barber.neighborhood, barber.city].filter(Boolean).join('، ')}</Text>
-                  </View>
-                  <View style={styles.ratingPill}>
-                    {barber.rating_count ? <Icon name="star" size={13} color={colors.accent} /> : null}
-                    <Text style={styles.rating}>
-                      {barber.rating_count ? `${barber.average_rating.toFixed(1)} (${barber.rating_count})` : t('find.noRatings')}
-                    </Text>
-                  </View>
-                </View>
-              </View>
               {barber.bio ? <Text style={styles.bio}>{barber.bio}</Text> : null}
               {barber.phone ? (
                 <Text style={styles.phone}>{t('find.phoneLabel')}: {`\u200E${barber.phone}`}</Text>
               ) : null}
-              {barber.maps_url ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t('find.openLocation')}
-                  onPress={() => void Linking.openURL(barber.maps_url!).catch(() => undefined)}
-                  style={({ pressed }) => [styles.outlineAction, pressed && styles.outlineActionPressed]}
-                >
-                  <Icon name="location-outline" size={18} color={colors.primary} />
-                  <Text style={styles.outlineActionText}>{t('find.openLocation')}</Text>
-                </Pressable>
-              ) : null}
+              <View style={styles.actionRow}>
+                {barber.phone ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('find.callBarber')}
+                    onPress={() => void Linking.openURL(`tel:${barber.phone}`).catch(() => undefined)}
+                    style={({ pressed }) => [styles.outlineAction, pressed && styles.outlineActionPressed]}
+                  >
+                    <Icon name="call-outline" size={18} color={colors.primary} />
+                    <Text style={styles.outlineActionText}>{t('find.callBarber')}</Text>
+                  </Pressable>
+                ) : null}
+                {barber.maps_url ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('find.openLocation')}
+                    onPress={() => void Linking.openURL(barber.maps_url!).catch(() => undefined)}
+                    style={({ pressed }) => [styles.outlineAction, pressed && styles.outlineActionPressed]}
+                  >
+                    <Icon name="navigate-outline" size={18} color={colors.primary} />
+                    <Text style={styles.outlineActionText}>{t('find.openLocation')}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </Card>
-
-            {profile?.id && profile.id !== barber.id ? (
-              <Card style={styles.moderationCard}>
-                <UgcModerationActions
-                  targetKind="profile"
-                  targetId={barber.id}
-                  targetName={barber.name}
-                  blockTargetId={barber.id}
-                  additionalReportTarget={{ kind: 'ratings', label: t('moderation.reportRatings') }}
-                  onBlockChange={(next) => {
-                    setBlocked(next);
-                    if (next) setBarber(null);
-                  }}
-                />
-              </Card>
-            ) : null}
 
             <SectionHeader title={t('booking.services')} />
             {barber.services.length ? (
@@ -218,6 +222,38 @@ export default function BarberProfilePublicScreen() {
               </Pressable>
             ) : null}
 
+            {barber.weekly_hours.length ? (
+              <>
+                <SectionHeader title={t('booking.hours')} />
+                <Card style={styles.hoursCard}>
+                  {weeklyHoursRows(barber.weekly_hours).map((row) => (
+                    <View key={row.day} style={styles.hoursRow}>
+                      <Text style={styles.hoursDay}>{t(`find.day${row.day}` as 'find.day0')}</Text>
+                      <Text style={[styles.hoursTime, !row.open && styles.hoursClosed]}>
+                        {row.open ? `\u200E${row.open}` : t('find.closed')}
+                      </Text>
+                    </View>
+                  ))}
+                </Card>
+              </>
+            ) : null}
+
+            {profile?.id && profile.id !== barber.id ? (
+              <Card style={styles.moderationCard}>
+                <UgcModerationActions
+                  targetKind="profile"
+                  targetId={barber.id}
+                  targetName={barber.name}
+                  blockTargetId={barber.id}
+                  additionalReportTarget={{ kind: 'ratings', label: t('moderation.reportRatings') }}
+                  onBlockChange={(next) => {
+                    setBlocked(next);
+                    if (next) setBarber(null);
+                  }}
+                />
+              </Card>
+            ) : null}
+
           </>
         ) : !loading ? (
           <View style={styles.errorCard}>
@@ -244,18 +280,26 @@ function BarberProfileSkeleton() {
 
 const styles = StyleSheet.create({
   body: { gap: space[4], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[6] },
+  lifted: { marginTop: layout.stageBodyOverlap },
+  backRow: { alignItems: 'flex-start' },
+  actionRow: { flexDirection: 'row-reverse', gap: space[2] },
+  hoursCard: { gap: space[2] },
+  hoursRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
+  hoursDay: { ...typography.body, textAlign: 'right' },
+  hoursTime: { ...typography.numeric, fontSize: 14 },
+  hoursClosed: { ...typography.caption, color: colors.textSubtle },
   identityCard: { gap: space[3] },
   identityRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[4] },
   identityCopy: { flex: 1, minWidth: 0, alignItems: 'flex-end', gap: space[1] },
   metaRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[1] },
   moderationCard: { gap: space[2] },
-  identityName: { ...typography.title, textAlign: 'right' },
-  identityLocation: { ...typography.caption, textAlign: 'right' },
+  identityName: { ...typography.title, color: colors.onPrimary, textAlign: 'right' },
+  identityLocation: { ...typography.caption, color: colors.onPrimaryMuted, textAlign: 'right' },
   ratingPill: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[1], alignSelf: 'flex-end', paddingHorizontal: space[2], minHeight: 24, borderRadius: radii.pill, backgroundColor: colors.accentSoft },
   rating: { ...typography.label, fontSize: 12, lineHeight: 18, color: colors.accentText, textAlign: 'right' },
   bio: { ...typography.body, color: colors.textMuted, textAlign: 'right' },
   phone: { ...typography.caption, color: colors.text, textAlign: 'right' },
-  outlineAction: { minHeight: 44, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: space[2], borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
+  outlineAction: { flex: 1, minHeight: 44, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: space[2], borderWidth: 1, borderColor: colors.border, borderRadius: radii.md },
   outlineActionPressed: { backgroundColor: colors.primarySoft },
   outlineActionText: { ...typography.label, color: colors.primarySoftText },
   services: { gap: space[2] },

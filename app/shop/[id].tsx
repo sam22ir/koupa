@@ -8,20 +8,20 @@ import {
   BackButton,
   Button,
   Card,
-  CustomerStageHeader,
   EmptyState,
   ErrorBanner,
   Icon,
   Screen,
   SectionHeader,
+  Stage,
 } from '@/src/components/ui';
 import { useShops } from '@/src/hooks/useShops';
 import { UgcModerationActions } from '@/src/features/moderation/UgcModerationActions';
 import { t } from '@/src/i18n';
 import { publicProfileReturnHref } from '@/src/navigation/bookingNavigation';
-import { setPendingIntentFromPath } from '@/src/navigation/pendingIntent';
 import { useAppSession } from '@/src/providers/SessionProvider';
-import { colors, elevation, radii, space, typography } from '@/src/theme';
+import { RatingPill } from '@/src/features/customer-find/DirectoryCard';
+import { colors, elevation, layout, radii, space, typography } from '@/src/theme';
 import { initialsFromName } from '@/src/utils/initials';
 import { getShopOwnerId } from '@/src/services/shops';
 import { isUserBlocked } from '@/src/services/ugcModeration';
@@ -63,16 +63,28 @@ export default function ShopProfileScreen() {
   }, [load]);
 
   return (
-    <Screen padded={false} scroll>
-      <CustomerStageHeader
-        title={shop?.name ?? t('find.shops')}
-        subtitle={shop?.owner_name}
-        context={t('auth.roleCustomer')}
-        trailing={<BackButton fallback={fallback} />}
-      />
-      <View style={styles.body}>
+    <Screen padded={false} scroll bleedTop>
+      <Stage overlap>
+        <View style={styles.backRow}>
+          <BackButton fallback={fallback} tone="onPrimary" />
+        </View>
+        <View style={styles.identityRow}>
+          <Avatar initials={initialsFromName(shop?.name ?? t('find.shops'))} size={64} tone="stage" />
+          <View style={styles.identityCopy}>
+            <Text accessibilityRole="header" style={styles.identityName}>{shop?.name ?? t('find.shops')}</Text>
+            {shop && [shop.neighborhood, shop.city].filter(Boolean).length ? (
+              <View style={styles.metaRow}>
+                <Icon name="location-outline" size={14} color={colors.onPrimaryMuted} />
+                <Text style={styles.identityLocation}>{[shop.neighborhood, shop.city].filter(Boolean).join('، ')}</Text>
+              </View>
+            ) : shop?.owner_name ? <Text style={styles.identityLocation}>{shop.owner_name}</Text> : null}
+            {shop ? <RatingPill average={shop.average_rating} /> : null}
+          </View>
+        </View>
+      </Stage>
+      <View style={[styles.body, styles.lifted]}>
       <ErrorBanner error={shops.error || null} />
-      {loading ? <Text style={styles.meta}>{t('common.loading')}</Text> : null}
+      {loading ? <ShopSkeleton /> : null}
       {!loading && shops.error ? <Button label={t('common.retry')} variant="secondary" onPress={() => void load()} /> : null}
       {blocked ? (
         <Card style={styles.moderationCard}>
@@ -93,6 +105,32 @@ export default function ShopProfileScreen() {
         </Card>
       ) : shop ? (
         <>
+          {shop.bio || shop.maps_url ? (
+            <Card elevated style={styles.aboutCard}>
+              {shop.bio ? <Text style={styles.bio}>{shop.bio}</Text> : null}
+              {shop.maps_url ? (
+                <Button label={t('find.openLocation')} variant="secondary" onPress={() => void Linking.openURL(shop.maps_url!).catch(() => undefined)} />
+              ) : null}
+            </Card>
+          ) : null}
+          <SectionHeader title={t('find.shopBarbers')} />
+          {shop.barbers.length === 0 ? <EmptyState title={t('find.empty')} /> : null}
+          {shop.barbers.map((barber) => (
+            <Pressable
+              key={barber.id}
+              accessibilityRole="button"
+              accessibilityLabel={barber.name}
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              onPress={() => router.push({ pathname: '/barber/[id]', params: { id: barber.id, returnTo: `/shop/${shop.id}` } })}
+            >
+              <Avatar initials={initialsFromName(barber.name)} />
+              <View style={styles.copy}>
+                <Text style={styles.name}>{barber.name}</Text>
+                {profile?.role !== 'barber' ? <Text style={styles.meta}>{t('find.bookWithBarber')}</Text> : null}
+              </View>
+              {profile?.role !== 'barber' ? <Icon name="chevron-back" size={18} color={colors.textSubtle} /> : null}
+            </Pressable>
+          ))}
           {profile?.id && profile.id !== shop.owner_id ? (
             <Card style={styles.moderationCard}>
               <UgcModerationActions
@@ -107,37 +145,6 @@ export default function ShopProfileScreen() {
               />
             </Card>
           ) : null}
-          {shop.bio ? <Text style={styles.bio}>{shop.bio}</Text> : null}
-          {shop.maps_url ? <Button label={t('find.openLocation')} variant="secondary" onPress={() => void Linking.openURL(shop.maps_url!).catch(() => undefined)} /> : null}
-          <SectionHeader title={t('booking.chooseBarber')} />
-          {shop.barbers.length === 0 ? <EmptyState title={t('find.empty')} /> : null}
-          {shop.barbers.map((barber) => (
-            <Pressable
-              key={barber.id}
-              accessibilityRole="button"
-              accessibilityLabel={barber.name}
-              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-              onPress={() => {
-                const returnTo = `/shop/${shop.id}`;
-                if (profile?.role === 'customer') {
-                  router.push({ pathname: '/book/[barberId]', params: { barberId: barber.id, returnTo } });
-                  return;
-                }
-                if (profile?.role !== 'barber') {
-                  setPendingIntentFromPath(`/book/${barber.id}`, { returnTo });
-                  router.push('/(auth)/sign-in');
-                }
-              }}
-              disabled={profile?.role === 'barber'}
-            >
-              <Avatar initials={initialsFromName(barber.name)} />
-              <View style={styles.copy}>
-                <Text style={styles.name}>{barber.name}</Text>
-                {profile?.role !== 'barber' ? <Text style={styles.meta}>{t('booking.book')}</Text> : null}
-              </View>
-              {profile?.role !== 'barber' ? <Icon name="chevron-back" size={18} color={colors.textSubtle} /> : null}
-            </Pressable>
-          ))}
         </>
       ) : !loading ? <EmptyState title={t('find.empty')} /> : null}
       </View>
@@ -145,7 +152,26 @@ export default function ShopProfileScreen() {
   );
 }
 
+function ShopSkeleton() {
+  return (
+    <View testID="shop-profile-skeleton" style={styles.skeleton}>
+      <View style={styles.skeletonCard} />
+      <View style={styles.skeletonCard} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  lifted: { marginTop: layout.stageBodyOverlap },
+  backRow: { alignItems: 'flex-start' },
+  identityRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[4] },
+  identityCopy: { flex: 1, minWidth: 0, alignItems: 'flex-end', gap: space[1] },
+  metaRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: space[1] },
+  identityName: { ...typography.title, color: colors.onPrimary, textAlign: 'right' },
+  identityLocation: { ...typography.caption, color: colors.onPrimaryMuted, textAlign: 'right' },
+  aboutCard: { gap: space[3] },
+  skeleton: { gap: space[3] },
+  skeletonCard: { height: 72, borderRadius: radii.lg, backgroundColor: colors.surfaceMuted },
   body: {
     paddingHorizontal: space[5],
     paddingBottom: space[6],

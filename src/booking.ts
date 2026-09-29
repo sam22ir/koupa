@@ -11,6 +11,31 @@ export interface BarberSummary {
   readonly starting_price_dzd: number;
   readonly service_count: number;
 }
+/** A barber search result with the distance from the customer's origin. */
+export interface NearbyBarberSummary extends BarberSummary {
+  readonly latitude: number;
+  readonly longitude: number;
+  readonly distance_km: number;
+}
+/** The visible rectangle of the Find map. */
+export interface MapAreaBounds {
+  readonly minLatitude: number;
+  readonly minLongitude: number;
+  readonly maxLatitude: number;
+  readonly maxLongitude: number;
+}
+/** A barber pin on the Find map: position plus what the preview card shows. */
+export interface MapBarber {
+  readonly id: string;
+  readonly name: string;
+  readonly city: string | null;
+  readonly neighborhood: string | null;
+  readonly average_rating: number;
+  readonly rating_count: number;
+  readonly starting_price_dzd: number;
+  readonly latitude: number;
+  readonly longitude: number;
+}
 export interface BarberService { readonly id: string; readonly name: string; readonly price_dzd: number; readonly duration_minutes: number; }
 export interface BarberShopProfile {
   readonly id: string;
