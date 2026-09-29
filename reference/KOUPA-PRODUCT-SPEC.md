@@ -95,7 +95,6 @@ Firebase push notifications are sent for booking updates and every `Present`, `C
 
 Every in-app and push notification opens its associated event. Notification rows store a typed event destination, never an arbitrary URL: appointment events open a participant-specific appointment view; shop invitations, join requests, and membership decisions open the Shop hub or member workspace; workspace updates open the affected schedule or owner member workspace; and retained shop activity opens its activity view. If an event's underlying record has been removed or is no longer available, the recipient can still open the stored notification event record.
 
-## Ratings, Safety, and Support
 ## Walk-in Queue
 
 A published barber can keep a live line for people who arrive without a booking. It sits next to bookings and never changes them.
@@ -111,6 +110,7 @@ A published barber can keep a live line for people who arrive without a booking.
 - Deleting an account closes the barber's queue and notifies waiting customers, or removes the customer's own entry.
 - All writes go through server functions (`set_queue_open`, `add_walkin`, `join_queue`, `leave_queue`, `update_queue_entry`); the table has no direct client access.
 
+## Ratings, Safety, and Support
 
 Customers can submit one 1-5 star rating after `Completed`. Ratings are publicly visible with average and count, including on shop profiles. Ratings can be edited within 24 hours but not deleted by the author. Before publishing profile, shop, or rating content, users must accept the active Terms and confirm that their content follows the UGC rules.
 
