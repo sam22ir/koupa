@@ -103,7 +103,7 @@ describe('resolveAppDestination', () => {
         legalConsentRequired: false,
         legalError: 'LEGAL_SAVE_FAILED',
       }),
-    ).toBe('complete-account');
+    ).toBe('finish-account');
   });
 
   it('routes customer without profile to setup', () => {
@@ -193,7 +193,7 @@ describe('resolveAppDestination', () => {
         legalConsentRequired: false,
         legalError: null,
       }),
-    ).toBe('complete-account');
+    ).toBe('finish-account');
   });
 
   it('routes published customer to customer shell', () => {
@@ -231,7 +231,7 @@ describe('resolveAppDestination', () => {
         legalConsentRequired: false,
         legalError: 'LEGAL_SAVE_FAILED',
       }),
-    ).toBe('legal-error');
+    ).toBe('finish-account');
   });
 
   it('keeps an existing profile in its workspace during a transient legal failure', () => {
@@ -275,6 +275,6 @@ describe('resolveAppDestination', () => {
         legalConsentRequired: true,
         legalError: null,
       }),
-    ).toBe('legal-consent');
+    ).toBe('finish-account');
   });
 });

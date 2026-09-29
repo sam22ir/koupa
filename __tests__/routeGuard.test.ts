@@ -18,10 +18,8 @@ describe('route guard classification', () => {
     [['(auth)', 'intro'], 'auth'],
     [['(auth)', 'welcome'], 'auth'],
     [['(auth)', 'confirm'], 'confirmation'],
-    [['(auth)', 'complete-account'], 'complete-account'],
+    [['(auth)', 'finish-account'], 'finish-account'],
     [['(auth)', 'customer-setup'], 'customer-setup'],
-    [['(auth)', 'legal-consent'], 'legal-consent'],
-    [['(auth)', 'legal-error'], 'legal-error'],
     [['(auth)', 'session-error'], 'session-error'],
     [['(auth)', 'reset-password'], 'recovery'],
     [['(auth)', 'sign-in'], 'auth'],
@@ -64,13 +62,13 @@ describe('route guard classification', () => {
     expect(routeIsAllowed('auth', 'auth')).toBe(true);
     expect(routeIsAllowed('auth', 'customer')).toBe(false);
     expect(routeIsAllowed('confirmation', 'confirm')).toBe(true);
-    expect(routeIsAllowed('complete-account', 'complete-account')).toBe(true);
+    expect(routeIsAllowed('finish-account', 'finish-account')).toBe(true);
     expect(routeIsAllowed('recovery', 'customer')).toBe(true);
-    expect(routeIsAllowed('recovery', 'legal-consent')).toBe(true);
+    expect(routeIsAllowed('recovery', 'finish-account')).toBe(true);
     expect(routeIsAllowed('recovery', 'customer-setup')).toBe(true);
     expect(routeIsAllowed('recovery', 'barber-onboarding')).toBe(true);
     expect(routeIsAllowed('recovery', 'session-error')).toBe(true);
-    expect(routeIsAllowed('legal-consent', 'legal-consent')).toBe(true);
+    expect(routeIsAllowed('finish-account', 'customer')).toBe(false);
     expect(routeIsAllowed('customer-setup', 'customer-setup')).toBe(true);
     expect(routeIsAllowed('session-error', 'session-error')).toBe(true);
     expect(routeIsAllowed('session-error', 'auth')).toBe(false);

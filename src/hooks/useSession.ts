@@ -1,6 +1,6 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getPendingRole, hasSignupConsent, type UserRole } from '@/src/auth';
+import { getPendingRole, hasSignupConsent, isSameSessionForRouting, type UserRole } from '@/src/auth';
 import { useAuthActions } from '@/src/hooks/useAuthActions';
 import { useLegalAcceptance } from '@/src/hooks/useLegalAcceptance';
 import * as authService from '@/src/services/auth';
@@ -195,14 +195,7 @@ export function useSession(_: UseSessionProps = {}) {
       if (!next) clearUserScopedCaches();
       setBootstrapError(null);
       setProfileError(null);
-      setSession((prev) => {
-        const prevId = prev?.user.id;
-        const nextId = next?.user.id;
-        const prevToken = prev?.access_token;
-        const nextToken = next?.access_token;
-        if (prevId === nextId && prevToken === nextToken) return prev;
-        return next;
-      });
+      setSession((prev) => (isSameSessionForRouting(prev, next) ? prev : next));
       // Avoid loading flicker on token refresh for the same user.
       if (next && profileCache.has(next.user.id)) {
         setLoading(false);
@@ -260,7 +253,7 @@ export function useSession(_: UseSessionProps = {}) {
 
   const emailConfirmed = Boolean(session?.user.email_confirmed_at);
   // The database refuses a profile insert without this, so the route gate uses
-  // it to send an unstamped account through complete-account first.
+  // it to send an unstamped account through finish-account first.
   const signupConsent = hasSignupConsent(session?.user ?? null);
   return {
     session,

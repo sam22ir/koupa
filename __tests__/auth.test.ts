@@ -6,6 +6,7 @@ import {
   hasUnapprovedGoogleCollision,
   isExistingConfirmedEmailSignup,
   isGoogleCollisionMessage,
+  isSameSessionForRouting,
   isValidEmail,
   isValidPassword,
   isValidSignInPassword,
@@ -97,5 +98,29 @@ describe('auth helpers', () => {
   it('detects Google collision error messages', () => {
     expect(isGoogleCollisionMessage('Existing password sign-in is required before linking Google')).toBe(true);
     expect(isGoogleCollisionMessage('network failed')).toBe(false);
+  });
+});
+
+describe('isSameSessionForRouting', () => {
+  const session = (metadata: Record<string, unknown>, token = 'token-1') => ({
+    access_token: token,
+    user: { id: 'user-1', user_metadata: metadata },
+  }) as never;
+
+  it('treats an identical session as unchanged', () => {
+    expect(isSameSessionForRouting(session({ koupa_role: 'barber' }), session({ koupa_role: 'barber' }))).toBe(true);
+  });
+
+  it('sees the consent stamp that Google sign-up writes after the session exists', () => {
+    // Same user and token: only user_metadata changed, so routing must refresh.
+    const before = session({});
+    const after = session({ koupa_role: 'barber', koupa_signup_consent: true });
+    expect(isSameSessionForRouting(before, after)).toBe(false);
+  });
+
+  it('sees a new token or a signed-out change', () => {
+    expect(isSameSessionForRouting(session({}), session({}, 'token-2'))).toBe(false);
+    expect(isSameSessionForRouting(session({}), null)).toBe(false);
+    expect(isSameSessionForRouting(null, null)).toBe(true);
   });
 });

@@ -29,10 +29,8 @@ export type AppDestination =
   | 'auth'
   | 'guest'
   | 'confirm'
-  | 'complete-account'
+  | 'finish-account'
   | 'customer-setup'
-  | 'legal-consent'
-  | 'legal-error'
   | 'barber-onboarding'
   | 'customer'
   | 'barber';
@@ -56,20 +54,20 @@ export function resolveAppDestination(input: SessionGateInput): AppDestination {
   // An incomplete account without a persisted role must pick one before the
   // client attempts a role-guarded profile insert. Missing signup consent
   // lands here too: the profile insert would be refused by the database, and
-  // complete-account is the only screen that stamps it.
+  // finish-account is the only screen that stamps it.
   if (!input.profile && (!input.pendingRole || input.signupConsent === false)) {
-    return 'complete-account';
+    return 'finish-account';
   }
   // A profileless account cannot proceed without a successful legal sync. A
   // completed profile, however, may continue during a transient document
   // request failure and can retry from its workspace.
-  if (!input.profile && input.legalError) return 'legal-error';
-  if (input.profile && input.legalConsentRequired) return 'legal-consent';
+  if (!input.profile && input.legalError) return 'finish-account';
+  if (input.profile && input.legalConsentRequired) return 'finish-account';
   if (input.profile && input.legalError) {
     // Continue to the immutable database role below; the UI can show a
     // non-blocking retry banner for the failed legal refresh.
   } else if (input.legalConsentRequired || !input.legalAccepted) {
-    return 'legal-consent';
+    return 'finish-account';
   }
   if (!input.profile) {
     const role = input.pendingRole;

@@ -1,4 +1,4 @@
-import type { User } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 import type { UserRole } from '@/src/data/onboarding';
 
 export type { UserRole } from '@/src/data/onboarding';
@@ -86,5 +86,25 @@ export function hasUnapprovedGoogleCollision(user: User | null): boolean {
     providers.includes('google')
     && providers.includes('email')
     && user?.user_metadata?.koupa_google_linked !== true
+  );
+}
+
+/**
+ * Whether two sessions are interchangeable for routing. Stamping the role or
+ * signup consent (right after Google sign-in) only changes user metadata, so a
+ * matching user id and token is not enough: keeping the stale session would
+ * leave the gate on "finish-account" after the consent was already saved.
+ */
+export function isSameSessionForRouting(
+  prev: Session | null | undefined,
+  next: Session | null | undefined,
+): boolean {
+  if (!prev || !next) return prev === next;
+  return (
+    prev.user.id === next.user.id
+    && prev.access_token === next.access_token
+    && getPendingRole(prev.user) === getPendingRole(next.user)
+    && hasSignupConsent(prev.user) === hasSignupConsent(next.user)
+    && prev.user.user_metadata?.koupa_google_linked === next.user.user_metadata?.koupa_google_linked
   );
 }

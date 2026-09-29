@@ -8,9 +8,7 @@ export type GuardedRoute =
   | 'confirmation'
   | 'recovery'
   | 'session-error'
-  | 'complete-account'
-  | 'legal-consent'
-  | 'legal-error'
+  | 'finish-account'
   | 'customer-setup'
   | 'barber'
   | 'barber-onboarding'
@@ -41,12 +39,8 @@ export function getGuardedRoute(segments: readonly string[]): GuardedRoute {
         return 'recovery';
       case 'session-error':
         return 'session-error';
-      case 'complete-account':
-        return 'complete-account';
-      case 'legal-consent':
-        return 'legal-consent';
-      case 'legal-error':
-        return 'legal-error';
+      case 'finish-account':
+        return 'finish-account';
       case 'customer-setup':
         return 'customer-setup';
       default:
@@ -64,9 +58,7 @@ export function routeIsAllowed(route: Exclude<GuardedRoute, null>, destination: 
   if (route === 'confirmation') return destination === 'confirm';
   if (route === 'recovery') return true;
   if (route === 'session-error') return destination === 'session-error';
-  if (route === 'complete-account') return destination === 'complete-account';
-  if (route === 'legal-consent') return destination === 'legal-consent';
-  if (route === 'legal-error') return destination === 'legal-error';
+  if (route === 'finish-account') return destination === 'finish-account';
   if (route === 'customer-setup') return destination === 'customer-setup';
   return destination === route;
 }

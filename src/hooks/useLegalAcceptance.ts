@@ -58,7 +58,7 @@ export function useLegalAcceptance() {
       }
       // Unconfirmed accounts are synced too. Returning early here left
       // legalAccepted false with no consent required, which the route gate
-      // reads as a legal-consent loop now that confirmation is not a wall.
+      // reads as a finish-account loop now that confirmation is not a wall.
       if (!hasSignupConsent(user) && options.canPersistSignupConsent) {
         throw new AppError('LEGAL_SAVE_FAILED', new Error('Signup consent is required'));
       }
