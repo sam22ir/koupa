@@ -175,7 +175,8 @@ begin
   perform set_config('request.jwt.claim.sub', barber::text, true);
   perform public.delete_own_account();
   assert not exists (select 1 from public.queue_entries where barber_id = barber), 'a deleted barber has no queue entries';
-  assert not (select queue_open from public.profiles where id = barber), 'a deleted barber has a closed queue';
+  -- The profile is gone (no history) or kept anonymized (history); either way the queue is closed.
+  assert not exists (select 1 from public.profiles where id = barber and queue_open), 'a deleted barber has a closed queue';
   assert exists (
     select 1 from public.notifications where user_id = customer1 and title = 'تم إغلاق الطابور'
   ), 'waiting customers are told the queue closed';
