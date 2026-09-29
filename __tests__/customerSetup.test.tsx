@@ -26,6 +26,8 @@ jest.mock('@/src/providers/SessionProvider', () => ({
   useAppSession: () => mockSession,
 }));
 
+jest.mock('@/src/services/account', () => ({ deleteOwnAccount: jest.fn() }));
+
 jest.mock('@/src/hooks/useOnboarding', () => ({
   useOnboarding: () => ({ createCustomer: jest.fn() }),
 }));
@@ -39,6 +41,12 @@ import CustomerSetupScreen from '../app/(auth)/customer-setup';
 describe('CustomerSetupScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('lets a customer who cannot finish setup delete the account', async () => {
+    await render(<CustomerSetupScreen />);
+
+    expect(screen.getByTestId('setup-delete-account')).toBeTruthy();
   });
 
   it('prefills the name from a Google account', async () => {

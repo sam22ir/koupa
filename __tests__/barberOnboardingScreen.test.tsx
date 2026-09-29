@@ -3,6 +3,8 @@ import { router } from 'expo-router';
 
 import { defaultBarberDraft } from '@/src/data/onboarding';
 
+jest.mock('@/src/services/account', () => ({ deleteOwnAccount: jest.fn() }));
+
 jest.mock('expo-router', () => ({
   router: { replace: jest.fn() },
 }));
@@ -61,6 +63,12 @@ describe('BarberOnboardingScreen', () => {
       publishBarber: mockPublishBarber,
       createBarber: mockCreateBarber,
     };
+  });
+
+  it('lets a barber who cannot finish setup delete the account', async () => {
+    await render(<BarberOnboardingScreen />);
+
+    expect(screen.getByTestId('setup-delete-account')).toBeTruthy();
   });
 
   it('clamps a draft saved by the previous five-step wizard to the last setup step', async () => {

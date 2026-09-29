@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { getSignupName, getSignupPhone } from '@/src/auth';
 import { AuthHeader, Button, ErrorBanner, Field, Screen } from '@/src/components/ui';
+import { SetupDeleteAccount } from '@/src/features/account/SetupDeleteAccount';
 import { OnboardingLocationStep } from '@/src/components/onboarding/OnboardingLocationStep';
 import { WorkplaceChoice } from '@/src/components/onboarding/WorkplaceChoice';
 import { useOnboarding } from '@/src/hooks/useOnboarding';
@@ -229,6 +230,7 @@ export default function BarberOnboardingScreen() {
           />
         )}
       </View>
+      <SetupDeleteAccount disabled={exiting || busy || onboarding.saving} />
     </Screen>
   );
 }

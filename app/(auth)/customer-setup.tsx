@@ -7,6 +7,7 @@ import { getSignupName, getSignupPhone, normalizeAlgerianPhone } from '@/src/aut
 import { AuthHeader, Button, ErrorBanner, Field } from '@/src/components/ui';
 import { t } from '@/src/i18n';
 import { setCustomerFindCityPreference } from '@/src/navigation/customerFindPreference';
+import { SetupDeleteAccount } from '@/src/features/account/SetupDeleteAccount';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import * as onboardingService from '@/src/services/onboarding';
 import { colors, layout, radii, space, typography } from '@/src/theme';
@@ -107,6 +108,7 @@ export default function CustomerSetupScreen() {
             >
               <Text style={styles.changeAccountText}>{t('auth.changeAccount')}</Text>
             </Pressable>
+            <SetupDeleteAccount disabled={busy} />
           </View>
         </View>
       </ScrollView>

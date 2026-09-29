@@ -94,6 +94,7 @@ export const ar = {
     roleIntroContinue: 'المتابعة إلى إنشاء الحساب',
     createAccount: 'إنشاء حساب',
     nameRequired: 'أدخل اسمك.',
+    setupDeleteHint: 'أخطأت في التسجيل أو لا تريد المتابعة؟ يمكنك حذف هذا الحساب نهائيا والبدء من جديد.',
     signUpConsentLead: 'بإنشاء حساب أو المتابعة مع Google، فإنك توافق على',
     existingAccount: 'لدي حساب بالفعل',
     chooseRole: 'كيف ستستخدم كوپا؟',

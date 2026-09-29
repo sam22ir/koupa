@@ -63,6 +63,8 @@ jest.mock('../src/providers/SessionProvider', () => ({
   useAppSession: () => mockSession,
 }));
 
+jest.mock('@/src/services/account', () => ({ deleteOwnAccount: jest.fn() }));
+
 const mockGetSession = jest.fn();
 const mockCreateCustomerProfile = jest.fn();
 
@@ -380,6 +382,12 @@ describe('FinishAccountScreen (role and consent missing)', () => {
       { key: 'terms', version: '2026-07-29', url: 'https://example.test/terms' },
       { key: 'privacy', version: '2026-07-29', url: 'https://example.test/privacy' },
     ];
+  });
+
+  it('lets someone stuck in account setup delete the half-made account', async () => {
+    await render(<FinishAccountScreen />);
+
+    expect(screen.getByTestId('setup-delete-account')).toBeTruthy();
   });
 
   it('requires a role and explicit legal consent before completing a profileless account', async () => {
