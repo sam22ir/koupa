@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { Alert } from '@/src/utils/alert';
 
 import { Button } from '@/src/components/ui';
 import { t } from '@/src/i18n';

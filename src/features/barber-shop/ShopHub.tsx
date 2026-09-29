@@ -1,4 +1,6 @@
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { Alert } from '@/src/utils/alert';
 
 import { Button } from '@/src/components/ui/Button';
 import { ErrorBanner } from '@/src/components/ui/ErrorBanner';
