@@ -104,6 +104,8 @@ export const ar = {
     roleBarberDescription: 'ملف عام وجدول واستقبال حجوزات الزبائن.',
     completeAccountTitle: 'أكمل إعداد حسابك',
     completeAccountBody: 'اختر نوع الحساب الذي يناسبك، ثم وافق على الشروط لمتابعة إعداد ملفك.',
+    completeAccountBodyRoleChosen: 'وافق على الشروط لمتابعة إعداد ملفك.',
+    completeAccountRole: 'نوع الحساب',
     completeAccountCta: 'حفظ ومتابعة',
     journeyRole: '1/4',
     journeySignUp: '2/4',

@@ -113,6 +113,7 @@ The **bold teal header** opens: the Home greeting, Today, Scan, booking confirma
 - Keep required Terms and Privacy consent visible. Make email sign-up the main action and Google sign-up secondary.
 - Keep customer name and phone prominent during profile setup; make city clearly optional.
 - Show the barber setup step count because its five stages need orientation.
+- Use one `finish-account` screen for every unfinished-account state (missing role or consent, updated Terms, a failed consent save). Show only what is missing: role cards only when no role was chosen, the checkbox only when consent is needed, and a plain retry when only the save failed.
 
 ### Find and booking
 

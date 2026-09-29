@@ -26,32 +26,54 @@ const roleOptions: ReadonlyArray<{
   },
 ];
 
-export default function CompleteAccountScreen() {
+/**
+ * One screen for every "the account is not ready yet" state that used to be
+ * three: missing role or signup consent (a Google account that skipped the
+ * role choice), newly published Terms/Privacy, and a failed legal save. It
+ * shows only what is missing.
+ */
+export default function FinishAccountScreen() {
   const {
     acceptCurrentLegalDocuments,
     confirmProfilelessRole,
+    legalConsentRequired,
     legalDocuments,
+    legalError,
+    pendingRole,
+    profile,
     retrySession,
+    signupConsent,
     signOut,
     busy,
   } = useAppSession();
-  const [role, setRole] = useState<UserRole | null>(null);
+  // A role picked earlier (e.g. before Google sign-up) is kept, not asked again.
+  const [pickedRole, setRole] = useState<UserRole | null>(null);
+  const role = pendingRole ?? pickedRole;
   const [accepted, setAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
+
+  // Only a profileless account still needs a role; an existing profile only
+  // ever has to accept newer legal documents.
+  const needsRole = !profile && !pendingRole;
+  const needsStamp = !profile && signupConsent === false;
+  // The consent is already on record and only the save failed: just retry.
+  const retryOnly = Boolean(legalError) && !legalConsentRequired && !needsRole && !needsStamp;
+  const termsUpdated = !needsRole && !needsStamp && !retryOnly;
 
   const legalReady = legalDocuments.some((document) => document.key === 'terms' && document.url)
     && legalDocuments.some((document) => document.key === 'privacy' && document.url);
 
   const continueSetup = async () => {
-    if (!role || !accepted || !legalReady) return;
+    if (!retryOnly && (!accepted || !legalReady)) return;
+    if (!retryOnly && !profile && !role) return;
     setSaving(true);
     setError(null);
     try {
       // Save the user's explicit acceptance before setting signup metadata.
       // Session listeners may run as soon as updateUserRole emits USER_UPDATED.
       await acceptCurrentLegalDocuments();
-      await confirmProfilelessRole(role);
+      if (role && (needsRole || needsStamp)) await confirmProfilelessRole(role);
       router.replace('/');
     } catch (caught) {
       setError(caught);
@@ -75,10 +97,23 @@ export default function CompleteAccountScreen() {
 
   return (
     <AuthShell
-      title={t('auth.completeAccountTitle')}
-      subtitle={t('auth.completeAccountBody')}
+      title={retryOnly
+        ? t('auth.legalRecoveryTitle')
+        : termsUpdated ? t('auth.legalConsentTitle') : t('auth.completeAccountTitle')}
+      subtitle={retryOnly
+        ? t('auth.legalRecoveryBody')
+        : termsUpdated
+          ? t('auth.legalConsentBody')
+          : pendingRole ? t('auth.completeAccountBodyRoleChosen') : t('auth.completeAccountBody')}
       showBack={false}
     >
+      {retryOnly || termsUpdated ? null : pendingRole ? (
+        <View style={styles.chosenRole}>
+          <Text style={styles.chosenRoleText}>
+            {t('auth.completeAccountRole')}: {pendingRole === 'barber' ? t('auth.roleBarber') : t('auth.roleCustomer')}
+          </Text>
+        </View>
+      ) : (
       <View style={styles.options} accessibilityRole="radiogroup">
         {roleOptions.map((option) => {
           const selected = role === option.role;
@@ -102,7 +137,10 @@ export default function CompleteAccountScreen() {
           );
         })}
       </View>
+      )}
 
+      {retryOnly ? null : (
+      <>
       <View style={styles.legalLinks}>
         <Text accessibilityRole="link" style={styles.link} onPress={() => void Linking.openURL(TERMS_URL).catch(() => undefined)}>
           {t('auth.openTerms')}
@@ -125,8 +163,10 @@ export default function CompleteAccountScreen() {
         </View>
         <Text style={styles.consentText}>{t('auth.roleIntroConsent')}</Text>
       </Pressable>
+      </>
+      )}
 
-      {!legalReady ? (
+      {!legalReady && !retryOnly ? (
         <View style={styles.legalMissing}>
           <Text style={styles.legalMissingText}>{t('auth.legalMissing')}</Text>
           <Button
@@ -138,8 +178,8 @@ export default function CompleteAccountScreen() {
       ) : null}
       <ErrorBanner error={error} />
       <Button
-        label={t('auth.completeAccountCta')}
-        disabled={!role || !accepted || !legalReady || saving}
+        label={retryOnly ? t('common.retry') : t('auth.completeAccountCta')}
+        disabled={retryOnly ? saving : (!profile && !role) || !accepted || !legalReady || saving}
         loading={saving || busy}
         onPress={() => void continueSetup()}
       />
@@ -154,6 +194,16 @@ export default function CompleteAccountScreen() {
 }
 
 const styles = StyleSheet.create({
+  chosenRole: {
+    borderRadius: radii.xl,
+    backgroundColor: colors.primarySoft,
+    padding: space[4],
+  },
+  chosenRoleText: {
+    ...typography.label,
+    color: colors.primarySoftText,
+    textAlign: 'right',
+  },
   options: {
     gap: space[3],
   },

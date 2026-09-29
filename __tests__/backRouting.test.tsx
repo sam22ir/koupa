@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 
-import LegalConsentScreen from '@/app/(auth)/legal-consent';
+import FinishAccountScreen from '@/app/(auth)/finish-account';
 import { AuthShell, BackButton } from '@/src/components/ui';
 import { colors, radii } from '@/src/theme';
 
@@ -67,8 +67,8 @@ describe('app-owned back routing', () => {
     expect(mockDismissTo).toHaveBeenCalledWith('/(auth)/welcome');
   });
 
-  it('does not render an impossible Back control during mandatory legal consent', async () => {
-    await render(<LegalConsentScreen />);
+  it('does not render an impossible Back control on the mandatory finish-account screen', async () => {
+    await render(<FinishAccountScreen />);
 
     expect(screen.queryByRole('button', { name: 'رجوع' })).toBeNull();
     expect(screen.getByRole('button', { name: 'تغيير الحساب' })).toBeTruthy();

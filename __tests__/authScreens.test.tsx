@@ -3,9 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Linking, Text } from 'react-native';
 
 import ConfirmScreen from '../app/(auth)/confirm';
-import CompleteAccountScreen from '../app/(auth)/complete-account';
-import LegalErrorScreen from '../app/(auth)/legal-error';
-import LegalConsentScreen from '../app/(auth)/legal-consent';
+import FinishAccountScreen from '../app/(auth)/finish-account';
 import ResetPasswordScreen from '../app/(auth)/reset-password';
 import SessionErrorScreen from '../app/(auth)/session-error';
 import SignInScreen from '../app/(auth)/sign-in';
@@ -36,6 +34,8 @@ const mockSession = {
   loading: false,
   busy: false,
   pendingRole: 'customer' as 'customer' | 'barber' | null,
+  profile: null as null | { role: 'customer' | 'barber' },
+  signupConsent: true as boolean,
   setPendingRole: jest.fn(),
   confirmProfilelessRole: jest.fn(),
   signInWithGoogle: jest.fn(),
@@ -372,7 +372,7 @@ describe('SignUpScreen', () => {
   });
 });
 
-describe('CompleteAccountScreen', () => {
+describe('FinishAccountScreen (role and consent missing)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSession.pendingRole = null;
@@ -385,7 +385,7 @@ describe('CompleteAccountScreen', () => {
   it('requires a role and explicit legal consent before completing a profileless account', async () => {
     mockSession.acceptCurrentLegalDocuments.mockResolvedValueOnce(undefined);
     mockSession.confirmProfilelessRole.mockResolvedValueOnce(undefined);
-    await render(<CompleteAccountScreen />);
+    await render(<FinishAccountScreen />);
 
     const continueButton = screen.getByRole('button', { name: 'حفظ ومتابعة' });
     expect(continueButton.props.accessibilityState?.disabled).toBe(true);
@@ -404,7 +404,42 @@ describe('CompleteAccountScreen', () => {
   });
 });
 
-describe('CompleteAccountScreen', () => {
+describe('FinishAccountScreen with a role already chosen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSession.pendingRole = 'barber';
+    mockSession.signupConsent = false;
+    mockSession.legalDocuments = [
+      { key: 'terms', version: '2026-07-29', url: 'https://example.test/terms' },
+      { key: 'privacy', version: '2026-07-29', url: 'https://example.test/privacy' },
+    ];
+  });
+
+  afterEach(() => {
+    mockSession.pendingRole = null;
+    mockSession.signupConsent = true;
+  });
+
+  it('does not ask for the role again and keeps the chosen one', async () => {
+    mockSession.acceptCurrentLegalDocuments.mockResolvedValueOnce(undefined);
+    mockSession.confirmProfilelessRole.mockResolvedValueOnce(undefined);
+    await render(<FinishAccountScreen />);
+
+    expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.getByText(/نوع الحساب/)).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('checkbox', {
+      name: 'أوافق على الشروط والأحكام وسياسة الخصوصية الخاصة بتطبيق كوپا.',
+    }));
+    await fireEvent.press(screen.getByRole('button', { name: 'حفظ ومتابعة' }));
+
+    await waitFor(() => {
+      expect(mockSession.confirmProfilelessRole).toHaveBeenCalledWith('barber');
+    });
+  });
+});
+
+describe('FinishAccountScreen (role and consent missing)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSession.pendingRole = null;
@@ -415,7 +450,7 @@ describe('CompleteAccountScreen', () => {
   });
 
   it('requires an explicit role and consent before continuing', async () => {
-    await render(<CompleteAccountScreen />);
+    await render(<FinishAccountScreen />);
 
     const continueButton = screen.getByRole('button', { name: 'حفظ ومتابعة' });
     await fireEvent.press(continueButton);
@@ -515,41 +550,53 @@ describe('ResetPasswordScreen', () => {
   });
 });
 
-describe('LegalErrorScreen', () => {
+describe('FinishAccountScreen when saving consent failed', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSession.pendingRole = 'customer';
+    mockSession.profile = null;
+    mockSession.signupConsent = true;
+    mockSession.legalConsentRequired = false;
     mockSession.legalError = 'LEGAL_SAVE_FAILED';
     mockSession.legalDocuments = [
       { key: 'terms', version: '1', url: 'https://example.test/terms' },
       { key: 'privacy', version: '1', url: 'https://example.test/privacy' },
     ];
-    mockSession.retryLegalAcceptance.mockResolvedValue(undefined);
+    mockSession.acceptCurrentLegalDocuments.mockResolvedValue(undefined);
     mockSession.signOut.mockResolvedValue(undefined);
-    jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    mockSession.legalError = null;
+    mockSession.pendingRole = null;
   });
 
-  it('offers legal links, retry, and account switching', async () => {
-    await render(<LegalErrorScreen />);
+  it('offers only a retry and account switching, without asking for anything again', async () => {
+    await render(<FinishAccountScreen />);
 
     expect(screen.getByText('تعذر إكمال الموافقة القانونية')).toBeTruthy();
-    await fireEvent.press(screen.getByRole('link', { name: 'الشروط' }));
-    expect(Linking.openURL).toHaveBeenCalledWith('https://koupa-website.pages.dev/terms/');
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByRole('radio')).toBeNull();
 
     await fireEvent.press(screen.getByRole('button', { name: 'إعادة المحاولة' }));
-    await waitFor(() => expect(mockSession.retryLegalAcceptance).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockSession.acceptCurrentLegalDocuments).toHaveBeenCalledTimes(1));
+    // Role and consent are already stamped; only the legal save is retried.
+    expect(mockSession.confirmProfilelessRole).not.toHaveBeenCalled();
+    expect(mockRouter.replace).toHaveBeenCalledWith('/');
 
     await fireEvent.press(screen.getByRole('button', { name: 'تغيير الحساب' }));
     await waitFor(() => expect(mockSession.signOut).toHaveBeenCalledTimes(1));
   });
 });
 
-describe('LegalConsentScreen', () => {
+describe('FinishAccountScreen when the terms were updated', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSession.pendingRole = 'customer';
+    mockSession.profile = { role: 'customer' };
+    mockSession.signupConsent = true;
+    mockSession.legalConsentRequired = true;
+    mockSession.legalError = null;
     mockSession.legalDocuments = [
       { key: 'terms', version: '2026-07-29', url: 'https://example.test/terms' },
       { key: 'privacy', version: '2026-07-29', url: 'https://example.test/privacy' },
@@ -560,33 +607,73 @@ describe('LegalConsentScreen', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    mockSession.profile = null;
+    mockSession.legalConsentRequired = false;
+    mockSession.pendingRole = null;
   });
 
-  it('requires explicit acceptance before saving the current versions', async () => {
-    await render(<LegalConsentScreen />);
+  it('requires explicit acceptance, never asks for a role, and only saves the acceptance', async () => {
+    await render(<FinishAccountScreen />);
 
     expect(screen.getByText('مراجعة الشروط والخصوصية')).toBeTruthy();
-    const save = screen.getByRole('button', { name: 'حفظ الموافقة' });
+    expect(screen.queryByRole('radio')).toBeNull();
+    const save = screen.getByRole('button', { name: 'حفظ ومتابعة' });
     expect(save).toBeDisabled();
 
     await fireEvent.press(screen.getByRole('link', { name: 'الشروط' }));
     expect(Linking.openURL).toHaveBeenCalledWith('https://koupa-website.pages.dev/terms/');
 
-    await fireEvent.press(screen.getByRole('checkbox', { name: 'أوافق على الشروط وسياسة الخصوصية' }));
+    await fireEvent.press(screen.getByRole('checkbox', {
+      name: 'أوافق على الشروط والأحكام وسياسة الخصوصية الخاصة بتطبيق كوپا.',
+    }));
     expect(save).toBeEnabled();
     await fireEvent.press(save);
 
     await waitFor(() => expect(mockSession.acceptCurrentLegalDocuments).toHaveBeenCalledTimes(1));
+    expect(mockSession.confirmProfilelessRole).not.toHaveBeenCalled();
     expect(mockRouter.replace).toHaveBeenCalledWith('/');
   });
 
-  it('keeps legal consent visible when account switching fails', async () => {
+  it('keeps the screen visible when account switching fails', async () => {
     mockSession.signOut.mockRejectedValueOnce(new Error('Network request failed'));
-    await render(<LegalConsentScreen />);
+    await render(<FinishAccountScreen />);
 
     await fireEvent.press(screen.getByRole('button', { name: 'تغيير الحساب' }));
 
     expect(await screen.findByText('تحقق من الاتصال بالإنترنت')).toBeTruthy();
     expect(mockRouter.replace).not.toHaveBeenCalledWith('/(auth)/welcome');
+  });
+});
+
+describe('FinishAccountScreen with consent missing but a role chosen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSession.pendingRole = 'barber';
+    mockSession.profile = null;
+    mockSession.signupConsent = false;
+    mockSession.legalConsentRequired = false;
+    mockSession.legalDocuments = [
+      { key: 'terms', version: '1', url: 'https://example.test/terms' },
+      { key: 'privacy', version: '1', url: 'https://example.test/privacy' },
+    ];
+    mockSession.acceptCurrentLegalDocuments.mockResolvedValue(undefined);
+    mockSession.confirmProfilelessRole.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    mockSession.signupConsent = true;
+    mockSession.pendingRole = null;
+  });
+
+  it('stamps the already chosen role together with the consent', async () => {
+    await render(<FinishAccountScreen />);
+
+    expect(screen.queryByRole('radio')).toBeNull();
+    await fireEvent.press(screen.getByRole('checkbox', {
+      name: 'أوافق على الشروط والأحكام وسياسة الخصوصية الخاصة بتطبيق كوپا.',
+    }));
+    await fireEvent.press(screen.getByRole('button', { name: 'حفظ ومتابعة' }));
+
+    await waitFor(() => expect(mockSession.confirmProfilelessRole).toHaveBeenCalledWith('barber'));
   });
 });
