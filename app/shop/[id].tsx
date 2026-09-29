@@ -3,14 +3,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ShopProfile } from '@/src/shops';
-import { Avatar, BackButton, Button, CustomerStageHeader, EmptyState, ErrorBanner, Screen } from '@/src/components/ui';
+import { Avatar, BackButton, Button, Card, CustomerStageHeader, EmptyState, ErrorBanner, Screen } from '@/src/components/ui';
 import { useShops } from '@/src/hooks/useShops';
+import { UgcModerationActions } from '@/src/features/moderation/UgcModerationActions';
 import { t } from '@/src/i18n';
 import { publicProfileReturnHref } from '@/src/navigation/bookingNavigation';
 import { setPendingIntentFromPath } from '@/src/navigation/pendingIntent';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors, radii, space, typography } from '@/src/theme';
 import { initialsFromName } from '@/src/utils/initials';
+import { getShopOwnerId } from '@/src/services/shops';
+import { isUserBlocked } from '@/src/services/ugcModeration';
 
 export default function ShopProfileScreen() {
   const { id, returnTo } = useLocalSearchParams<{ id: string; returnTo?: string }>();
@@ -18,6 +21,8 @@ export default function ShopProfileScreen() {
   const { profile } = useAppSession();
   const { getShop } = shops;
   const [shop, setShop] = useState<ShopProfile | null>(null);
+  const [blockedOwnerId, setBlockedOwnerId] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState(false);
   const [loading, setLoading] = useState(Boolean(id));
   const fallback = publicProfileReturnHref(returnTo, profile?.role);
 
@@ -27,6 +32,15 @@ export default function ShopProfileScreen() {
       return;
     }
     setLoading(true);
+    const ownerId = await getShopOwnerId(id).catch(() => null);
+    setBlockedOwnerId(ownerId);
+    const ownerBlocked = ownerId ? await isUserBlocked(ownerId).catch(() => false) : false;
+    setBlocked(ownerBlocked);
+    if (ownerBlocked) {
+      setShop(null);
+      setLoading(false);
+      return;
+    }
     const next = await getShop(id);
     setShop(next);
     setLoading(false);
@@ -39,13 +53,49 @@ export default function ShopProfileScreen() {
 
   return (
     <Screen padded={false} scroll>
-      <CustomerStageHeader title={shop?.name ?? t('find.shops')} subtitle={shop?.owner_name} trailing={<BackButton fallback={fallback} />} />
+      <CustomerStageHeader
+        title={shop?.name ?? t('find.shops')}
+        subtitle={shop?.owner_name}
+        context={t('auth.roleCustomer')}
+        trailing={<BackButton fallback={fallback} />}
+      />
       <View style={styles.body}>
       <ErrorBanner error={shops.error || null} />
       {loading ? <Text style={styles.meta}>{t('common.loading')}</Text> : null}
       {!loading && shops.error ? <Button label={t('common.retry')} variant="secondary" onPress={() => void load()} /> : null}
-      {shop ? (
+      {blocked ? (
+        <Card style={styles.moderationCard}>
+          <Text style={styles.bio}>{t('moderation.blockedProfile')}</Text>
+          {profile?.id && blockedOwnerId ? (
+            <UgcModerationActions
+              targetKind="shop"
+              targetId={id}
+              targetName={t('find.shops')}
+              blockTargetId={blockedOwnerId}
+              blocked
+              onBlockChange={(nextBlocked) => {
+                setBlocked(nextBlocked);
+                if (!nextBlocked) void load();
+              }}
+            />
+          ) : null}
+        </Card>
+      ) : shop ? (
         <>
+          {profile?.id && profile.id !== shop.owner_id ? (
+            <Card style={styles.moderationCard}>
+              <UgcModerationActions
+                targetKind="shop"
+                targetId={shop.id}
+                targetName={shop.name}
+                blockTargetId={shop.owner_id}
+                onBlockChange={(nextBlocked) => {
+                  setBlocked(nextBlocked);
+                  if (nextBlocked) setShop(null);
+                }}
+              />
+            </Card>
+          ) : null}
           {shop.bio ? <Text style={styles.bio}>{shop.bio}</Text> : null}
           {shop.maps_url ? <Button label={t('find.openLocation')} variant="secondary" onPress={() => void Linking.openURL(shop.maps_url!).catch(() => undefined)} /> : null}
           <Text style={styles.section}>{t('booking.chooseBarber')}</Text>
@@ -91,6 +141,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     color: colors.textMuted,
   },
+  moderationCard: { gap: space[2] },
   section: {
     ...typography.titleSm,
     textAlign: 'right',

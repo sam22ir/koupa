@@ -1,4 +1,5 @@
 import { Linking, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
 
 import { Button } from '@/src/components/ui';
 import {
@@ -23,6 +24,11 @@ export function LegalSupportLinks({ documents }: { readonly documents: readonly 
   return (
     <View style={styles.group}>
       {legalUnavailable ? <Text style={styles.warning}>{t('profile.legalUnavailable')}</Text> : null}
+      <Button
+        label={t('moderation.blockedUsers')}
+        variant="ghost"
+        onPress={() => router.push('/blocked-users')}
+      />
       <Button
         label={t('auth.openTerms')}
         variant="ghost"
