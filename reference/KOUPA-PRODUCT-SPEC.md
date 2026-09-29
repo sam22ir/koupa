@@ -6,11 +6,13 @@ Koupa is an Android-only Expo + React Native app for booking barber appointments
 
 ## Authentication and Services
 
+- Signed-out users always open a single welcome screen with three actions: browse barbers without an account, start barber signup, or sign in. Account confirmation stays first when required, and saved deep links remain available until the signed-in role can open them.
+- Guests can browse the barber directory, barber profiles and available slots. They never see barber phone numbers, shops, appointments, profile or notifications. Booking asks them to create a customer account and returns them to the booking afterward. Guest state lives in memory only, so a cold start returns to the welcome screen.
 - Supabase Auth handles Google OAuth, email/password, sessions, and password recovery. A required Algerian phone number is stored on the profile for barber/customer calls and can also be entered as a sign-in alias; a server-side function resolves it to the linked Auth email and runs the same email/password check. Supabase phone Auth, SMS, and OTP remain disabled. Firebase handles Cloud Messaging push notifications. Supabase also handles profiles, shops, services, schedules, appointments, ratings, storage, and server-side booking logic.
-- New users begin at `إنشاء حساب`, select their permanent Customer or Barber role, and accept the current Terms and Privacy Policy. Email/password signup requires an email, password, and contact phone; Google users provide the contact phone during onboarding. Existing users begin at `لدي حساب بالفعل` and sign in with email/password, the linked phone alias, or Google.
-- Email/password accounts confirm their email before onboarding. Password recovery is always sent to the linked account email. Phone sign-in never creates a separate Auth phone identity and never exposes the linked email in the UI.
+- Customers choose their role implicitly (by booking) and barbers choose it on the welcome screen; the role is permanent. New users accept the current Terms and Privacy Policy on the signup screen. Existing users can open sign-in directly from the welcome screen and use email/password, the linked phone alias, or Google. Email/password signup requires an email, password, and contact phone; Google users provide the contact phone during onboarding.
+- Email/password accounts reach profile setup immediately; confirming the email is not a wall in front of onboarding. Confirmation is enforced by the database where value is exchanged instead: a customer cannot hold an appointment and a barber cannot publish a profile until the email is confirmed. A phone number held by an unverified and unused account can be released to a confirmed claimant, so an unverified signup cannot permanently occupy a real number. Password recovery is always sent to the linked account email. Phone sign-in never creates a separate Auth phone identity and never exposes the linked email in the UI.
 - Auth callbacks use PKCE and the `koupa://callback` deep link. Confirmation, recovery, expired-link, and provider-error outcomes are handled by the callback route instead of URL-fragment parsing in product screens.
-- The selected role and consent are provisional Auth metadata until profile creation. The database requires a confirmed email, current immutable legal acceptances, and a matching provisional role before it allows a profile insert; once created, the profile role cannot change.
+- The selected role and consent are provisional Auth metadata until profile creation. The database requires current immutable legal acceptances and a matching provisional role before it allows a profile insert; once created, the profile role cannot change. An account that reaches setup without stamped consent is repaired on the complete-account screen rather than being allowed to fail the insert.
 - Legal documents and acceptances are append-only by version. Existing users must explicitly accept a newly active Terms or Privacy version before continuing; the app never infers or records that consent automatically.
 - Identities are never silently merged. When a Google identity collides with an existing password account, the user must first prove ownership by signing in with the existing password method before any provider linking can be offered.
 - Account deletion is available in-app, with a public explanation and email fallback at `https://koupa-website.pages.dev/account-deletion/`. Upcoming appointments are cancelled, affected users are notified, and personal data is deleted or anonymized.
@@ -19,30 +21,29 @@ Koupa is an Android-only Expo + React Native app for booking barber appointments
 
 The previous frontend implementation, design system, branded assets, and Stitch references were intentionally removed on 2026-07-28. The replacement frontend must define its own palette, typography, components, assets, navigation, and responsive behavior before implementation. No previous design file, token file, component library, or asset path is normative.
 
-### Brand palette (approved)
+### Brand palette (approved 2026-09-29)
+
+All colors derive from the logo teal. Full scales and roles are in `DESIGN.md`.
 
 | Role | Name | Hex |
 |---|---|---|
-| Primary | Deep Teal | `#1A7A78` |
-| Accent / Secondary | Warm Gold | `#E1A553` |
-| Text / Headings | Charcoal Blue | `#323E4B` |
-| Background | Soft White / Off White | `#F3F5F7` |
+| Primary | Koupa Teal (logo) | `#1A7A78` |
+| Accent | Amber (ratings, highlights only) | `#F2B53A` |
+| Text / Headings | Ink | `#152121` |
+| Background | Paper | `#F4F7F7` |
+| Status | Green / Amber / Red | `#14774A` / `#8A5605` / `#B5302A` |
 
-Tokens live in `src/theme/*`.
+Tokens live in `src/theme/*` and `global.css`.
 
 ### Visual direction (locked)
 
-**Teal Stage** (`منصة التركواز`) — locked 2026-07-28.
+**Koupa Teal** (`تركواز كوپا`) — locked 2026-09-29, replacing Teal Stage (2026-07-28).
 
-- Deep teal owns primary stage/hero surfaces (top of key screens).
-- Warm gold is accent only (thin bar, status badge, secondary marks) — not large fills.
-- Floating white cards may overlap the teal stage with light elevation.
-- Soft radii (16–22), chips for time/duration/price, bold primary teal CTAs.
-- Arabic-first RTL; **IBM Plex Sans Arabic** typeface; initials only (no profile photos).
-- Reference implementation: `src/design-proposals/TealStageHome.tsx`.
+- Bold teal header on Home, Today, Scan and booking confirmation; paper and white cards elsewhere.
+- Teal-tinted ink neutrals; amber is the only warm accent; status colors never reuse the brand teal.
+- Rounded shapes: 14px buttons and fields (52px tall), 18px cards, 24px sheets, pill chips.
+- Arabic-first RTL; **IBM Plex Sans Arabic** with fixed line heights; initials only (no profile photos).
 - Direction metadata: `designDirection` in `src/theme/index.ts`.
-
-Rejected alternatives kept only as archive under `src/design-proposals/` (`CalmCounterHome`, `ShopLedgerHome`) until the rebuild replaces them.
 
 - Arabic-first RTL, DZD pricing, and English-ready localization remain product requirements.
 - MVP uses placeholders/initials only; no uploaded profile photos.
@@ -67,7 +68,7 @@ Published Barber and Shop profiles may be opened from a shared link before sign-
 
 Barber tabs are `Today`, `Schedule`, `Shop`, and `Profile`.
 
-- Barber onboarding: `Basic Information` -> `Location` -> `Services` -> `Working Hours` -> `Review & Publish`.
+- Barber setup is two stages, `Basic Information` -> `Location`, and ends by creating a real but unpublished profile. Services and working hours are then finished from the Schedule tab, and publishing is an explicit action from the Today tab once both exist. An unpublished barber has the full workspace with an activation checklist, is absent from all discovery, and cannot create or join a shop until published. Publication is set only by the server.
 - A valid Google Maps link or coordinates are required before publishing.
 - Services have prices and durations in 5-minute increments.
 - Barbers choose a 5, 10, 15, or 30-minute appointment interval. Service durations reserve all required consecutive availability.
@@ -92,9 +93,11 @@ Firebase push notifications are sent for booking updates and every `Present`, `C
 
 Every in-app and push notification opens its associated event. Notification rows store a typed event destination, never an arbitrary URL: appointment events open a participant-specific appointment view; shop invitations, join requests, and membership decisions open the Shop hub or member workspace; workspace updates open the affected schedule or owner member workspace; and retained shop activity opens its activity view. If an event's underlying record has been removed or is no longer available, the recipient can still open the stored notification event record.
 
-## Ratings and Support
+## Ratings, Safety, and Support
 
-Customers can submit one 1-5 star rating after `Completed`. Ratings are publicly visible with average and count, including on shop profiles. Ratings can be edited within 24 hours but not deleted. Both Profile roles link the active Terms, Privacy Policy, account-deletion information, and support at `saadisamir20200@gmail.com`. No reporting or blocking tools are included in the MVP.
+Customers can submit one 1-5 star rating after `Completed`. Ratings are publicly visible with average and count, including on shop profiles. Ratings can be edited within 24 hours but not deleted by the author. Before publishing profile, shop, or rating content, users must accept the active Terms and confirm that their content follows the UGC rules.
+
+Authenticated users can report a published barber profile, shop profile, or rating summary from the public profile screen. Reports include a reason and optional details, are private to the reporter and authorized moderators, and enter a Supabase moderation queue. Moderators review reports in Supabase Studio, document the outcome, and may hide or restrict violating content/accounts under the Terms. Koupa does not promise a fixed review time. Users can block published barber accounts and later unblock them in Profile. Blocking hides that barber from the blocker's directory and shop views and prevents new bookings; it does not cancel an existing appointment or control contact outside the app. Both Profile roles link to blocked-account management, active Terms, Privacy Policy, account-deletion information, and support at `saadisamir20200@gmail.com`.
 
 ## Environments and Release
 

@@ -15,7 +15,7 @@ const mockSession = {
     user: {
       id: 'customer-1',
       phone: null,
-      user_metadata: { koupa_phone: '+213555000000' },
+      user_metadata: { koupa_phone: '+213555000000' } as Record<string, string>,
     },
   },
   refreshProfile: jest.fn(),
@@ -39,6 +39,17 @@ import CustomerSetupScreen from '../app/(auth)/customer-setup';
 describe('CustomerSetupScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('prefills the name from a Google account', async () => {
+    const original = mockSession.session.user.user_metadata;
+    mockSession.session.user.user_metadata = { ...original, full_name: 'سارة بن علي' };
+    try {
+      await render(<CustomerSetupScreen />);
+      expect(screen.getByDisplayValue('سارة بن علي')).toBeTruthy();
+    } finally {
+      mockSession.session.user.user_metadata = original;
+    }
   });
 
   it('prefills the signup contact phone and allows changing accounts', async () => {

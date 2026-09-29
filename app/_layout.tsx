@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import {
   ActivityIndicator,
   LogBox,
+  Platform,
   StyleSheet,
   Text,
   View,
@@ -24,6 +25,8 @@ import { resolveAppDestination, type AppDestination } from '@/src/navigation/res
 import { getGuardedRoute, routeIsAllowed } from '@/src/navigation/routeGuard';
 import { setPendingIntentFromPath } from '@/src/navigation/pendingIntent';
 import { SessionProvider, useAppSession } from '@/src/providers/SessionProvider';
+import { SplashGate } from '@/src/startup/SplashGate';
+import { holdSplash, hideSplash, SPLASH_TIMEOUT_MS } from '@/src/startup/splash';
 import { colors } from '@/src/theme/colors';
 import { getFontAssets } from '@/src/theme/fonts';
 
@@ -44,6 +47,7 @@ if (globalAny.ErrorUtils?.setGlobalHandler) {
 }
 
 bootstrapRtl();
+holdSplash();
 
 // Koupa's design (DESIGN.md) is a light paper/teal theme. Pin the active
 // theme to "light" regardless of the OS setting so the app never renders the
@@ -65,10 +69,12 @@ function destinationForSession(session: ReturnType<typeof useAppSession>): AppDe
   return resolveAppDestination({
     loading: session.loading,
     hasSession: Boolean(session.session),
+    guestBrowsing: session.guestBrowsing,
     emailConfirmed: session.emailConfirmed,
     pendingConfirmationEmail: session.pendingConfirmationEmail,
     profile: session.profile,
     pendingRole: session.pendingRole,
+    signupConsent: session.signupConsent,
     legalAccepted: session.legalAccepted,
     legalConsentRequired: session.legalConsentRequired,
     legalError: session.legalError,
@@ -120,8 +126,17 @@ function SessionRouteGuard({ children }: { readonly children: React.ReactNode })
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(getFontAssets());
 
+  // Never leave people on the splash if startup stalls.
+  useEffect(() => {
+    const timer = setTimeout(hideSplash, SPLASH_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Don't block the whole app forever if a font fails on device.
   if (!fontsLoaded && !fontError) {
+    // On native the splash is still covering the screen, so draw nothing:
+    // a second loading screen here is exactly the flash we are removing.
+    if (Platform.OS !== 'web') return null;
     return (
       <View style={styles.boot}>
         <ActivityIndicator color={colors.primary} size="large" />
@@ -137,6 +152,7 @@ export default function RootLayout() {
         <ErrorBoundary>
           <SessionProvider>
             <PushBootstrap />
+            <SplashGate />
             <StatusBar style="light" />
             <SessionRouteGuard>
               <Stack

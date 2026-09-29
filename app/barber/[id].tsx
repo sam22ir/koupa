@@ -5,22 +5,32 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BarberProfile, BarberService } from '@/src/booking';
 import { BackButton, Button, Card, Chip, CustomerStageHeader, EmptyState, ErrorBanner, Icon, Screen } from '@/src/components/ui';
 import { useBooking } from '@/src/hooks/useBooking';
+import { UgcModerationActions } from '@/src/features/moderation/UgcModerationActions';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { t } from '@/src/i18n';
 import { publicProfileReturnHref } from '@/src/navigation/bookingNavigation';
 import { setPendingIntentFromPath } from '@/src/navigation/pendingIntent';
 import { colors, layout, radii, space, typography } from '@/src/theme';
+import { isUserBlocked } from '@/src/services/ugcModeration';
 
 export default function BarberProfilePublicScreen() {
   const { id, returnTo } = useLocalSearchParams<{ id: string; returnTo?: string }>();
   const { getBarber, loading, error } = useBooking();
-  const { profile } = useAppSession();
+  const { profile, guestBrowsing } = useAppSession();
   const [barber, setBarber] = useState<BarberProfile | null>(null);
+  const [blocked, setBlocked] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
-  const fallback = publicProfileReturnHref(returnTo, profile?.role);
+  const fallback = publicProfileReturnHref(returnTo, guestBrowsing ? 'customer' : profile?.role);
 
   const load = useCallback(async () => {
     if (!id) return;
+    const isBlocked = await isUserBlocked(id).catch(() => false);
+    setBlocked(isBlocked);
+    if (isBlocked) {
+      setBarber(null);
+      setSelectedServiceId(null);
+      return;
+    }
     const rows = await getBarber(id);
     setBarber(rows?.[0] ?? null);
     setSelectedServiceId(null);
@@ -36,7 +46,7 @@ export default function BarberProfilePublicScreen() {
 
   const startBooking = (barberId: string, serviceId: string) => {
     const returnPath = `/barber/${barberId}`;
-    if (profile?.role === 'customer') {
+    if (profile?.role === 'customer' || guestBrowsing) {
       router.push({
         pathname: '/book/[barberId]',
         params: { barberId, serviceId, returnTo: returnPath },
@@ -45,7 +55,7 @@ export default function BarberProfilePublicScreen() {
     }
     if (profile?.role !== 'barber') {
       setPendingIntentFromPath(`/book/${barberId}`, { serviceId, returnTo: returnPath });
-      router.push('/(auth)/sign-in');
+      router.push({ pathname: '/(auth)/sign-up', params: { role: 'customer' } });
     }
   };
 
@@ -57,12 +67,28 @@ export default function BarberProfilePublicScreen() {
       <CustomerStageHeader
         title={t('find.barberProfileTitle')}
         subtitle={t('find.barberProfileSubtitle')}
+        context={t('auth.roleCustomer')}
         trailing={<BackButton fallback={fallback} />}
       />
       <View style={styles.body}>
         {loading && !barber ? <BarberProfileSkeleton /> : null}
         {error && barber ? <ErrorBanner error={error} /> : null}
-        {barber ? (
+        {blocked ? (
+          <Card style={styles.moderationCard}>
+            <Text style={styles.bio}>{t('moderation.blockedProfile')}</Text>
+            <UgcModerationActions
+              targetKind="profile"
+              targetId={id}
+              targetName={t('find.barberProfileTitle')}
+              blockTargetId={id}
+              blocked
+              onBlockChange={(next) => {
+                setBlocked(next);
+                if (!next) void load();
+              }}
+            />
+          </Card>
+        ) : barber ? (
           <>
             <Card style={styles.identityCard}>
               <Text style={styles.identityName}>{barber.name}</Text>
@@ -71,7 +97,9 @@ export default function BarberProfilePublicScreen() {
                 {barber.rating_count ? `★ ${barber.average_rating.toFixed(1)} (${barber.rating_count})` : t('find.noRatings')}
               </Text>
               {barber.bio ? <Text style={styles.bio}>{barber.bio}</Text> : null}
-              <Text style={styles.phone}>{t('find.phoneLabel')}: {barber.phone}</Text>
+              {barber.phone ? (
+                <Text style={styles.phone}>{t('find.phoneLabel')}: {barber.phone}</Text>
+              ) : null}
               {barber.maps_url ? (
                 <Pressable
                   accessibilityRole="button"
@@ -84,6 +112,22 @@ export default function BarberProfilePublicScreen() {
                 </Pressable>
               ) : null}
             </Card>
+
+            {profile?.id && profile.id !== barber.id ? (
+              <Card style={styles.moderationCard}>
+                <UgcModerationActions
+                  targetKind="profile"
+                  targetId={barber.id}
+                  targetName={barber.name}
+                  blockTargetId={barber.id}
+                  additionalReportTarget={{ kind: 'ratings', label: t('moderation.reportRatings') }}
+                  onBlockChange={(next) => {
+                    setBlocked(next);
+                    if (next) setBarber(null);
+                  }}
+                />
+              </Card>
+            ) : null}
 
             <Text style={styles.section}>{t('booking.services')}</Text>
             {barber.services.length ? barber.services.map((service) => (
@@ -177,6 +221,7 @@ function BarberProfileSkeleton() {
 const styles = StyleSheet.create({
   body: { gap: space[3], paddingHorizontal: layout.screenPaddingX, paddingBottom: space[10] },
   identityCard: { gap: space[2] },
+  moderationCard: { gap: space[2] },
   identityName: { ...typography.title, textAlign: 'right' },
   identityLocation: { ...typography.caption, color: colors.textMuted, textAlign: 'right' },
   rating: { ...typography.caption, color: colors.accentText, textAlign: 'right' },

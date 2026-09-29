@@ -2,8 +2,11 @@ import { getGuardedRoute, routeIsAllowed } from '@/src/navigation/routeGuard';
 
 describe('route guard classification', () => {
   it.each([
-    [['(customer)', 'home'], 'customer'],
-    [['book', '[barberId]'], 'customer'],
+    [['(customer)', 'home'], 'customer-browse'],
+    [['(customer)', 'find'], 'customer-browse'],
+    [['(customer)', 'appointments'], 'customer'],
+    [['(customer)', 'profile'], 'customer'],
+    [['book', '[barberId]'], 'customer-browse'],
     [['appointment', '[id]'], 'customer'],
     [['barber', '[id]'], 'public-browse'],
     [['shop', '[id]'], 'public-browse'],
@@ -15,6 +18,7 @@ describe('route guard classification', () => {
     [['(auth)', 'intro'], 'auth'],
     [['(auth)', 'welcome'], 'auth'],
     [['(auth)', 'confirm'], 'confirmation'],
+    [['(auth)', 'complete-account'], 'complete-account'],
     [['(auth)', 'customer-setup'], 'customer-setup'],
     [['(auth)', 'legal-consent'], 'legal-consent'],
     [['(auth)', 'legal-error'], 'legal-error'],
@@ -29,6 +33,17 @@ describe('route guard classification', () => {
     expect(routeIsAllowed('authenticated', 'customer')).toBe(true);
     expect(routeIsAllowed('authenticated', 'barber')).toBe(true);
     expect(routeIsAllowed('authenticated', 'auth')).toBe(false);
+  });
+
+  it('lets guests read discovery tabs and use auth screens but nothing account-bound', () => {
+    expect(routeIsAllowed('customer-browse', 'guest')).toBe(true);
+    expect(routeIsAllowed('customer-browse', 'customer')).toBe(true);
+    expect(routeIsAllowed('customer-browse', 'barber')).toBe(false);
+    expect(routeIsAllowed('auth', 'guest')).toBe(true);
+    expect(routeIsAllowed('public-browse', 'guest')).toBe(true);
+    expect(routeIsAllowed('customer', 'guest')).toBe(false);
+    expect(routeIsAllowed('authenticated', 'guest')).toBe(false);
+    expect(routeIsAllowed('barber', 'guest')).toBe(false);
   });
 
   it('keeps public browsing available while restricting customer booking', () => {
@@ -49,6 +64,7 @@ describe('route guard classification', () => {
     expect(routeIsAllowed('auth', 'auth')).toBe(true);
     expect(routeIsAllowed('auth', 'customer')).toBe(false);
     expect(routeIsAllowed('confirmation', 'confirm')).toBe(true);
+    expect(routeIsAllowed('complete-account', 'complete-account')).toBe(true);
     expect(routeIsAllowed('recovery', 'customer')).toBe(true);
     expect(routeIsAllowed('recovery', 'legal-consent')).toBe(true);
     expect(routeIsAllowed('recovery', 'customer-setup')).toBe(true);

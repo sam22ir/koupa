@@ -1,4 +1,6 @@
 import { Tabs } from 'expo-router';
+
+import { useAppSession } from '@/src/providers/SessionProvider';
 import { Text } from 'react-native';
 
 import { TabIcon } from '@/src/components/navigation/TabIcon';
@@ -14,6 +16,8 @@ function TabLabel({ label, focused }: { label: string; focused: boolean }) {
 }
 
 export default function CustomerLayout() {
+  // Guests only get discovery; account tabs are hidden until they sign in.
+  const { guestBrowsing } = useAppSession();
   return (
     <Tabs
       screenOptions={{
@@ -32,6 +36,7 @@ export default function CustomerLayout() {
       <Tabs.Screen
         name="profile"
         options={{
+          href: guestBrowsing ? null : undefined,
           title: t('tabs.profile'),
           tabBarIcon: ({ focused }) => (
             <TabIcon name={focused ? 'person' : 'person-outline'} focused={focused} />
@@ -42,6 +47,7 @@ export default function CustomerLayout() {
       <Tabs.Screen
         name="appointments"
         options={{
+          href: guestBrowsing ? null : undefined,
           title: t('tabs.appointments'),
           tabBarIcon: ({ focused }) => (
             <TabIcon name={focused ? 'calendar' : 'calendar-outline'} focused={focused} />

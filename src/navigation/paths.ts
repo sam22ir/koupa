@@ -10,9 +10,14 @@ export function destinationHref(destination: AppDestination): Href {
     case 'session-error':
       return '/(auth)/session-error';
     case 'auth':
-      return '/(auth)/intro';
+      return '/(auth)/welcome';
+    case 'guest':
+      return '/(customer)/home';
     case 'confirm':
       return '/(auth)/confirm';
+    case 'complete-account':
+      // Expo Router's generated route union updates when its type generator runs.
+      return '/(auth)/complete-account' as Href;
     case 'customer-setup':
       return '/(auth)/customer-setup';
     case 'legal-consent':

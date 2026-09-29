@@ -13,11 +13,12 @@ import {
 import type { BarberSummary } from '@/src/booking';
 import { formatDistanceKm, type GeoPoint } from '@/src/location';
 import type { ShopSummary } from '@/src/shops';
-import { Button, CustomerStageHeader, EmptyState, ErrorBanner, Icon, Screen } from '@/src/components/ui';
+import { Button, EmptyState, ErrorBanner, Icon, Screen } from '@/src/components/ui';
 import { directoryRatingText } from '@/src/features/customer-find/directoryRating';
 import { useBooking } from '@/src/hooks/useBooking';
 import { useDeviceLocation } from '@/src/hooks/useDeviceLocation';
 import { useShops } from '@/src/hooks/useShops';
+import { useAppSession } from '@/src/providers/SessionProvider';
 import { t } from '@/src/i18n';
 import { consumeCustomerFindCityPreference } from '@/src/navigation/customerFindPreference';
 import { SEARCH_PAGE_SIZE } from '@/src/services';
@@ -30,6 +31,8 @@ import { typography } from '@/src/theme/typography';
 type Directory = 'barbers' | 'shops';
 
 export default function FindScreen() {
+  // Guests browse the barber directory only; shop RPCs stay signed-in.
+  const { guestBrowsing } = useAppSession();
   const { searchBarbers, loading: bookingLoading, error: bookingError } = useBooking();
   const { searchShops, searchNearbyShops, loading: shopsLoading, error: shopsError } = useShops();
   const { request: requestLocation, status: locationStatus } = useDeviceLocation();
@@ -57,41 +60,45 @@ export default function FindScreen() {
     append = false,
     origin: GeoPoint | null = nearbyOrigin,
     city = cityFilterRef.current,
-  ) => {
+  ): Promise<number | null> => {
     const requestId = ++searchRequestRef.current;
     setSearched(true);
     setLoadingMore(true);
     try {
+      let found: number | null = null;
       if (kind === 'barbers') {
         const result = await searchBarbers(nextQuery, city, nextPage);
-        if (requestId !== searchRequestRef.current) return;
+        if (requestId !== searchRequestRef.current) return null;
         if (result == null) {
           if (!append) {
             setBarbers([]);
             setHasMore(false);
           }
-          return;
+          return null;
         }
         const items = result;
         setBarbers((prev) => (append ? [...prev, ...items] : items));
         setHasMore(items.length === SEARCH_PAGE_SIZE);
+        found = items.length;
       } else {
         const result = origin
           ? await searchNearbyShops(origin.latitude, origin.longitude, nextQuery, nextPage)
           : await searchShops(nextQuery, nextPage);
-        if (requestId !== searchRequestRef.current) return;
+        if (requestId !== searchRequestRef.current) return null;
         if (result == null) {
           if (!append) {
             setShops([]);
             setHasMore(false);
           }
-          return;
+          return null;
         }
         const items = result;
         setShops((prev) => (append ? [...prev, ...items] : items));
         setHasMore(items.length === SEARCH_PAGE_SIZE);
+        found = items.length;
       }
       setPage(nextPage);
+      return found;
     } finally {
       if (requestId === searchRequestRef.current) setLoadingMore(false);
     }
@@ -117,9 +124,16 @@ export default function FindScreen() {
       const preferredCity = await consumeCustomerFindCityPreference();
       if (preferredCity) {
         setQuery(preferredCity);
-        await runSearch(preferredCity, 'barbers', 0, false, null, preferredCity);
+        const found = await runSearch(preferredCity, 'barbers', 0, false, null, preferredCity);
         // One-shot preference: do not keep city locked for later searches.
         cityFilterRef.current = '';
+        // A saved city with no published barbers must not look like an empty
+        // directory. Fall back to the full list and say why.
+        if (found === 0) {
+          setQuery('');
+          setLocationMessage(t('find.broadenedCity'));
+          await runSearch('', 'barbers', 0, false, null, '');
+        }
         return;
       }
       await runSearch('', 'barbers');
@@ -153,12 +167,18 @@ export default function FindScreen() {
     }
     setNearbyOrigin(origin);
     setDirectory('shops');
-    void runSearch(query.trim(), 'shops', 0, false, origin);
+    const found = await runSearch(query.trim(), 'shops', 0, false, origin);
+    // Nothing inside the 25 km radius is common outside big cities. Widen to
+    // every shop rather than leaving the customer on an empty list.
+    if (found === 0) {
+      setNearbyOrigin(null);
+      setLocationMessage(t('find.broadenedRadius'));
+      await runSearch(query.trim(), 'shops', 0, false, null);
+    }
   };
 
   return (
     <Screen padded={false}>
-      <CustomerStageHeader title={t('find.title')} subtitle={t('find.subtitle')} tone="paper" />
       <View style={styles.body}>
       <View style={styles.header}>
         <View style={styles.searchBox}>
@@ -199,12 +219,14 @@ export default function FindScreen() {
             <Icon name="options-outline" size={22} color={colors.primary} />
           </Pressable>
         </View>
-        <Button
-          label={nearbyOrigin ? t('find.nearMeActive') : t('find.nearMe')}
-          variant={nearbyOrigin ? 'primary' : 'secondary'}
-          loading={locationStatus === 'requesting'}
-          onPress={() => void toggleNearbySearch()}
-        />
+        {guestBrowsing ? null : (
+          <Button
+            label={nearbyOrigin ? t('find.nearMeActive') : t('find.nearMe')}
+            variant={nearbyOrigin ? 'primary' : 'secondary'}
+            loading={locationStatus === 'requesting'}
+            onPress={() => void toggleNearbySearch()}
+          />
+        )}
         {nearbyOrigin ? <Text style={styles.nearbyStatus}>{t('find.nearMeResults')}</Text> : null}
         {locationMessage ? <Text style={styles.locationMessage}>{locationMessage}</Text> : null}
         {filterOpen ? (
@@ -230,6 +252,7 @@ export default function FindScreen() {
             </View>
           </View>
         ) : null}
+        {guestBrowsing ? null : (
         <View style={styles.segment}>
           {(['barbers', 'shops'] as const).map((value) => (
             <Pressable
@@ -250,6 +273,7 @@ export default function FindScreen() {
             </Pressable>
           ))}
         </View>
+        )}
         <ErrorBanner error={searched ? (directory === 'barbers' ? bookingError : shopsError) : ''} />
       </View>
 
@@ -264,8 +288,8 @@ export default function FindScreen() {
               <EmptyState
                 title={t('find.empty')}
                 body={t('find.emptyBody')}
-                actionLabel={nearbyOrigin ? t('find.nearMeActive') : t('find.nearMe')}
-                onAction={() => void toggleNearbySearch()}
+                actionLabel={guestBrowsing ? undefined : nearbyOrigin ? t('find.nearMeActive') : t('find.nearMe')}
+                onAction={guestBrowsing ? undefined : () => void toggleNearbySearch()}
               />
             ) : null
           }
@@ -296,8 +320,8 @@ export default function FindScreen() {
               <EmptyState
                 title={t('find.empty')}
                 body={t('find.emptyBody')}
-                actionLabel={nearbyOrigin ? t('find.nearMeActive') : t('find.nearMe')}
-                onAction={() => void toggleNearbySearch()}
+                actionLabel={guestBrowsing ? undefined : nearbyOrigin ? t('find.nearMeActive') : t('find.nearMe')}
+                onAction={guestBrowsing ? undefined : () => void toggleNearbySearch()}
               />
             ) : null
           }

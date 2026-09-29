@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Button } from 'heroui-native/button';
 import { Card } from 'heroui-native/card';
@@ -23,21 +23,43 @@ import {
 } from '@/src/features/booking/bookingSteps';
 import { InlineDateCalendar } from '@/src/features/barber-schedule/InlineDateCalendar';
 import { useBooking } from '@/src/hooks/useBooking';
+import { useAppSession } from '@/src/providers/SessionProvider';
 import { t } from '@/src/i18n';
 import { bookingReturnHref } from '@/src/navigation/bookingNavigation';
+import { setPendingIntentFromPath } from '@/src/navigation/pendingIntent';
 import { colors, space } from '@/src/theme';
 
 export default function BookScreen() {
-  const { barberId, appointmentId, serviceId: initialServiceId, returnTo } = useLocalSearchParams<{
+  const {
+    barberId,
+    appointmentId,
+    serviceId: initialServiceId,
+    date: restoredDate,
+    slot: restoredSlot,
+    returnTo,
+  } = useLocalSearchParams<{
     barberId: string;
     appointmentId?: string;
     serviceId?: string;
+    date?: string;
+    slot?: string;
     returnTo?: string;
   }>();
+  const { guestBrowsing, session, emailConfirmed, resendEmailConfirmation } = useAppSession();
+  const [resendNote, setResendNote] = useState('');
+  const [resendError, setResendError] = useState<unknown>(null);
+  // The database only accepts a first booking from a confirmed email.
+  const needsEmailConfirmation = !guestBrowsing && !appointmentId && Boolean(session) && !emailConfirmed;
   const { getBarber, getSlots, book, reschedule, loading, error } = useBooking();
   const [barber, setBarber] = useState<BarberProfile | null>(null);
   const [serviceId, setServiceId] = useState(initialServiceId ?? '');
-  const [date, setDate] = useState('');
+  // A booking carried through sign-up or email confirmation returns with its date
+  // and time; they are applied once the slots for that day have loaded.
+  const carriedBooking = restoredDate && restoredSlot && /^\d{4}-\d{2}-\d{2}$/.test(restoredDate)
+    ? { date: restoredDate, slot: restoredSlot }
+    : null;
+  const restoreRef = useRef(carriedBooking);
+  const [date, setDate] = useState(carriedBooking?.date ?? '');
   const [slots, setSlots] = useState<readonly BookingSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState('');
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -49,17 +71,20 @@ export default function BookScreen() {
     () => bookingDates(barber?.booking_window_days ?? 7),
     [barber?.booking_window_days],
   );
+  const loadedBarberId = barber?.id ?? '';
   const selectedService = barber?.services.find((service) => service.id === serviceId) ?? null;
 
   useEffect(() => {
     if (!barberId) return;
     let active = true;
     void getBarber(barberId).then((rows) => {
-      if (!active) return;
-      const next = rows?.[0] ?? null;
+      // null means superseded by a slots request or failed: keep any loaded barber.
+      if (!active || !rows) return;
+      const next = rows[0] ?? null;
       setBarber(next);
       setServiceId((current) => current || next?.services[0]?.id || '');
-      setDate((current) => current || dates[0] || '');
+      // Keep a restored date only while it is still inside the booking window.
+      setDate((current) => (current && dates.includes(current) ? current : dates[0] || ''));
     });
     return () => {
       active = false;
@@ -72,21 +97,57 @@ export default function BookScreen() {
     setSelectedSlot('');
     setSlots([]);
     if (step === 'recap') setStep('slots');
-    if (!barberId || !serviceId || !date) {
+    // Wait for the barber: a carried date is only validated against their booking window then.
+    if (!barberId || !serviceId || !date || !loadedBarberId) {
       setSlotsLoading(false);
       return;
     }
     let active = true;
     setSlotsLoading(true);
     void getSlots(barberId, serviceId, date).then((next) => {
-      if (active) setSlots(next ?? []);
+      if (!active) return;
+      setSlots(next ?? []);
+      const want = restoreRef.current;
+      restoreRef.current = null;
+      if (want && want.date === date) {
+        if (next?.some((slot) => slot.starts_at === want.slot)) {
+          setSelectedSlot(want.slot);
+          setStep('recap');
+        } else {
+          // The time was taken meanwhile: show the day's slots to choose another.
+          setStep('slots');
+        }
+      }
     }).finally(() => {
       if (active) setSlotsLoading(false);
     });
     return () => {
       active = false;
     };
-  }, [barberId, getSlots, date, serviceId]);
+  }, [barberId, getSlots, date, serviceId, loadedBarberId]);
+
+  // The confirmation link reopens the app at `/`; keep this booking pending so
+  // the customer lands back here with their service instead of on Home.
+  useEffect(() => {
+    if (!needsEmailConfirmation || !barberId) return;
+    setPendingIntentFromPath(`/book/${barberId}`, {
+      serviceId,
+      date,
+      slot: selectedSlot,
+      returnTo: `/barber/${barberId}`,
+    });
+  }, [needsEmailConfirmation, barberId, serviceId, date, selectedSlot]);
+
+  const resendConfirmation = async () => {
+    setResendError(null);
+    setResendNote('');
+    try {
+      await resendEmailConfirmation(session?.user.email?.trim() ?? '');
+      setResendNote(t('booking.confirmEmailResent'));
+    } catch (caught) {
+      setResendError(caught);
+    }
+  };
 
   const confirm = async () => {
     setMessage('');
@@ -108,6 +169,17 @@ export default function BookScreen() {
     }
   };
 
+  // A guest keeps their service choice and comes back here after signing up.
+  const signInToBook = () => {
+    setPendingIntentFromPath(`/book/${barberId}`, {
+      serviceId,
+      date,
+      slot: selectedSlot,
+      returnTo: `/barber/${barberId}`,
+    });
+    router.push({ pathname: '/(auth)/sign-up', params: { role: 'customer' } });
+  };
+
   const goBack = () => {
     if (step === 'date') {
       router.dismissTo(returnHref);
@@ -122,6 +194,7 @@ export default function BookScreen() {
     <Screen padded={false} scroll>
       <CustomerStageHeader
         tone={headerTone}
+        context={t('auth.roleCustomer')}
         title={step === 'recap' ? t('booking.recapTitle') : appointmentId ? t('home.reschedule') : t('booking.book')}
         subtitle={barber?.name}
         trailing={<BackButton fallback={returnHref} tone={headerTone === 'stage' ? 'onPrimary' : 'primary'} onPress={goBack} />}
@@ -215,9 +288,33 @@ export default function BookScreen() {
             <Typography type="body-xs" color="muted" align="end">{t('common.price')}</Typography>
             <Typography type="body" weight="semibold" align="end">{`${selectedService.price_dzd} ${t('common.dzd')}`}</Typography>
             <Typography type="body-xs" color="muted" align="center">{t('booking.payAtShop')}</Typography>
-            <Button isDisabled={loading} onPress={() => void confirm()}>
-              <Button.Label>{appointmentId ? t('home.reschedule') : t('booking.confirmBook')}</Button.Label>
-            </Button>
+            {needsEmailConfirmation ? (
+              <>
+                <Typography type="body" weight="semibold" align="center">{t('booking.confirmEmailTitle')}</Typography>
+                <Typography type="body-xs" color="muted" align="center">{t('booking.confirmEmailBody')}</Typography>
+                <Typography type="body-xs" align="center" style={{ color: colors.primary }}>
+                  {session?.user.email ?? ''}
+                </Typography>
+                <ErrorBanner error={resendError} />
+                {resendNote ? (
+                  <Typography type="body-xs" align="center" style={{ color: colors.primary }}>{resendNote}</Typography>
+                ) : null}
+                <Button testID="resend-booking-confirmation" variant="secondary" onPress={() => void resendConfirmation()}>
+                  <Button.Label>{t('booking.confirmEmailResend')}</Button.Label>
+                </Button>
+              </>
+            ) : guestBrowsing ? (
+              <>
+                <Typography type="body-xs" color="muted" align="center">{t('booking.guestBookNote')}</Typography>
+                <Button testID="guest-sign-in-to-book" onPress={signInToBook}>
+                  <Button.Label>{t('booking.signInToBook')}</Button.Label>
+                </Button>
+              </>
+            ) : (
+              <Button isDisabled={loading} onPress={() => void confirm()}>
+                <Button.Label>{appointmentId ? t('home.reschedule') : t('booking.confirmBook')}</Button.Label>
+              </Button>
+            )}
           </Card>
         ) : null}
       </View>

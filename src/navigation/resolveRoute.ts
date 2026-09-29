@@ -4,10 +4,18 @@ import type { Profile } from '@/src/services/profile';
 export type SessionGateInput = {
   readonly loading: boolean;
   readonly hasSession: boolean;
+  /** A signed-out visitor chose to browse barbers without an account. */
+  readonly guestBrowsing?: boolean;
   readonly emailConfirmed: boolean;
   readonly pendingConfirmationEmail: string;
   readonly profile: Profile | null;
   readonly pendingRole: UserRole | null;
+  /**
+   * Whether the account has the signup consent stamped in auth metadata. The
+   * database refuses a profile insert without it, so a profileless account
+   * missing consent must be repaired before any setup screen is reachable.
+   */
+  readonly signupConsent?: boolean;
   readonly legalAccepted: boolean;
   readonly legalConsentRequired: boolean;
   readonly legalError: string | null;
@@ -19,7 +27,9 @@ export type AppDestination =
   | 'loading'
   | 'session-error'
   | 'auth'
+  | 'guest'
   | 'confirm'
+  | 'complete-account'
   | 'customer-setup'
   | 'legal-consent'
   | 'legal-error'
@@ -37,9 +47,19 @@ export function resolveAppDestination(input: SessionGateInput): AppDestination {
   if (input.profileError) return 'session-error';
   if (!input.hasSession) {
     if (input.pendingConfirmationEmail) return 'confirm';
-    return 'auth';
+    return input.guestBrowsing ? 'guest' : 'auth';
   }
-  if (!input.emailConfirmed) return 'confirm';
+  // An unconfirmed email no longer blocks setup. Confirmation is enforced
+  // where value is exchanged: the appointments insert trigger for customers,
+  // and publish_barber_profile for barbers.
+  //
+  // An incomplete account without a persisted role must pick one before the
+  // client attempts a role-guarded profile insert. Missing signup consent
+  // lands here too: the profile insert would be refused by the database, and
+  // complete-account is the only screen that stamps it.
+  if (!input.profile && (!input.pendingRole || input.signupConsent === false)) {
+    return 'complete-account';
+  }
   // A profileless account cannot proceed without a successful legal sync. A
   // completed profile, however, may continue during a transient document
   // request failure and can retry from its workspace.
@@ -56,8 +76,8 @@ export function resolveAppDestination(input: SessionGateInput): AppDestination {
     if (role === 'barber') return 'barber-onboarding';
     return 'customer-setup';
   }
-  if (input.profile.role === 'barber' && !input.profile.is_published) {
-    return 'barber-onboarding';
-  }
+  // An unpublished barber is a real account with in-app tasks left, not an
+  // unfinished wizard. Only a barber with no profile row at all is sent back
+  // to setup, which is handled above.
   return input.profile.role === 'barber' ? 'barber' : 'customer';
 }

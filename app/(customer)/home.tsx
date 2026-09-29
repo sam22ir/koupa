@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert as RNAlert, StyleSheet, View } from 'react-native';
+import { Alert as RNAlert, StyleSheet, Text, View } from 'react-native';
 import { Alert } from 'heroui-native/alert';
 import { Button } from 'heroui-native/button';
 import { Card } from 'heroui-native/card';
@@ -10,7 +10,14 @@ import {
   canCancelCustomerAppointment,
   type Appointment,
 } from '@/src/booking';
-import { CustomerStageHeader, Screen } from '@/src/components/ui';
+import {
+  BrandLogo,
+  Button as KoupaButton,
+  EmptyState,
+  Screen,
+  Stage,
+} from '@/src/components/ui';
+import { RoleHomeHeader } from '@/src/components/ui/RoleHomeHeader';
 import { deriveRecentBarbers } from '@/src/customerHome';
 import { CustomerHomeSkeleton } from '@/src/features/customer-home/CustomerHomeSkeleton';
 import { RecentBarbers } from '@/src/features/customer-home/RecentBarbers';
@@ -19,7 +26,7 @@ import { loadCustomerAppointments, useBooking } from '@/src/hooks/useBooking';
 import { t } from '@/src/i18n';
 import { formatAppError } from '@/src/i18n/errors';
 import { useAppSession } from '@/src/providers/SessionProvider';
-import { colors, layout, space } from '@/src/theme';
+import { colors, elevation, layout, space, typography } from '@/src/theme';
 
 function ErrorAlert({ error }: { readonly error: unknown }) {
   if (!error) return null;
@@ -34,6 +41,50 @@ function ErrorAlert({ error }: { readonly error: unknown }) {
 }
 
 export default function CustomerHomeScreen() {
+  const { guestBrowsing } = useAppSession();
+  return guestBrowsing ? <GuestHome /> : <SignedInHome />;
+}
+
+/** Signed-out visitors: discovery first, account only when they book. */
+function GuestHome() {
+  return (
+    <Screen padded={false} scroll bleedTop style={styles.screen}>
+      <Stage>
+        <BrandLogo height={30} imageStyle={{ tintColor: colors.onPrimary }} />
+        <View style={styles.guestCopy}>
+          <Text style={styles.guestGreeting}>{t('home.greeting')}</Text>
+          <Text accessibilityRole="header" style={styles.guestTitle}>{t('home.guestTitle')}</Text>
+          <Text style={styles.guestBody}>{t('home.guestBody')}</Text>
+        </View>
+        <KoupaButton
+          testID="guest-find-cta"
+          variant="onStage"
+          label={t('home.guestFindCta')}
+          onPress={() => router.push('/(customer)/find')}
+        />
+      </Stage>
+      <View style={[styles.body, styles.lifted]}>
+        <Card className="p-4 gap-2" style={elevation.float}>
+          <Typography type="body" color="muted" align="center">{t('home.guestSignInHint')}</Typography>
+          <KoupaButton
+            testID="guest-sign-in"
+            variant="secondary"
+            label={t('auth.signIn')}
+            onPress={() => router.push('/(auth)/sign-in')}
+          />
+          <KoupaButton
+            testID="guest-create-account"
+            variant="ghost"
+            label={t('auth.createAccount')}
+            onPress={() => router.push({ pathname: '/(auth)/sign-up', params: { role: 'customer' } })}
+          />
+        </Card>
+      </View>
+    </Screen>
+  );
+}
+
+function SignedInHome() {
   const { profile, legalError, retryLegalAcceptance } = useAppSession();
   const booking = useBooking();
   const [appointments, setAppointments] = useState<readonly Appointment[]>([]);
@@ -91,14 +142,17 @@ export default function CustomerHomeScreen() {
   };
 
   return (
-    <Screen padded={false} scroll>
-      <CustomerStageHeader
-        tone="stage"
-        title={`${t('home.greeting')}${profile?.name ? `، ${profile.name}` : ''}`}
-        subtitle={upcoming ? t('home.upcomingSubtitle') : t('home.startBookingSubtitle')}
+    <Screen padded={false} scroll bleedTop style={styles.screen}>
+      <RoleHomeHeader
+        overlap
+        greeting={t('home.greeting')}
+        name={profile?.name ?? t('profile.accountNameFallback')}
+        profileLabel={t('tabs.profile')}
+        notificationsLabel={t('profile.notifications')}
+        onProfile={() => router.push('/(customer)/profile')}
+        onNotifications={() => router.push('/notifications')}
       />
-
-      <View style={styles.body}>
+      <View style={[styles.body, styles.lifted]}>
         {legalError ? (
           <View style={styles.initialError}>
             <ErrorAlert error={legalError} />
@@ -141,16 +195,14 @@ export default function CustomerHomeScreen() {
             />
           </View>
         ) : (
-          <Card className="p-6 items-center gap-3">
-            <Typography type="h5" align="center">
-              {t('home.noAppointment')}
-            </Typography>
-            <Typography type="body" color="muted" align="center">
-              {t('home.findBody')}
-            </Typography>
-            <Button onPress={() => router.push('/(customer)/find')}>
-              <Button.Label>{t('home.findCta')}</Button.Label>
-            </Button>
+          <Card className="p-2" style={elevation.float}>
+            <EmptyState
+              icon="calendar-outline"
+              title={t('home.noAppointment')}
+              body={t('home.findBody')}
+              actionLabel={t('home.findCta')}
+              onAction={() => router.push('/(customer)/find')}
+            />
           </Card>
         )}
         {!loading && !showInitialError && recentBarbers.length ? (
@@ -165,13 +217,18 @@ export default function CustomerHomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  screen: { backgroundColor: colors.background },
   body: {
-    marginTop: layout.stageBodyOverlap,
     paddingHorizontal: layout.screenPaddingX,
-    gap: space[3],
+    gap: space[5],
     paddingBottom: space[6],
   },
+  lifted: { marginTop: layout.stageBodyOverlap },
+  guestCopy: { gap: space[1], marginTop: space[5], marginBottom: space[4], alignItems: 'flex-end' },
+  guestGreeting: { ...typography.label, color: colors.onPrimaryMuted, textAlign: 'right' },
+  guestTitle: { ...typography.display, color: colors.onPrimary, textAlign: 'right' },
+  guestBody: { ...typography.body, color: colors.onPrimaryMuted, textAlign: 'right' },
   initialError: { gap: space[3] },
   upcomingSection: { gap: space[2] },
-  refreshNotice: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: space[2], paddingHorizontal: space[2], paddingVertical: space[1], borderRadius: 8, backgroundColor: colors.accentSoft },
+  refreshNotice: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: space[2], paddingHorizontal: space[3], paddingVertical: space[1], borderRadius: 12, backgroundColor: colors.warningSoft },
 });

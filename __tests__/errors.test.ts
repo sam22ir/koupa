@@ -2,6 +2,11 @@ import { AppError, bookingErrorMessage, errorCode, mapRpcMessage } from '@/src/s
 import { formatAppError } from '@/src/i18n/errors';
 
 describe('service error mapping', () => {
+  it('maps the unconfirmed-email booking refusal to its own code, not validation', () => {
+    expect(mapRpcMessage(new Error('A confirmed email is required'))).toBe('EMAIL_NOT_CONFIRMED');
+    expect(bookingErrorMessage(new AppError('EMAIL_NOT_CONFIRMED'))).toBe('أكد بريدك الإلكتروني لإتمام الحجز.');
+  });
+
   it('maps known booking RPC messages', () => {
     expect(mapRpcMessage(new Error('Slot is unavailable'))).toBe('SLOT_UNAVAILABLE');
     expect(mapRpcMessage(new Error('Customer already has an active appointment'))).toBe('ACTIVE_APPOINTMENT');

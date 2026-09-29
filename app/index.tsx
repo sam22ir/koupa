@@ -1,10 +1,10 @@
 import { router, type Href } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { destinationHref } from '@/src/navigation/paths';
-import { consumePendingIntent } from '@/src/navigation/pendingIntent';
+import { consumePendingIntent, hydratePendingIntent } from '@/src/navigation/pendingIntent';
 import { resolveAppDestination, type AppDestination } from '@/src/navigation/resolveRoute';
+import { resolveStartupHref } from '@/src/navigation/resolveStartupHref';
 import { useAppSession } from '@/src/providers/SessionProvider';
 import { colors } from '@/src/theme';
 
@@ -14,14 +14,28 @@ import { colors } from '@/src/theme';
 export default function Index() {
   const session = useAppSession();
   const lastHref = useRef<Href | null>(null);
+  const [intentReady, setIntentReady] = useState(false);
+
+  // A destination saved before the app closed must be restored before routing.
+  useEffect(() => {
+    let active = true;
+    void hydratePendingIntent().finally(() => {
+      if (active) setIntentReady(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const destination: AppDestination = resolveAppDestination({
     loading: session.loading,
     hasSession: Boolean(session.session),
+    guestBrowsing: session.guestBrowsing,
     emailConfirmed: session.emailConfirmed,
     pendingConfirmationEmail: session.pendingConfirmationEmail,
     profile: session.profile,
     pendingRole: session.pendingRole,
+    signupConsent: session.signupConsent,
     legalAccepted: session.legalAccepted,
     legalConsentRequired: session.legalConsentRequired,
     legalError: session.legalError,
@@ -30,12 +44,14 @@ export default function Index() {
   });
 
   useEffect(() => {
-    if (destination === 'loading') return;
-    const href = consumePendingIntent(destination) ?? destinationHref(destination);
+    if (destination === 'loading' || !intentReady) return;
+    const href = consumePendingIntent(destination)
+      ?? resolveStartupHref(destination);
+    if (!href) return;
     if (lastHref.current === href) return;
     lastHref.current = href;
     router.replace(href);
-  }, [destination]);
+  }, [destination, intentReady]);
 
   return (
     <View style={styles.center}>

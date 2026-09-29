@@ -20,8 +20,12 @@ jest.mock('expo-router', () => {
   };
 });
 
+let mockGuestBrowsing = false;
 jest.mock('@/src/providers/SessionProvider', () => ({
-  useAppSession: () => ({ profile: { id: 'customer-1', name: 'سارة' } }),
+  useAppSession: () => ({
+    guestBrowsing: mockGuestBrowsing,
+    profile: mockGuestBrowsing ? null : { id: 'customer-1', name: 'سارة' },
+  }),
 }));
 
 jest.mock('@/src/hooks/useBooking', () => ({
@@ -55,6 +59,7 @@ function appointment(overrides: Partial<Appointment>): Appointment {
 describe('customer Home recent barbers', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGuestBrowsing = false;
     focusCallback = null;
   });
 
@@ -77,11 +82,12 @@ describe('customer Home recent barbers', () => {
     expect(onSelect).toHaveBeenCalledWith('barber-1');
   });
 
-  it('keeps the stage visible while the body is loading', async () => {
+  it('keeps the customer identity visible while the body is loading', async () => {
     mockLoadAppointments.mockReturnValue(new Promise(() => undefined));
     const view = await render(<CustomerHomeScreen />);
 
-    expect(view.getByText('مرحبا، سارة')).toBeTruthy();
+    expect(view.getByText('مرحبا')).toBeTruthy();
+    expect(view.getByText('سارة')).toBeTruthy();
     expect(view.getByTestId('customer-home-skeleton')).toBeTruthy();
     expect(view.queryByText('اعثر على حلاق')).toBeNull();
   });
@@ -160,5 +166,27 @@ describe('customer Home recent barbers', () => {
 
     expect(await view.findByRole('button', { name: 'إعادة تحميل المواعيد' })).toBeTruthy();
     expect(view.queryByRole('button', { name: 'اعثر على حلاق' })).toBeNull();
+  });
+});
+
+describe('customer Home as a guest', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGuestBrowsing = true;
+  });
+  afterEach(() => {
+    mockGuestBrowsing = false;
+  });
+
+  it('offers discovery and sign-in without loading appointments', async () => {
+    const screen = await render(<CustomerHomeScreen />);
+
+    expect(mockLoadAppointments).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByTestId('guest-find-cta'));
+    expect(mockPush).toHaveBeenCalledWith('/(customer)/find');
+    await fireEvent.press(screen.getByTestId('guest-sign-in'));
+    expect(mockPush).toHaveBeenCalledWith('/(auth)/sign-in');
+    await fireEvent.press(screen.getByTestId('guest-create-account'));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/(auth)/sign-up', params: { role: 'customer' } });
   });
 });
