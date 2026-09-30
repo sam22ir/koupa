@@ -148,6 +148,7 @@ Timing tokens live in `motion` (`src/theme/motion.ts`).
 - Pressed buttons and cards scale to 0.98 or dim slightly; do not make controls jump or shift.
 - Do not add entrance choreography to operational screens or the account flow.
 - Respect the device's reduced-motion setting.
+- The splash is a brief brand moment of its own, separate from the intro below: the native splash image hands off to `AnimatedSplash` (`src/startup/AnimatedSplash.tsx`), which pulses the logo once, ripples two rings and fades away in about a second. It never delays a screen users work in, and with reduced motion it only fades.
 - The intro logo animation is the one planned exception: a single 520 ms fade with a very small scale settle, followed by the three intro lines as one group. Nothing else on that screen moves.
 
 ## Avoid
