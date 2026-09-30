@@ -87,11 +87,15 @@ Barber tabs are `Today`, `Schedule`, `Shop`, and `Profile`.
 - Selecting an active member opens a dedicated owner workspace with summary, schedule/services, activity, and removal views. Removal explains upcoming appointment cancellation, notifies the affected barber and customers, and is recorded in shop activity.
 - Leaving a shop cancels that barber's upcoming shop appointments and notifies customers. Deleting a shop does the same for its upcoming appointments and removes active membership.
 
+## Roadmap
+
+Both roles have a Roadmap row in their Profile tab. It opens a screen listing upcoming features for that role plus features shared by both, grouped as In progress, Soon and Planned (Arabic only, no dates). Each signed-in account can vote once per feature and take the vote back. The list lives in the database (`roadmap_items`, edited in the Supabase dashboard, no app release needed); clients read it and vote only through the `list_roadmap_items` and `set_roadmap_vote` functions.
+
 ## Appointment Lifecycle and Notifications
 
 The lifecycle is `Booked` -> `Present` -> `Completed`. The barber can cancel but cannot reschedule a customer appointment. If the barber never marks the customer `Present`, the appointment automatically becomes `Absent` when its scheduled end passes. After the service duration, a `Present` appointment automatically becomes `Completed`.
 
-Firebase push notifications are sent for booking updates and every `Present`, `Completed`, and `Absent` status. MVP notification content is Arabic-only. Staging notifications are real but clearly labeled as test notifications.
+Firebase push notifications are sent for booking updates and every `Present`, `Completed`, and `Absent` status. Customers also get a reminder one day and one hour before a booked appointment (`koupa-appointment-reminders`, every 5 minutes, each reminder sent at most once). A booking or reschedule made inside a reminder's window skips that reminder, and a one-hour reminder replaces a missed one-day reminder. MVP notification content is Arabic-only. Staging notifications are real but clearly labeled as test notifications.
 
 Every in-app and push notification opens its associated event. Notification rows store a typed event destination, never an arbitrary URL: appointment events open a participant-specific appointment view; shop invitations, join requests, and membership decisions open the Shop hub or member workspace; workspace updates open the affected schedule or owner member workspace; and retained shop activity opens its activity view. If an event's underlying record has been removed or is no longer available, the recipient can still open the stored notification event record.
 

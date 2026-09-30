@@ -15,6 +15,7 @@ describe('route guard classification', () => {
     [['(barber)', 'today'], 'barber'],
     [['onboarding', 'index'], 'barber-onboarding'],
     [['notifications'], 'authenticated'],
+    [['roadmap'], 'authenticated'],
     [['(auth)', 'intro'], 'auth'],
     [['(auth)', 'welcome'], 'auth'],
     [['(auth)', 'confirm'], 'confirmation'],

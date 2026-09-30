@@ -228,7 +228,13 @@ export async function openGoogleAuthSession(authUrl: string): Promise<string | n
       if (!looksLikeAuthCallback(url)) return;
       settled = true;
       if (__DEV__) console.log('[auth] Linking captured auth callback');
-      void WebBrowser.dismissAuthSession();
+      // dismissAuthSession throws synchronously on Android (no native
+      // dismissBrowser); uncaught inside this listener it kills the app.
+      try {
+        WebBrowser.dismissAuthSession();
+      } catch {
+        // the Custom Tab closes on its own once the app is foregrounded
+      }
       resolve(url);
     });
     cleanupFns.push(() => sub.remove());
