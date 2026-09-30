@@ -4,6 +4,20 @@ import * as SplashScreen from 'expo-splash-screen';
 export const SPLASH_TIMEOUT_MS = 8000;
 
 let hidden = false;
+const hiddenListeners = new Set<() => void>();
+
+/** True once the native splash has been asked to hide. */
+export function isSplashHidden(): boolean {
+  return hidden;
+}
+
+/** Run `listener` when the native splash hides. Returns an unsubscribe function. */
+export function subscribeSplashHidden(listener: () => void): () => void {
+  hiddenListeners.add(listener);
+  return () => {
+    hiddenListeners.delete(listener);
+  };
+}
 
 /**
  * Keep the native splash up from the first JS frame. It must be called at module
@@ -19,6 +33,7 @@ export function hideSplash(): void {
   if (hidden) return;
   hidden = true;
   SplashScreen.hideAsync().catch(() => {});
+  hiddenListeners.forEach((listener) => listener());
 }
 
 /** Test seam: forget that the splash was hidden. */

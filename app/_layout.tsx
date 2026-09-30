@@ -25,6 +25,7 @@ import { resolveAppDestination, type AppDestination } from '@/src/navigation/res
 import { getGuardedRoute, routeIsAllowed } from '@/src/navigation/routeGuard';
 import { setPendingIntentFromPath } from '@/src/navigation/pendingIntent';
 import { SessionProvider, useAppSession } from '@/src/providers/SessionProvider';
+import { AnimatedSplash } from '@/src/startup/AnimatedSplash';
 import { SplashGate } from '@/src/startup/SplashGate';
 import { holdSplash, hideSplash, SPLASH_TIMEOUT_MS } from '@/src/startup/splash';
 import { colors } from '@/src/theme/colors';
@@ -186,6 +187,7 @@ export default function RootLayout() {
             </SessionRouteGuard>
           </SessionProvider>
         </ErrorBoundary>
+        <AnimatedSplash />
       </SafeAreaProvider>
       </HeroUINativeProvider>
     </GestureHandlerRootView>
