@@ -340,12 +340,6 @@ export default function BarberTodayScreen() {
             const quiet = item.status === 'completed' || item.status === 'cancelled' || item.status === 'absent';
             return (
               <View style={[styles.timelineRow, quiet && styles.appointmentRowQuiet]}>
-                <View style={styles.timeColumn}>
-                  <Text style={styles.time}>{formatBookingTime(item.starts_at)}</Text>
-                  <Text style={styles.duration}>
-                    {getTodayDurationMinutes(item)} {t('barber.durationMinutes')}
-                  </Text>
-                </View>
                 <View
                   testID="today-appointment-card"
                   style={[styles.appointmentRow, item.status === 'present' && styles.appointmentRowActive]}
@@ -357,6 +351,12 @@ export default function BarberTodayScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`${t('barber.appointmentDetails')}، ${item.customer_name}، ${formatBookingTime(item.starts_at)}`}
                   >
+                    <View style={styles.timeRow}>
+                      <Text style={styles.time}>{formatBookingTime(item.starts_at)}</Text>
+                      <Text style={styles.duration}>
+                        {getTodayDurationMinutes(item)} {t('barber.durationMinutes')}
+                      </Text>
+                    </View>
                     <View style={styles.customerRow}>
                       <Avatar initials={getCustomerInitials(item.customer_name)} size={40} />
                       <View style={styles.appointmentCopy}>
@@ -599,20 +599,17 @@ const styles = StyleSheet.create({
     paddingVertical: space[8],
   },
   timelineRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'flex-start',
-    gap: space[3],
+    width: '100%',
   },
-  timeColumn: {
-    width: 56,
-    paddingTop: space[3],
-    alignItems: 'center',
+  timeRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'baseline',
+    gap: space[2],
+    marginBottom: space[3],
   },
   duration: {
     ...typography.caption,
-    fontSize: 11,
-    lineHeight: 16,
-    textAlign: 'center',
+    textAlign: 'right',
   },
   appointmentRow: {
     flex: 1,
@@ -638,7 +635,7 @@ const styles = StyleSheet.create({
   },
   time: {
     ...typography.numeric,
-    textAlign: 'center',
+    textAlign: 'right',
   },
   customerRow: {
     minWidth: 0,

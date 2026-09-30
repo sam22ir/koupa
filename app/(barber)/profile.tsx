@@ -72,6 +72,11 @@ export default function BarberProfileScreen() {
             label={t('profile.notifications')}
             onPress={() => router.push('/notifications')}
           />
+          <SettingsRow
+            icon="trail-sign-outline"
+            label={t('profile.roadmap')}
+            onPress={() => router.push('/roadmap')}
+          />
         </SettingsGroup>
 
         <LegalSupportLinks documents={legalDocuments} title={t('profile.helpPrivacySection')} />

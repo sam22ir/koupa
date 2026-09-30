@@ -128,6 +128,8 @@ export type Database = {
           id: string
           price_dzd: number
           qr_checked_in_at: string | null
+          reminder_day_sent_at: string | null
+          reminder_hour_sent_at: string | null
           service_id: string
           shop_id: string | null
           starts_at: string
@@ -143,6 +145,8 @@ export type Database = {
           id?: string
           price_dzd: number
           qr_checked_in_at?: string | null
+          reminder_day_sent_at?: string | null
+          reminder_hour_sent_at?: string | null
           service_id: string
           shop_id?: string | null
           starts_at: string
@@ -158,6 +162,8 @@ export type Database = {
           id?: string
           price_dzd?: number
           qr_checked_in_at?: string | null
+          reminder_day_sent_at?: string | null
+          reminder_hour_sent_at?: string | null
           service_id?: string
           shop_id?: string | null
           starts_at?: string
@@ -535,6 +541,78 @@ export type Database = {
           {
             foreignKeyName: "ratings_customer_id_fkey"
             columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roadmap_items: {
+        Row: {
+          audience: string
+          created_at: string
+          description: string
+          icon: string
+          id: string
+          is_visible: boolean
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          audience: string
+          created_at?: string
+          description?: string
+          icon?: string
+          id?: string
+          is_visible?: boolean
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          created_at?: string
+          description?: string
+          icon?: string
+          id?: string
+          is_visible?: boolean
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      roadmap_votes: {
+        Row: {
+          created_at: string
+          item_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          item_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          item_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadmap_votes_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "roadmap_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roadmap_votes_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1050,6 +1128,19 @@ export type Database = {
       }
       leave_queue: { Args: { entry_id_value: string }; Returns: undefined }
       leave_shop: { Args: never; Returns: undefined }
+      list_roadmap_items: {
+        Args: never
+        Returns: {
+          audience: string
+          description: string
+          has_voted: boolean
+          icon: string
+          id: string
+          status: string
+          title: string
+          vote_count: number
+        }[]
+      }
       mark_appointment_present: {
         Args: { appointment_id: string }
         Returns: string
@@ -1225,7 +1316,18 @@ export type Database = {
           rating_count: number
         }[]
       }
+      send_appointment_reminders: {
+        Args: never
+        Returns: {
+          day_count: number
+          hour_count: number
+        }[]
+      }
       set_queue_open: { Args: { open_value: boolean }; Returns: undefined }
+      set_roadmap_vote: {
+        Args: { item_id_value: string; vote_value: boolean }
+        Returns: number
+      }
       shop_activity_history: {
         Args: { target_shop_id: string }
         Returns: {

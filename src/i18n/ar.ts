@@ -412,6 +412,7 @@ export const ar = {
 
   profile: {
     title: 'حسابي',
+    roadmap: 'خارطة الطريق',
     subtitle: 'أدر بياناتك وروابط حسابك من مكان واحد.',
     accountNameFallback: 'حساب كوپا',
     accountPhoneFallback: 'معلومات الهاتف غير متاحة',
@@ -640,6 +641,20 @@ export const ar = {
     network: 'تعذر الاتصال بخدمة الحضور. تحقق من الإنترنت ثم أعد المحاولة. لم يتغير موعدك.',
     scanAgain: 'المسح مرة أخرى',
     viewAppointment: 'عرض الموعد',
+  },
+
+  roadmap: {
+    title: 'خارطة الطريق',
+    subtitle: 'ميزات نعمل عليها لكوپا. صوّت للتي تريدها أولا.',
+    inProgress: 'قيد التنفيذ',
+    soon: 'قريبا',
+    planned: 'مخطط',
+    vote: 'أريد هذه الميزة',
+    voted: 'صوّتَّ لهذه الميزة',
+    votesCount: 'صوت',
+    empty: 'لا توجد ميزات معروضة الآن.',
+    loadFailed: 'تعذر تحميل خارطة الطريق',
+    retry: 'حاول مرة أخرى',
   },
 
   moderation: {

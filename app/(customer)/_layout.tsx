@@ -4,6 +4,7 @@ import { useAppSession } from '@/src/providers/SessionProvider';
 import { Text } from 'react-native';
 
 import { TabIcon } from '@/src/components/navigation/TabIcon';
+import { useTabBarStyle } from '@/src/components/navigation/tabBarStyle';
 import { t } from '@/src/i18n';
 import { colors, typography } from '@/src/theme';
 
@@ -16,6 +17,7 @@ function TabLabel({ label, focused }: { label: string; focused: boolean }) {
 }
 
 export default function CustomerLayout() {
+  const tabBarStyle = useTabBarStyle();
   // Guests only get discovery; account tabs are hidden until they sign in.
   const { guestBrowsing } = useAppSession();
   return (
@@ -24,13 +26,7 @@ export default function CustomerLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 8,
-        },
+        tabBarStyle,
       }}
     >
       <Tabs.Screen

@@ -18,7 +18,7 @@ export type GuardedRoute =
 export function getGuardedRoute(segments: readonly string[]): GuardedRoute {
   const root = segments[0];
   if (root === 'barber' || root === 'shop') return 'public-browse';
-  if (root === 'blocked-users') return 'authenticated';
+  if (root === 'blocked-users' || root === 'roadmap') return 'authenticated';
   // Discovery tabs are readable by guests; everything else here needs a customer.
   if (root === '(customer)' && (segments[1] === 'home' || segments[1] === 'find')) {
     return 'customer-browse';
