@@ -17,13 +17,16 @@ const pages = [
 ];
 
 const landingScreens = [
-  'assets/screens/role-selection.jpg',
-  'assets/screens/customer-home.jpg',
-  'assets/screens/customer-appointments.jpg',
-  'assets/screens/customer-find.jpg',
-  'assets/screens/barber-today.jpg',
-  'assets/screens/barber-shop.jpg',
-  'assets/screens/barber-schedule.jpg',
+  'assets/screens/find.jpg',
+  'assets/screens/search.jpg',
+  'assets/screens/profile.jpg',
+  'assets/screens/service-day.jpg',
+  'assets/screens/time.jpg',
+  'assets/screens/home.jpg',
+  'assets/screens/appointments.jpg',
+  'assets/screens/qr.jpg',
+  'assets/screens/today.jpg',
+  'assets/screens/schedule.jpg',
 ];
 
 function load(file) {
@@ -57,14 +60,18 @@ for (const page of pages) {
   assert.doesNotMatch(source, /كوبا|example\.com|TODO|TBD/);
 
   if (page.file === 'index.html' || page.file === 'en/index.html') {
-    const figures = document.querySelectorAll('.landing-shot');
-    assert.equal(figures.length, 7, `${page.file} product gallery count`);
-    assert.equal(document.querySelectorAll('.landing-phone img').length, 8, `${page.file} phone image count`);
-    for (const image of document.querySelectorAll('.landing-shot img')) {
+    const images = [...document.querySelectorAll('.landing-phone img')];
+    assert.equal(images.length, 11, `${page.file} phone image count`);
+    for (const image of images) {
       const src = image.getAttribute('src') ?? '';
       assert.ok(src.startsWith('/assets/screens/'), `${page.file} screenshot path`);
       assert.ok(image.getAttribute('alt')?.trim(), `${page.file} screenshot alt text`);
     }
+    assert.equal(document.querySelectorAll('.landing-step').length, 4, `${page.file} steps`);
+    assert.equal(document.querySelectorAll('.landing-faq details').length, 5, `${page.file} faq`);
+    assert.ok(document.querySelector('meta[property="og:image"]')?.getAttribute('content')?.startsWith(origin), `${page.file} og:image`);
+    // The site's Content-Security-Policy has no 'unsafe-inline': the landing page must not need it.
+    assert.equal(document.querySelectorAll('[style], script').length, 0, `${page.file} inline style or script`);
   }
 }
 
@@ -89,6 +96,12 @@ for (const asset of [
   'assets/styles.css',
   'assets/logo-mark.png',
   'assets/logo-full.png',
+  'assets/logo-lockup-teal.png',
+  'assets/check.svg',
+  'assets/og-image-ar.png',
+  'assets/og-image-en.png',
+  'assets/IBMPlexSansArabic-Medium.ttf',
+  'assets/IBMPlexSansArabic-Bold.ttf',
   'assets/app-icon.png',
   'assets/IBMPlexSansArabic-Regular.ttf',
   'assets/IBMPlexSansArabic-SemiBold.ttf',
