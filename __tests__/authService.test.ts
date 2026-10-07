@@ -9,6 +9,8 @@ const mockSignUp = jest.fn();
 const mockUnlinkIdentity = jest.fn();
 const mockUpdateUser = jest.fn();
 const mockVerifyOtp = jest.fn();
+const mockOpenAuthSession = jest.fn();
+const mockLinkingAddListener = jest.fn(() => ({ remove: jest.fn() }));
 const mockStorageSetItem = jest.fn(
   async (_key: string, _value: string): Promise<void> => undefined,
 );
@@ -47,11 +49,13 @@ jest.mock('expo-constants', () => ({
   executionEnvironment: 'standalone',
 }));
 jest.mock('expo-linking', () => ({
-  addEventListener: jest.fn(),
+  addEventListener: (...args: unknown[]) => (mockLinkingAddListener as (...a: unknown[]) => unknown)(...args),
   createURL: jest.fn(() => 'exp://127.0.0.1:8081/--/callback'),
 }));
 jest.mock('expo-web-browser', () => ({
   maybeCompleteAuthSession: jest.fn(),
+  openAuthSessionAsync: (...args: unknown[]) => mockOpenAuthSession(...args),
+  dismissAuthSession: jest.fn(),
 }));
 jest.mock('react-native', () => ({
   Platform: {
@@ -280,5 +284,31 @@ describe('auth callback service', () => {
     // exchangeCodeForSession is resolved once via the shared promise.
     expect(mockExchangeCodeForSession).toHaveBeenCalledTimes(1);
     expect(mockExchangeCodeForSession).toHaveBeenCalledWith('race-code');
+  });
+
+  it('does not unlink a Google identity being approved when /callback races the link flow', async () => {
+    const googleIdentity = { id: 'google-id', provider: 'google' };
+    const user = {
+      id: 'link-user',
+      identities: [{ id: 'email-id', provider: 'email' }, googleIdentity],
+      user_metadata: {},
+    };
+    mockGetUser.mockResolvedValue({ data: { user: { ...user, identities: [user.identities[0]] } }, error: null });
+    mockLinkIdentity.mockResolvedValue({ data: { url: 'https://accounts.example/auth' }, error: null });
+    mockExchangeCodeForSession.mockResolvedValue({ data: { session: { user }, user }, error: null });
+    mockUpdateUser.mockResolvedValue({ data: { user }, error: null });
+    mockOpenAuthSession.mockImplementation(async () => {
+      // The deep-linked /callback route (no approval flag) wins the race.
+      await completeAuthCallback('koupa://callback?code=link-race-code');
+      return { type: 'success', url: 'koupa://callback?code=link-race-code' };
+    });
+
+    await expect(linkGoogleIdentity()).resolves.toEqual({ kind: 'session' });
+    expect(mockUnlinkIdentity).not.toHaveBeenCalled();
+    expect(mockSignOut).not.toHaveBeenCalled();
+    expect(mockUpdateUser).toHaveBeenCalledWith({ data: { koupa_google_linked: true } });
+    // A late consumer reuses the result instead of re-exchanging the spent code.
+    await completeAuthCallback('koupa://callback?code=link-race-code');
+    expect(mockExchangeCodeForSession).toHaveBeenCalledTimes(1);
   });
 });

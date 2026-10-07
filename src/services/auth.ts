@@ -345,7 +345,42 @@ async function approveGoogleIdentityLink(): Promise<void> {
   if (error) throw toAppError(error, 'UNAUTHORIZED');
 }
 
+/**
+ * The whole callback (exchange, collision check, role stamping) must run once
+ * per code. Sharing only the exchange let the deep-linked /callback route run
+ * its own collision check, with no link approval, against an explicit Google
+ * link in progress and unlink the identity being approved. Settled results are
+ * kept briefly so a late second consumer reuses them instead of re-exchanging
+ * a spent code.
+ */
+const callbackPromises = new Map<string, Promise<AuthCallbackResult>>();
+const CALLBACK_RESULT_TTL_MS = 30_000;
+
+/** Set while linkGoogleIdentity waits for its callback, which proves password ownership. */
+let googleLinkInProgress = false;
+
 export async function completeAuthCallback(
+  url: string,
+  role?: UserRole,
+  approveGoogleLink = false,
+): Promise<AuthCallbackResult> {
+  const code = parseAuthCallback(url).code;
+  if (!code) return runAuthCallback(url, role, approveGoogleLink);
+
+  const existing = callbackPromises.get(code);
+  if (existing) return existing;
+
+  const run = runAuthCallback(url, role, approveGoogleLink || googleLinkInProgress);
+  callbackPromises.set(code, run);
+  const forget = () => {
+    const timer = setTimeout(() => callbackPromises.delete(code), CALLBACK_RESULT_TTL_MS);
+    (timer as { unref?: () => void }).unref?.();
+  };
+  run.then(forget, () => callbackPromises.delete(code));
+  return run;
+}
+
+async function runAuthCallback(
   url: string,
   role?: UserRole,
   approveGoogleLink = false,
@@ -502,7 +537,12 @@ export async function linkGoogleIdentity(): Promise<AuthCallbackResult> {
     throw toAppError(error ?? new Error('Google linking URL is unavailable'), 'UNAUTHORIZED');
   }
 
-  const callback = await openGoogleAuthSession(data.url);
-  if (!callback) return { kind: 'empty' };
-  return completeAuthCallback(callback, undefined, true);
+  googleLinkInProgress = true;
+  try {
+    const callback = await openGoogleAuthSession(data.url);
+    if (!callback) return { kind: 'empty' };
+    return await completeAuthCallback(callback, undefined, true);
+  } finally {
+    googleLinkInProgress = false;
+  }
 }

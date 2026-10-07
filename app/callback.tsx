@@ -53,16 +53,29 @@ export default function CallbackScreen() {
   );
   const [ui, setUi] = useState<CallbackUi>({ status: 'loading' });
   const handled = useRef<string | null>(null);
+  // Session updates caused by the exchange itself (loading, pendingRole) re-run
+  // the effect below. Its cleanup must not discard the in-flight result, so
+  // latest values live in refs and only unmount stops state updates.
+  const mounted = useRef(true);
+  const latest = useRef({ completeAuthCallback, pendingRole });
+  useEffect(() => {
+    latest.current = { completeAuthCallback, pendingRole };
+  }, [completeAuthCallback, pendingRole]);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (loading) return;
 
-    let active = true;
-
     const run = async (incomingUrl: string | null) => {
       const url = preferIncomingCallback(incomingUrl, routeCallbackUrl);
       if (!url) {
-        if (active) setUi({ status: 'done' });
+        if (mounted.current) setUi({ status: 'done' });
         return;
       }
 
@@ -75,28 +88,31 @@ export default function CallbackScreen() {
       const kind = classifyAuthCallback(url);
 
       if (kind === 'expired') {
-        if (active) {
+        if (mounted.current) {
           setUi({ status: 'expired', message: t('auth.linkExpiredBody') });
         }
         return;
       }
       if (kind === 'provider_error') {
-        if (active) {
+        if (mounted.current) {
           setUi({ status: 'error', message: t('auth.providerErrorBody') });
         }
         return;
       }
 
       try {
-        const result = await completeAuthCallback(url, pendingRole ?? undefined);
-        if (!active) return;
+        const result = await latest.current.completeAuthCallback(
+          url,
+          latest.current.pendingRole ?? undefined,
+        );
+        if (!mounted.current) return;
         if (result.kind === 'recovery' || kind === 'recovery') {
           setUi({ status: 'recovery' });
           return;
         }
         setUi({ status: 'done' });
       } catch (caught) {
-        if (!active) return;
+        if (!mounted.current) return;
         const message = formatAuthError(caught);
         const raw = caught instanceof Error ? caught.message : String(caught ?? '');
         const cause =
@@ -121,10 +137,9 @@ export default function CallbackScreen() {
     });
 
     return () => {
-      active = false;
       sub.remove();
     };
-  }, [completeAuthCallback, loading, pendingRole, routeCallbackUrl]);
+  }, [loading, routeCallbackUrl]);
 
   useEffect(() => {
     if (ui.status === 'done') {
