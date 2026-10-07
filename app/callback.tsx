@@ -58,7 +58,9 @@ export default function CallbackScreen() {
   // latest values live in refs and only unmount stops state updates.
   const mounted = useRef(true);
   const latest = useRef({ completeAuthCallback, pendingRole });
-  latest.current = { completeAuthCallback, pendingRole };
+  useEffect(() => {
+    latest.current = { completeAuthCallback, pendingRole };
+  }, [completeAuthCallback, pendingRole]);
 
   useEffect(() => {
     mounted.current = true;
