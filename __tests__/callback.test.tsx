@@ -75,4 +75,26 @@ describe('CallbackScreen', () => {
     await view.rerender(<CallbackScreen />);
     expect(mockCompleteAuthCallback).toHaveBeenCalledTimes(1);
   });
+
+  it('still finishes when the session changes while the callback is in flight', async () => {
+    let resolveCallback: (value: { kind: 'session' }) => void = () => undefined;
+    mockCompleteAuthCallback.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCallback = resolve;
+      }),
+    );
+    mockSession = { ...mockSession, loading: false, pendingRole: null };
+    const view = await render(<CallbackScreen />);
+    await waitFor(() => expect(mockCompleteAuthCallback).toHaveBeenCalledTimes(1));
+
+    // The exchange signs the user in, which flips loading and the pending role.
+    mockSession = { ...mockSession, loading: true, pendingRole: 'customer' };
+    await view.rerender(<CallbackScreen />);
+    mockSession = { ...mockSession, loading: false };
+    await view.rerender(<CallbackScreen />);
+
+    resolveCallback({ kind: 'session' });
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/'));
+    expect(mockCompleteAuthCallback).toHaveBeenCalledTimes(1);
+  });
 });
